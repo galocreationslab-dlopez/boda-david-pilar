@@ -50,12 +50,6 @@ export default function PaginaPrincipal() {
 
           {/* Nombres */}
           <div className="animate-fade-up delay-200">
-            <p
-              className="smallcaps text-xs sm:text-sm tracking-[0.3em] mb-3"
-              style={{ color: "var(--bronze-pale)", opacity: 0.7 }}
-            >
-              nos casamos
-            </p>
             <h1
               className="font-display font-light"
               style={{
@@ -102,21 +96,6 @@ export default function PaginaPrincipal() {
         </div>
 
         {/* Scroll indicator */}
-        <div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-fade-in delay-500"
-          aria-hidden="true"
-        >
-          <span
-            className="smallcaps text-xs tracking-widest"
-            style={{ color: "var(--bronze-pale)", opacity: 0.5 }}
-          >
-            descubre más
-          </span>
-          <div
-            className="w-px h-8 animate-pulse"
-            style={{ background: "var(--bronze-pale)", opacity: 0.4 }}
-          />
-        </div>
       </section>
 
       {/* ── CUENTA ATRÁS ── */}
