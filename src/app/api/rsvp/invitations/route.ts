@@ -29,17 +29,11 @@ export async function POST(request: Request) {
         invite_code: inviteCode,
         nombre_visible: body.nombre_visible || "Invitación",
         tipo_invitacion: body.tipo_invitacion || "individual",
-        personas_json: personas.map((persona: any) => ({
-          nombre: persona.nombre || "Invitado",
-          tipo_persona: persona.tipo_persona || "adulto",
-          edad: persona.edad ?? null,
-        })),
         adultos_estimados: Number(body.adultos_estimados || 0),
         adolescentes_estimados: Number(body.adolescentes_estimados || 0),
         ninos_estimados: Number(body.ninos_estimados || 0),
         bebes_estimados: Number(body.bebes_estimados || 0),
         estado: "pendiente",
-        metadata: body.metadata || {},
       })
       .select("id, invite_code")
       .single();

@@ -29,17 +29,8 @@ export async function POST(request: Request) {
         invite_code: inviteCode,
         nombre_visible: body.nombre_visible || body.nombre || "Invitación",
         tipo_invitacion: body.tipo_invitacion || "individual",
-        personas_json: personas.map((persona: any) => ({
-          nombre: persona.nombre || "Invitado",
-          tipo_persona: persona.tipo_persona || "adulto",
-          edad: persona.edad ?? null,
-        })),
         adultos_estimados: Number(body.adultos_estimados || personas.length || 1),
         estado: body.confirma === true ? "confirmada" : "pendiente",
-        metadata: {
-          comentarios: body.comentarios || null,
-          transporte: body.transporteIds || [],
-        },
       })
       .select("id")
       .single();

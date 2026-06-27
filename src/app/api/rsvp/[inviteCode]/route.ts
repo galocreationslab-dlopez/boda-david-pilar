@@ -11,7 +11,7 @@ export async function GET(
 
     const { data: invitacion, error } = await supabase
       .from("invitaciones")
-      .select("id, invite_code, nombre_visible, tipo_invitacion, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados, personas_json")
+      .select("id, invite_code, nombre_visible, tipo_invitacion, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
       .eq("invite_code", inviteCode)
       .maybeSingle();
 
@@ -29,7 +29,7 @@ export async function GET(
       return NextResponse.json({ error: asistentesError.message }, { status: 500 });
     }
 
-    const personas = (asistentes?.length
+    const personas = asistentes?.length
       ? asistentes.map((asistente: any) => ({
           id: asistente.id,
           nombre: asistente.nombre,
@@ -40,18 +40,7 @@ export async function GET(
           necesidades: asistente.necesidades,
           comentarios: asistente.comentarios,
         }))
-      : Array.isArray(invitacion.personas_json)
-        ? invitacion.personas_json.map((persona: any) => ({
-            id: "",
-            nombre: persona.nombre || "Invitado",
-            edad: persona.edad ?? null,
-            tipo_persona: persona.tipo_persona || "adulto",
-            estado_asistencia: "pendiente",
-            transporte: [],
-            necesidades: {},
-            comentarios: null,
-          }))
-        : []);
+      : [];
 
     return NextResponse.json({ invitacion, personas });
   } catch (error) {
@@ -92,11 +81,6 @@ export async function POST(
       .from("invitaciones")
       .update({
         estado: estadoInvitacion,
-        metadata: {
-          ...(body.metadata || {}),
-          asistencia_estimada: body.asistencia_estimada || null,
-          comentarios: body.comentarios || null,
-        },
       })
       .eq("id", invitacion.id);
 
@@ -124,7 +108,7 @@ export async function POST(
           menu_adulto: persona.menu_adulto ?? null,
           necesita_trona: persona.necesita_trona ?? null,
         },
-        comentarios: persona.comentarios || null,
+        comentarios: persona.comentarios || (personas.length === 1 ? body.comentarios || null : null),
       };
 
       if (persona.id) {

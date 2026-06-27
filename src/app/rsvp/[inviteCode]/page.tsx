@@ -4,12 +4,70 @@ import { InviteRsvpForm } from "@/components/wedding/InviteRsvpForm";
 
 export const dynamic = "force-dynamic";
 
+function buildPersonasFromInvitation(invitacion: any) {
+  const personas = [] as Array<{ id: string; nombre: string; edad: number | null; tipo_persona: string; estado_asistencia: string; transporte: unknown[]; necesidades: Record<string, unknown>; comentarios: string | null }>;
+
+  for (let index = 0; index < Number(invitacion.adultos_estimados || 0); index += 1) {
+    personas.push({
+      id: "",
+      nombre: Number(invitacion.adultos_estimados || 0) === 1 ? invitacion.nombre_visible || "Invitado" : `${invitacion.nombre_visible || "Invitado"} - Adulto ${index + 1}`,
+      edad: null,
+      tipo_persona: "adulto",
+      estado_asistencia: "pendiente",
+      transporte: [],
+      necesidades: {},
+      comentarios: null,
+    });
+  }
+
+  for (let index = 0; index < Number(invitacion.adolescentes_estimados || 0); index += 1) {
+    personas.push({
+      id: "",
+      nombre: `${invitacion.nombre_visible || "Invitado"} - Adolescente ${index + 1}`,
+      edad: null,
+      tipo_persona: "adolescente",
+      estado_asistencia: "pendiente",
+      transporte: [],
+      necesidades: {},
+      comentarios: null,
+    });
+  }
+
+  for (let index = 0; index < Number(invitacion.ninos_estimados || 0); index += 1) {
+    personas.push({
+      id: "",
+      nombre: `${invitacion.nombre_visible || "Invitado"} - Niño ${index + 1}`,
+      edad: null,
+      tipo_persona: "nino",
+      estado_asistencia: "pendiente",
+      transporte: [],
+      necesidades: {},
+      comentarios: null,
+    });
+  }
+
+  for (let index = 0; index < Number(invitacion.bebes_estimados || 0); index += 1) {
+    personas.push({
+      id: "",
+      nombre: `${invitacion.nombre_visible || "Invitado"} - Bebé ${index + 1}`,
+      edad: null,
+      tipo_persona: "bebe",
+      estado_asistencia: "pendiente",
+      transporte: [],
+      necesidades: {},
+      comentarios: null,
+    });
+  }
+
+  return personas;
+}
+
 async function getInvitation(inviteCode: string) {
   const supabase = createServerClient();
 
   const { data: invitacion, error } = await supabase
     .from("invitaciones")
-    .select("id, invite_code, nombre_visible, tipo_invitacion, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados, personas_json")
+    .select("id, invite_code, nombre_visible, tipo_invitacion, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
     .eq("invite_code", inviteCode)
     .maybeSingle();
 
@@ -23,7 +81,7 @@ async function getInvitation(inviteCode: string) {
     .eq("invitation_id", invitacion.id)
     .order("created_at", { ascending: true });
 
-  const personas = (asistentes?.length
+  const personas = asistentes?.length
     ? asistentes.map((asistente: any) => ({
         id: asistente.id,
         nombre: asistente.nombre,
@@ -34,18 +92,7 @@ async function getInvitation(inviteCode: string) {
         necesidades: asistente.necesidades,
         comentarios: asistente.comentarios,
       }))
-    : Array.isArray(invitacion.personas_json)
-      ? invitacion.personas_json.map((persona: any) => ({
-          id: "",
-          nombre: persona.nombre || "Invitado",
-          edad: persona.edad ?? null,
-          tipo_persona: persona.tipo_persona || "adulto",
-          estado_asistencia: "pendiente",
-          transporte: [],
-          necesidades: {},
-          comentarios: null,
-        }))
-      : []);
+    : buildPersonasFromInvitation(invitacion);
 
   return { invitacion, personas };
 }

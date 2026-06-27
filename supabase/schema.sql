@@ -24,13 +24,11 @@ create table if not exists public.invitaciones (
   invite_code           text unique not null,
   nombre_visible        text not null,
   tipo_invitacion       text not null check (tipo_invitacion in ('individual','pareja','familia','otro','soltero')),
-  personas_json         jsonb not null default '[]'::jsonb,
   adultos_estimados     integer not null default 0 check (adultos_estimados >= 0),
   adolescentes_estimados integer not null default 0 check (adolescentes_estimados >= 0),
   ninos_estimados       integer not null default 0 check (ninos_estimados >= 0),
   bebes_estimados       integer not null default 0 check (bebes_estimados >= 0),
   estado                text not null default 'pendiente' check (estado in ('pendiente','confirmada','rechazada','pendiente_respondida')),
-  metadata              jsonb not null default '{}'::jsonb,
   created_at            timestamptz default now(),
   updated_at            timestamptz default now()
 );

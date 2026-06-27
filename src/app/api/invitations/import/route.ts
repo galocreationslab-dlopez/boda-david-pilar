@@ -149,6 +149,20 @@ function buildPersonasJson(nombreVisible: string, adultos: number, adolescentes:
   return personas;
 }
 
+function buildInvitationPayload(bodaId: string, inviteCode: string, nombreVisible: string, tipoInvitacion: string, adultos: number, adolescentes: number, ninos: number, bebes: number) {
+  return {
+    wedding_id: bodaId,
+    invite_code: inviteCode,
+    nombre_visible: nombreVisible,
+    tipo_invitacion: tipoInvitacion,
+    adultos_estimados: adultos,
+    adolescentes_estimados: adolescentes,
+    ninos_estimados: ninos,
+    bebes_estimados: bebes,
+    estado: "pendiente",
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -187,31 +201,37 @@ export async function POST(request: Request) {
       const adolescentes = toNumber(row.adolescentes || row.adolescentes_estimados || row.adolescentes_numero || row.adolescentes_count);
       const ninos = toNumber(row.ninos || row.ninos_estimados || row.ninos_numero || row.ninos_count);
       const bebes = toNumber(row.bebes || row.bebes_estimados || row.bebes_numero || row.bebes_count);
-      const personas = buildPersonasJson(nombreVisible, adultos, adolescentes, ninos, bebes, row);
       const tipoInvitacion = inferTipoInvitacion(adultos, row.tipo_invitacion || row.tipo || row.invitation_type);
       const inviteCode = await resolveUniqueInviteCode(supabase, nombreVisible);
 
-      const { data: invitacionData, error: invitacionError } = await supabase
+      const payload = buildInvitationPayload(
+        bodaData.id,
+        inviteCode,
+        nombreVisible,
+        tipoInvitacion,
+        adultos,
+        adolescentes,
+        ninos,
+        bebes
+      );
+
+      let { data: invitacionData, error: invitacionError } = await supabase
         .from("invitaciones")
-        .insert({
-          wedding_id: bodaData.id,
-          invite_code: inviteCode,
-          nombre_visible: nombreVisible,
-          tipo_invitacion: tipoInvitacion,
-          personas_json: personas,
-          adultos_estimados: adultos,
-          adolescentes_estimados: adolescentes,
-          ninos_estimados: ninos,
-          bebes_estimados: bebes,
-          estado: "pendiente",
-          metadata: {
-            origen: "importacion",
-            fuente: body.source || "manual",
-            fuente_fila: index + 1,
-          },
-        })
+        .insert(payload)
         .select("id, invite_code, nombre_visible")
         .single();
+
+      if (invitacionError && tipoInvitacion === "soltero") {
+        const fallbackPayload = {
+          ...payload,
+          tipo_invitacion: "individual",
+        };
+        ({ data: invitacionData, error: invitacionError } = await supabase
+          .from("invitaciones")
+          .insert(fallbackPayload)
+          .select("id, invite_code, nombre_visible")
+          .single());
+      }
 
       if (invitacionError || !invitacionData) {
         continue;
