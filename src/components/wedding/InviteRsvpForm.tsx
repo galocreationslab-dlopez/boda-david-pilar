@@ -23,7 +23,9 @@ type InvitacionProps = {
   inviteCode: string;
   invitacion: {
     nombre_visible: string;
-    tipo_invitacion: string;
+    tipo_invitacion: string;    
+    nombre1: string;
+    nombre2?: string;
     adultos_estimados?: number | null;
     adolescentes_estimados?: number | null;
     ninos_estimados?: number | null;
@@ -38,13 +40,11 @@ type PersonaForm = {
   edad: string;
   tipo_persona: string;
   asistira: "si" | "no" | "pendiente";
-  alergias: string;
   necesidades_alimentarias: string;
   transporte: string;
   come_con_padres: boolean;
   menu_adulto: boolean;
   necesita_trona: boolean;
-  necesita_ayuda: boolean;
 };
 
 export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionProps) {
@@ -102,7 +102,6 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
                 : null,
             tipo_persona: persona.tipo_persona || "adulto",
             asistira: persona.asistira,
-            alergias: persona.alergias,
             necesidades_alimentarias: persona.necesidades_alimentarias,
             transporte: persona.transporte
               ? persona.transporte
@@ -113,7 +112,6 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
             come_con_padres: persona.come_con_padres,
             menu_adulto: persona.menu_adulto,
             necesita_trona: persona.necesita_trona,
-            necesita_ayuda: persona.necesita_ayuda,
           })),
         }),
       });
@@ -192,15 +190,6 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-sm font-medium text-stone-700">Alergias o intolerancias</label>
-                    <input
-                      className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm"
-                      value={persona.alergias}
-                      onChange={(event) => updatePersona(index, "alergias", event.target.value)}
-                      placeholder="Indica si aplica"
-                    />
-                  </div>
-                  <div>
                     <label className="text-sm font-medium text-stone-700">Necesidades alimentarias</label>
                     <textarea
                       className="mt-2 min-h-[90px] w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm"
@@ -266,16 +255,6 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
                         Necesita trona
                       </label>
                     </>
-                  )}
-                  {(persona.tipo_persona === "adulto" || persona.tipo_persona === "adolescente") && (
-                    <label className="flex items-center gap-2 rounded-xl border border-stone-200 px-3 py-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={persona.necesita_ayuda}
-                        onChange={(event) => updatePersona(index, "necesita_ayuda", event.target.checked)}
-                      />
-                      Necesita ayuda adicional
-                    </label>
                   )}
                 </div>
               </div>

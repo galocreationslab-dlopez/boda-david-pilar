@@ -67,7 +67,7 @@ async function getInvitation(inviteCode: string) {
 
   const { data: invitacion, error } = await supabase
     .from("invitaciones")
-    .select("id, invite_code, nombre_visible, tipo_invitacion, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
+    .select("id, invite_code, nombre_visible, tipo_invitacion, nombre1, nombre2, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
     .eq("invite_code", inviteCode)
     .maybeSingle();
 

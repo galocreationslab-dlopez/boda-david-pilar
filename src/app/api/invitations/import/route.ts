@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 type ImportRow = Record<string, string>;
-type PersonaImport = { nombre: string; tipo_persona: "adulto" | "adolescente" | "nino" | "bebe"; edad?: number | null };
+type PersonaImport = { nombre: string; nombre1: string; nombre2?: string; tipo_persona: "adulto" | "adolescente" | "nino" | "bebe"; edad?: number | null };
 
 type InvitacionInsertada = { invite_code: string; nombre_visible: string };
 
@@ -113,47 +113,13 @@ async function resolveUniqueInviteCode(supabase: ReturnType<typeof createServerC
   return `inv-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function buildPersonasJson(nombreVisible: string, adultos: number, adolescentes: number, ninos: number, bebes: number, row: ImportRow) {
-  const personas: PersonaImport[] = [];
-
-  for (let index = 0; index < adultos; index += 1) {
-    personas.push({
-      nombre: adultos === 1 ? nombreVisible : `${nombreVisible} - Adulto ${index + 1}`,
-      tipo_persona: "adulto",
-    });
-  }
-
-  for (let index = 0; index < adolescentes; index += 1) {
-    personas.push({
-      nombre: adolescentes === 1 ? `${nombreVisible} - Adolescente` : `${nombreVisible} - Adolescente ${index + 1}`,
-      tipo_persona: "adolescente",
-    });
-  }
-
-  for (let index = 0; index < ninos; index += 1) {
-    const ageValue = toOptionalNumber(row[`edad_nino_${index + 1}`] || row[`edad_${index + 1}`]);
-    personas.push({
-      nombre: ninos === 1 ? `${nombreVisible} - Niño` : `${nombreVisible} - Niño ${index + 1}`,
-      tipo_persona: "nino",
-      edad: ageValue,
-    });
-  }
-
-  for (let index = 0; index < bebes; index += 1) {
-    personas.push({
-      nombre: bebes === 1 ? `${nombreVisible} - Bebé` : `${nombreVisible} - Bebé ${index + 1}`,
-      tipo_persona: "bebe",
-    });
-  }
-
-  return personas;
-}
-
-function buildInvitationPayload(bodaId: string, inviteCode: string, nombreVisible: string, tipoInvitacion: string, adultos: number, adolescentes: number, ninos: number, bebes: number) {
+function buildInvitationPayload(bodaId: string, inviteCode: string, nombreVisible: string, nombre1: string, nombre2: string | undefined, tipoInvitacion: string, adultos: number, adolescentes: number, ninos: number, bebes: number) {
   return {
     wedding_id: bodaId,
     invite_code: inviteCode,
     nombre_visible: nombreVisible,
+    nombre1: nombre1,
+    nombre2: nombre2,
     tipo_invitacion: tipoInvitacion,
     adultos_estimados: adultos,
     adolescentes_estimados: adolescentes,
@@ -208,6 +174,8 @@ export async function POST(request: Request) {
         bodaData.id,
         inviteCode,
         nombreVisible,
+        row.nombre1 || nombreVisible,
+        row.nombre2,
         tipoInvitacion,
         adultos,
         adolescentes,

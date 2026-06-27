@@ -24,6 +24,8 @@ create table if not exists public.invitaciones (
   invite_code           text unique not null,
   nombre_visible        text not null,
   tipo_invitacion       text not null check (tipo_invitacion in ('individual','pareja','familia','otro','soltero')),
+  nombre1               text not null,
+  nombre2               text,
   adultos_estimados     integer not null default 0 check (adultos_estimados >= 0),
   adolescentes_estimados integer not null default 0 check (adolescentes_estimados >= 0),
   ninos_estimados       integer not null default 0 check (ninos_estimados >= 0),

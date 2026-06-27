@@ -3,9 +3,6 @@
 -- Úsalo solo cuando quieras empezar desde cero.
 
 -- Borrado de tablas antiguas
-DROP TABLE IF EXISTS public.acompanantes CASCADE;
-DROP TABLE IF EXISTS public.ninos CASCADE;
-DROP TABLE IF EXISTS public.reservas_transporte CASCADE;
 DROP TABLE IF EXISTS public.asistentes CASCADE;
 DROP TABLE IF EXISTS public.invitaciones CASCADE;
 DROP TABLE IF EXISTS public.multimedia CASCADE;
@@ -33,6 +30,8 @@ CREATE TABLE IF NOT EXISTS public.invitaciones (
   invite_code           text unique not null,
   nombre_visible        text not null,
   tipo_invitacion       text not null check (tipo_invitacion in ('individual','pareja','familia','otro','soltero')),
+  nombre1               text not null,
+  nombre2               text,
   adultos_estimados     integer not null default 0 check (adultos_estimados >= 0),
   adolescentes_estimados integer not null default 0 check (adolescentes_estimados >= 0),
   ninos_estimados       integer not null default 0 check (ninos_estimados >= 0),
