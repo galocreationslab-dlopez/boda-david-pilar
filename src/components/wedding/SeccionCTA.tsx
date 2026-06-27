@@ -21,8 +21,6 @@ export function SeccionCTA({ config }: SeccionCTAProps) {
     >
       <div className="container-wedding max-w-xl flex flex-col items-center gap-6">
         <SelloNupcial
-          inicialNovio={config.iniciales.novio}
-          inicialNovia={config.iniciales.novia}
           size={80}
         />
 

@@ -77,8 +77,6 @@ export function HeroPortada({ config }: HeroPortadaProps) {
             </div>
           ) : (
             <SelloNupcial
-              inicialNovio={config.iniciales.novio}
-              inicialNovia={config.iniciales.novia}
               size={140}
               color="#C4964A"
             />

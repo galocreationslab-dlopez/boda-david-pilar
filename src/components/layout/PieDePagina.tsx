@@ -19,8 +19,6 @@ export function PieDePagina({ config }: PieDePaginaProps) {
     >
       <div className="container-wedding flex flex-col items-center gap-6">
         <SelloNupcial
-          inicialNovio={config.iniciales.novio}
-          inicialNovia={config.iniciales.novia}
           size={64}
           color="#C4964A"
         />
