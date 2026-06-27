@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS public.invitaciones (
   wedding_id            uuid not null references public.bodas(id) on delete cascade,
   invite_code           text unique not null,
   nombre_visible        text not null,
-  tipo_invitacion       text not null check (tipo_invitacion in ('individual','pareja','familia','otro')),
+  tipo_invitacion       text not null check (tipo_invitacion in ('individual','pareja','familia','otro','soltero')),
   personas_json         jsonb not null default '[]'::jsonb,
   adultos_estimados     integer not null default 0 check (adultos_estimados >= 0),
   adolescentes_estimados integer not null default 0 check (adolescentes_estimados >= 0),

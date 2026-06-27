@@ -94,7 +94,12 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
           personas: personasState.map((persona) => ({
             id: persona.id,
             nombre: persona.nombre,
-            edad: persona.edad ? Number(persona.edad) : null,
+            edad:
+              persona.tipo_persona === "nino" || persona.tipo_persona === "bebe"
+                ? persona.edad
+                  ? Number(persona.edad)
+                  : null
+                : null,
             tipo_persona: persona.tipo_persona || "adulto",
             asistira: persona.asistira,
             alergias: persona.alergias,
@@ -218,17 +223,19 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
                       placeholder="Ruta, hora o detalle"
                     />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-stone-700">Edad (si aplica)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm"
-                      value={persona.edad}
-                      onChange={(event) => updatePersona(index, "edad", event.target.value)}
-                      placeholder="Edad"
-                    />
-                  </div>
+                  {(persona.tipo_persona === "nino" || persona.tipo_persona === "bebe") && (
+                    <div>
+                      <label className="text-sm font-medium text-stone-700">Edad (si aplica)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm"
+                        value={persona.edad}
+                        onChange={(event) => updatePersona(index, "edad", event.target.value)}
+                        placeholder="Edad"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-4">

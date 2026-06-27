@@ -12,31 +12,14 @@ export default function ImportarPage() {
     setStatus(null);
 
     try {
-      const lines = csvText
-        .trim()
-        .split(/\r?\n/)
-        .filter(Boolean);
-
-      if (lines.length < 2) {
-        throw new Error("El CSV debe tener cabecera y al menos una fila");
+      if (!csvText.trim()) {
+        throw new Error("El CSV está vacío");
       }
-
-      const [headerLine, ...rowsLines] = lines;
-      const headers = headerLine.split(",").map((value) => value.trim());
-
-      const rows = rowsLines.map((rowLine) => {
-        const values = rowLine.split(",").map((value) => value.trim());
-        const row: Record<string, string> = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] ?? "";
-        });
-        return row;
-      });
 
       const response = await fetch("/api/invitations/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows }),
+        body: JSON.stringify({ csvText }),
       });
 
       const result = await response.json();
@@ -59,15 +42,15 @@ export default function ImportarPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-700">Importación</p>
           <h1 className="text-3xl font-semibold text-stone-900">Importar invitaciones desde CSV</h1>
           <p className="mt-2 text-sm text-stone-600">
-            Pega aquí el contenido del CSV exportado desde Google Sheets y pulsa importar.
+            Pega aquí el contenido del CSV exportado desde Google Sheets. El importador acepta tanto comas como punto y coma y también maneja celdas entre comillas.
           </p>
         </div>
 
         <textarea
           value={csvText}
           onChange={(event) => setCsvText(event.target.value)}
-          className="min-h-[280px] rounded-2xl border border-stone-300 bg-stone-50 p-4 font-mono text-sm"
-          placeholder="invite_code,nombre_visible,tipo_invitacion,adultos_estimados,..."
+          className="min-h-[320px] rounded-2xl border border-stone-300 bg-stone-50 p-4 font-mono text-sm"
+          placeholder='Invitados;Adultos;Adolescentes;Niños;Bebés;\n"Pilar y David";2;0;0;0;'
         />
 
         <button

@@ -1,4 +1,4 @@
-export type InvitacionTipo = "individual" | "pareja" | "familia" | "otro";
+export type InvitacionTipo = "individual" | "pareja" | "familia" | "otro" | "soltero";
 export type PersonaTipo = "adulto" | "adolescente" | "nino" | "bebe";
 export type EstadoInvitacion = "pendiente" | "confirmada" | "rechazada" | "pendiente_respondida";
 export type EstadoAsistencia = "si" | "no" | "pendiente";

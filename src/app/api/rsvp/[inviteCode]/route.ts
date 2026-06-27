@@ -110,7 +110,10 @@ export async function POST(
       const payload = {
         invitation_id: invitacion.id,
         nombre: persona.nombre || "Invitado",
-        edad: persona.edad ?? null,
+        edad:
+          persona.tipo_persona === "nino" || persona.tipo_persona === "bebe"
+            ? persona.edad ?? null
+            : null,
         tipo_persona: persona.tipo_persona || "adulto",
         estado_asistencia: persona.asistira === "si" ? "si" : persona.asistira === "no" ? "no" : "pendiente",
         transporte: Array.isArray(persona.transporte) ? persona.transporte : [],
