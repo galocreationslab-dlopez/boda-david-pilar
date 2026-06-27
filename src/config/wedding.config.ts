@@ -8,7 +8,7 @@
 
 export type EventoHistoria = {
   id: string;
-  fecha: string;        // "Verano 2018"
+  fecha: string;        // "Verano 2022"
   titulo: string;
   descripcion: string;
   imagen?: string;      // ruta en /public/images/
@@ -179,8 +179,8 @@ export const weddingConfig: WeddingConfig = {
       lado: "izquierda",
     },
     {
-      id: "h4",
-      fecha: "Navidad 2022",
+      id: "h5",
+      fecha: "Verano 2023",
       titulo: "Cruzar el mundo por amor",
       descripcion:
         "Canguros, playas, ballenas, excursiones... ",

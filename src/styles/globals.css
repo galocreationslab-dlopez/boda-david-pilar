@@ -1,20 +1,10 @@
-/**
- * styles/globals.css
- * ─────────────────────────────────────────────────────────────
- * Sistema de diseño base — tokens de color, tipografía y utilidades.
- * Toda la identidad visual de la boda vive aquí.
- * En fase SaaS, estos tokens se sobreescriben por boda dinámicamente.
- */
+@import "tailwindcss";
 
+/* ── Fuentes ── */
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Lato:wght@300;400;700&display=swap');
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 /* ── Tokens de diseño ── */
 :root {
-  /* Paleta */
   --bronze:        #8C6A3F;
   --bronze-light:  #C4964A;
   --bronze-pale:   #E8D5B7;
@@ -26,29 +16,32 @@
   --brown-dark:    #2E1F0E;
   --brown-mid:     #6B4C2A;
   --white:         #FDFAF5;
-
-  /* Tipografía */
   --font-display:  'Cormorant Garamond', Georgia, serif;
   --font-body:     'Lato', system-ui, sans-serif;
-
-  /* Espaciado base */
   --section-padding: clamp(4rem, 8vw, 8rem);
-
-  /* Transiciones */
   --transition-base: 200ms ease;
-  --transition-slow: 400ms ease;
+}
+
+/* ── Tokens para Tailwind v4 ── */
+@theme {
+  --color-bronze:       #8C6A3F;
+  --color-bronze-light: #C4964A;
+  --color-bronze-pale:  #E8D5B7;
+  --color-olive:        #5C6B3A;
+  --color-olive-muted:  #8A9468;
+  --color-olive-pale:   #D4DBC4;
+  --color-cream:        #F7F3EC;
+  --color-cream-dark:   #EDE7DB;
+  --color-brown-dark:   #2E1F0E;
+  --color-brown-mid:    #6B4C2A;
+  --color-wedding-white:#FDFAF5;
+  --font-family-display:'Cormorant Garamond', Georgia, serif;
+  --font-family-body:   'Lato', system-ui, sans-serif;
 }
 
 /* ── Reset base ── */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-  -webkit-font-smoothing: antialiased;
-}
-
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
 body {
   font-family: var(--font-body);
   background-color: var(--cream);
@@ -57,21 +50,13 @@ body {
   line-height: 1.7;
   font-weight: 300;
 }
-
-/* ── Tipografía ── */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   font-weight: 400;
   line-height: 1.2;
   color: var(--brown-dark);
-  letter-spacing: 0.01em;
 }
-
-.font-display {
-  font-family: var(--font-display);
-}
-
-/* Versalitas para etiquetas y fechas */
+.font-display { font-family: var(--font-display); }
 .smallcaps {
   font-family: var(--font-display);
   font-variant: small-caps;
@@ -79,222 +64,118 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.85em;
 }
 
-/* ── Clases de componente ── */
-@layer components {
-
-  /* Contenedor con ancho máximo */
-  .container-wedding {
-    width: 100%;
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 0 clamp(1.25rem, 5vw, 3rem);
-  }
-
-  /* Sección con padding vertical estandarizado */
-  .section-wedding {
-    padding-block: var(--section-padding);
-  }
-
-  /* Título de sección centrado con ornamento */
-  .section-title {
-    font-family: var(--font-display);
-    font-size: clamp(2rem, 5vw, 3.5rem);
-    font-weight: 300;
-    color: var(--brown-dark);
-    text-align: center;
-    margin-bottom: 0.5rem;
-  }
-
-  .section-subtitle {
-    font-family: var(--font-display);
-    font-size: clamp(0.9rem, 2vw, 1.1rem);
-    color: var(--bronze);
-    text-align: center;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    font-weight: 400;
-    margin-bottom: 0.75rem;
-  }
-
-  /* Divisor decorativo con rama */
-  .ornament-divider {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    margin: 1.5rem auto;
-    color: var(--bronze);
-  }
-
-  .ornament-divider::before,
-  .ornament-divider::after {
-    content: '';
-    flex: 1;
-    max-width: 120px;
-    height: 1px;
-    background: linear-gradient(
-      to var(--dir, right),
-      transparent,
-      var(--bronze-pale)
-    );
-  }
-
-  .ornament-divider::after {
-    --dir: left;
-  }
-
-  /* Botón principal */
-  .btn-primary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    background-color: var(--bronze);
-    color: var(--white);
-    font-family: var(--font-body);
-    font-size: 0.875rem;
-    font-weight: 400;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 0.875rem 2rem;
-    border: none;
-    cursor: pointer;
-    transition: background-color var(--transition-base), transform var(--transition-base);
-    text-decoration: none;
-  }
-
-  .btn-primary:hover {
-    background-color: var(--bronze-light);
-    transform: translateY(-1px);
-  }
-
-  .btn-primary:active {
-    transform: translateY(0);
-  }
-
-  /* Botón secundario (contorno) */
-  .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    background-color: transparent;
-    color: var(--bronze);
-    font-family: var(--font-body);
-    font-size: 0.875rem;
-    font-weight: 400;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 0.8125rem 1.875rem;
-    border: 1px solid var(--bronze);
-    cursor: pointer;
-    transition: all var(--transition-base);
-    text-decoration: none;
-  }
-
-  .btn-secondary:hover {
-    background-color: var(--bronze);
-    color: var(--white);
-  }
-
-  /* Tarjeta base */
-  .card-wedding {
-    background-color: var(--white);
-    border: 1px solid var(--cream-dark);
-    padding: 2rem;
-  }
-
-  /* Input de formulario */
-  .input-wedding {
-    width: 100%;
-    background-color: var(--white);
-    border: 1px solid var(--cream-dark);
-    border-radius: 0;
-    padding: 0.75rem 1rem;
-    font-family: var(--font-body);
-    font-size: 1rem;
-    font-weight: 300;
-    color: var(--brown-dark);
-    transition: border-color var(--transition-base);
-    outline: none;
-  }
-
-  .input-wedding:focus {
-    border-color: var(--bronze);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--bronze) 10%, transparent);
-  }
-
-  .input-wedding::placeholder {
-    color: var(--olive-muted);
-    font-weight: 300;
-  }
-
-  /* Label de formulario */
-  .label-wedding {
-    display: block;
-    font-family: var(--font-display);
-    font-size: 0.9rem;
-    letter-spacing: 0.08em;
-    color: var(--brown-mid);
-    margin-bottom: 0.4rem;
-  }
-
-  /* Fondo oscuro para hero */
-  .hero-overlay {
-    background: linear-gradient(
-      to bottom,
-      rgba(46, 31, 14, 0.3) 0%,
-      rgba(46, 31, 14, 0.5) 60%,
-      rgba(46, 31, 14, 0.7) 100%
-    );
-  }
-}
-
-/* ── Separador SVG entre secciones (ola de rama) ── */
-.wave-divider {
+/* ── Componentes ── */
+.container-wedding {
   width: 100%;
-  overflow: hidden;
-  line-height: 0;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 clamp(1.25rem, 5vw, 3rem);
 }
-
-.wave-divider svg {
+.section-wedding { padding-block: var(--section-padding); }
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 300;
+  color: var(--brown-dark);
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+.section-subtitle {
+  font-family: var(--font-display);
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  color: var(--bronze);
+  text-align: center;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-weight: 400;
+  margin-bottom: 0.75rem;
+}
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--bronze);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.875rem 2rem;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--transition-base), transform var(--transition-base);
+  text-decoration: none;
+}
+.btn-primary:hover { background-color: var(--bronze-light); transform: translateY(-1px); }
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: transparent;
+  color: var(--bronze);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.8125rem 1.875rem;
+  border: 1px solid var(--bronze);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  text-decoration: none;
+}
+.btn-secondary:hover { background-color: var(--bronze); color: var(--white); }
+.card-wedding {
+  background-color: var(--white);
+  border: 1px solid var(--cream-dark);
+  padding: 2rem;
+}
+.input-wedding {
+  width: 100%;
+  background-color: var(--white);
+  border: 1px solid var(--cream-dark);
+  padding: 0.75rem 1rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 300;
+  color: var(--brown-dark);
+  transition: border-color var(--transition-base);
+  outline: none;
+}
+.input-wedding:focus {
+  border-color: var(--bronze);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bronze) 10%, transparent);
+}
+.input-wedding::placeholder { color: var(--olive-muted); font-weight: 300; }
+.label-wedding {
   display: block;
-  width: 100%;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  color: var(--brown-mid);
+  margin-bottom: 0.4rem;
 }
 
-/* ── Animaciones de entrada ── */
+/* ── Animaciones ── */
 @keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-
-.animate-fade-up {
-  animation: fade-up 0.7s ease forwards;
-}
-
-.animate-fade-in {
-  animation: fade-in 0.5s ease forwards;
-}
-
-/* Retrasos en cascada */
+.animate-fade-up { animation: fade-up 0.7s ease forwards; }
+.animate-fade-in { animation: fade-in 0.5s ease forwards; }
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
 .delay-400 { animation-delay: 400ms; }
 .delay-500 { animation-delay: 500ms; }
 
-/* Respeto por preferencia de movimiento reducido */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

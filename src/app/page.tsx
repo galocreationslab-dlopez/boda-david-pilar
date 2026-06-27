@@ -1,54 +1,59 @@
 /**
  * app/page.tsx
- * ─────────────────────────────────────────────────────────────
- * Página principal de la invitación de boda.
- * Server Component puro — todos los datos vienen de wedding.config.ts.
- * Estructura:
- *   1. Hero con cuenta atrás
- *   2. Nuestra historia (timeline)
- *   3. El gran día (localizaciones + timeline del día)
- *   4. CTA final
+ * Página principal con secciones colapsables.
  */
 
 import { weddingConfig } from "@/config/wedding.config";
-import { HeroPortada } from "@/components/wedding/HeroPortada";
-import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
-import { SeccionDia } from "@/components/wedding/SeccionDia";
-import { SeccionCTA } from "@/components/wedding/SeccionCTA";
 import { NavegacionPublica } from "@/components/layout/NavegacionPublica";
 import { PieDePagina } from "@/components/layout/PieDePagina";
 import { SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
+import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
+import { HeroPortada } from "@/components/wedding/HeroPortada";
+import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
+import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
 
 export default function PaginaPrincipal() {
   const config = weddingConfig;
-
   return (
     <>
       <NavegacionPublica config={config} />
-
       <main>
-        {/* 1 — Hero */}
-        <HeroPortada config={config} />
+        {/* SECCIÓN 1 — Portada, desplegada por defecto */}
+        <SeccionColapsable
+          id="portada"
+          abiertaPorDefecto={true}
+          ocultarCabecera={true}
+        >
+          <HeroPortada config={config} />
+        </SeccionColapsable>
 
         <SeparadorSeccion colorDesde="#2E1F0E" colorHacia="#F7F3EC" />
 
-        {/* 2 — Historia */}
-        <SeccionHistoria eventos={config.historia} />
+        {/* SECCIÓN 2 — Nuestra historia, plegada por defecto */}
+        <SeccionColapsable
+          id="historia"
+          titulo="Nuestra historia"
+          abiertaPorDefecto={false}
+          bgColor="var(--cream)"
+        >
+          <SeccionHistoria eventos={config.historia} />
+        </SeccionColapsable>
 
         <SeparadorSeccion colorDesde="#F7F3EC" colorHacia="#EDE7DB" />
 
-        {/* 3 — El gran día */}
-        <SeccionDia
-          localizaciones={config.localizaciones}
-          timeline={config.timeline}
-        />
-
-        <SeparadorSeccion colorDesde="#EDE7DB" colorHacia="#F7F3EC" />
-
-        {/* 4 — CTA final */}
-        <SeccionCTA config={config} />
+        {/* SECCIÓN 3 — Timeline del día, plegada por defecto */}
+        <SeccionColapsable
+          id="timeline"
+          titulo="El gran día"
+          abiertaPorDefecto={false}
+          bgColor="var(--cream-dark)"
+        >
+          <SeccionTimeline
+            localizaciones={config.localizaciones}
+            timeline={config.timeline}
+          />
+        </SeccionColapsable>
       </main>
-
       <PieDePagina config={config} />
     </>
   );
