@@ -56,8 +56,6 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
           aria-label="Inicio"
         >
           <SelloNupcial
-            inicialNovio={config.iniciales.novio}
-            inicialNovia={config.iniciales.novia}
             size={40}
             color={scrolled ? "#8C6A3F" : "#FDFAF5"}
           />
