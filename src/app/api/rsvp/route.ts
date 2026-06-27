@@ -83,13 +83,17 @@ export async function POST(request: Request) {
       }
     }
 
-    if (body.transporteId) {
-      const { error: transporteError } = await supabase.from("reservas_transporte").insert({
+    if (body.transporteIds?.length) {
+      const reservasTransporte = body.transporteIds.map((trayectoId: string) => ({
         wedding_id: weddingId,
         asistente_id: asistenteData.id,
-        trayecto_id: body.transporteId,
+        trayecto_id: trayectoId,
         num_plazas: 1,
-      });
+      }));
+
+      const { error: transporteError } = await supabase
+        .from("reservas_transporte")
+        .insert(reservasTransporte);
 
       if (transporteError) {
         return NextResponse.json(

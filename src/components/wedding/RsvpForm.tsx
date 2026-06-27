@@ -30,7 +30,7 @@ type FormState = {
   acompananteApellidos: string;
   acompananteAlergias: string;
   ninos: NinoForm[];
-  transporteId: string;
+  transporteIds: string[];
 };
 
 const initialState: FormState = {
@@ -46,7 +46,7 @@ const initialState: FormState = {
   acompananteApellidos: "",
   acompananteAlergias: "",
   ninos: [],
-  transporteId: "",
+  transporteIds: [],
 };
 
 export function RsvpForm({ config }: Props) {
@@ -71,6 +71,15 @@ export function RsvpForm({ config }: Props) {
     setForm((prev) => ({
       ...prev,
       ninos: [...prev.ninos, { nombre: "", edad: "", alergias: "", comeConPadres: false }],
+    }));
+  };
+
+  const toggleTransporte = (trayectoId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      transporteIds: prev.transporteIds.includes(trayectoId)
+        ? prev.transporteIds.filter((id) => id !== trayectoId)
+        : [...prev.transporteIds, trayectoId],
     }));
   };
 
@@ -114,7 +123,7 @@ export function RsvpForm({ config }: Props) {
             alergias: nino.alergias,
             comeConPadres: nino.comeConPadres,
           })),
-        transporteId: form.transporteId || null,
+        transporteIds: form.transporteIds,
       };
 
       const response = await fetch("/api/rsvp", {
@@ -214,26 +223,46 @@ export function RsvpForm({ config }: Props) {
               </select>
             </div>
             <div>
-              <label className="label-wedding" htmlFor="transporte">Transporte</label>
-              <select
-                id="transporte"
-                className="input-wedding"
-                value={form.transporteId}
-                onChange={(event) => updateField("transporteId", event.target.value)}
-              >
-                <option value="">Sin preferencia</option>
-                {config.transporte.map((trayecto) => (
-                  <option key={trayecto.id} value={trayecto.id}>
-                    {trayecto.origen} → {trayecto.destino} · {trayecto.hora}
-                  </option>
-                ))}
-              </select>
+              <label className="label-wedding">Transporte</label>
+              <div className="space-y-3 rounded-2xl border border-cream-dark p-4">
+                {config.transporte.length === 0 ? (
+                  <p className="text-sm" style={{ color: "var(--olive-muted)" }}>
+                    Todavía no hay trayectos disponibles.
+                  </p>
+                ) : (
+                  config.transporte.map((trayecto) => {
+                    const checked = form.transporteIds.includes(trayecto.id);
+                    return (
+                      <label
+                        key={trayecto.id}
+                        className="flex cursor-pointer items-start gap-3 rounded-xl border border-cream-dark px-3 py-3 text-sm"
+                        style={{ color: "var(--brown-mid)" }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleTransporte(trayecto.id)}
+                        />
+                        <span>
+                          <span className="font-semibold text-brown-dark">
+                            {trayecto.origen} → {trayecto.destino}
+                          </span>
+                          <br />
+                          <span className="text-xs" style={{ color: "var(--olive-muted)" }}>
+                            {trayecto.hora} · {trayecto.descripcion}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
             <div>
-              <label className="label-wedding" htmlFor="acompanante">¿Vas con acompañante?</label>
+              <label className="label-wedding" htmlFor="acompanante">¿Vienes acompañado/a?</label>
               <select
                 id="acompanante"
                 className="input-wedding"
@@ -259,7 +288,7 @@ export function RsvpForm({ config }: Props) {
 
           {form.tieneAcompanante === "si" && (
             <div className="rounded-2xl border border-cream-dark p-6 space-y-4">
-              <h3 className="font-display text-2xl">Acompañante</h3>
+              <h3 className="font-display text-2xl">Acompañante / pareja</h3>
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
                   <label className="label-wedding" htmlFor="acompananteNombre">Nombre</label>
