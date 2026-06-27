@@ -1,13 +1,21 @@
--- ═══════════════════════════════════════════════════════════════
--- supabase/schema.sql
--- Esquema completo de base de datos
--- En este modelo se eliminan las tablas auxiliares y se usan solo dos
--- tablas principales: invitaciones y asistentes.
--- ═══════════════════════════════════════════════════════════════
+-- ⚠️ Script de reset para entorno local o base de datos nueva
+-- Esto borra las tablas antiguas y recrea el esquema limpio.
+-- Úsalo solo cuando quieras empezar desde cero.
 
-create extension if not exists "uuid-ossp";
+-- Borrado de tablas antiguas
+DROP TABLE IF EXISTS public.acompanantes CASCADE;
+DROP TABLE IF EXISTS public.ninos CASCADE;
+DROP TABLE IF EXISTS public.reservas_transporte CASCADE;
+DROP TABLE IF EXISTS public.asistentes CASCADE;
+DROP TABLE IF EXISTS public.invitaciones CASCADE;
+DROP TABLE IF EXISTS public.multimedia CASCADE;
+DROP TABLE IF EXISTS public.bodas CASCADE;
 
-create table if not exists public.bodas (
+-- Extensión necesaria
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Tabla principal de bodas
+CREATE TABLE IF NOT EXISTS public.bodas (
   id            uuid primary key default uuid_generate_v4(),
   slug          text unique not null,
   nombre_novio  text not null,
@@ -18,7 +26,8 @@ create table if not exists public.bodas (
   created_at    timestamptz default now()
 );
 
-create table if not exists public.invitaciones (
+-- Invitaciones
+CREATE TABLE IF NOT EXISTS public.invitaciones (
   id                    uuid primary key default uuid_generate_v4(),
   wedding_id            uuid not null references public.bodas(id) on delete cascade,
   invite_code           text unique not null,
@@ -35,7 +44,8 @@ create table if not exists public.invitaciones (
   updated_at            timestamptz default now()
 );
 
-create table if not exists public.asistentes (
+-- Asistentes (una fila por persona)
+CREATE TABLE IF NOT EXISTS public.asistentes (
   id                  uuid primary key default uuid_generate_v4(),
   invitation_id       uuid not null references public.invitaciones(id) on delete cascade,
   nombre              text not null,
@@ -49,7 +59,8 @@ create table if not exists public.asistentes (
   updated_at          timestamptz default now()
 );
 
-create table if not exists public.multimedia (
+-- Multimedia
+CREATE TABLE IF NOT EXISTS public.multimedia (
   id                uuid primary key default uuid_generate_v4(),
   wedding_id        uuid not null references public.bodas(id) on delete cascade,
   nombre            text not null,
@@ -60,46 +71,46 @@ create table if not exists public.multimedia (
   created_at        timestamptz default now()
 );
 
-create index if not exists invitaciones_wedding_id_idx on public.invitaciones(wedding_id);
-create index if not exists asistentes_invitation_id_idx on public.asistentes(invitation_id);
-create index if not exists multimedia_wedding_id_idx on public.multimedia(wedding_id);
+CREATE INDEX IF NOT EXISTS invitaciones_wedding_id_idx ON public.invitaciones(wedding_id);
+CREATE INDEX IF NOT EXISTS asistentes_invitation_id_idx ON public.asistentes(invitation_id);
+CREATE INDEX IF NOT EXISTS multimedia_wedding_id_idx ON public.multimedia(wedding_id);
 
-alter table public.bodas enable row level security;
-alter table public.invitaciones enable row level security;
-alter table public.asistentes enable row level security;
-alter table public.multimedia enable row level security;
+ALTER TABLE public.bodas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.invitaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.asistentes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.multimedia ENABLE ROW LEVEL SECURITY;
 
-create policy "Bodas activas son públicas"
-  on public.bodas for select
-  using (activa = true);
+CREATE POLICY "Bodas activas son públicas"
+  ON public.bodas FOR SELECT
+  USING (activa = true);
 
-create policy "Invitaciones son accesibles públicamente"
-  on public.invitaciones for select
-  using (true);
+CREATE POLICY "Invitaciones son accesibles públicamente"
+  ON public.invitaciones FOR SELECT
+  USING (true);
 
-create policy "Invitados pueden crear respuestas"
-  on public.asistentes for insert
-  with check (true);
+CREATE POLICY "Invitados pueden crear respuestas"
+  ON public.asistentes FOR INSERT
+  WITH CHECK (true);
 
-create policy "Invitados pueden actualizar respuestas"
-  on public.asistentes for update
-  using (true)
-  with check (true);
+CREATE POLICY "Invitados pueden actualizar respuestas"
+  ON public.asistentes FOR UPDATE
+  USING (true)
+  WITH CHECK (true);
 
-create policy "Invitados pueden subir multimedia"
-  on public.multimedia for insert
-  with check (true);
+CREATE POLICY "Invitados pueden subir multimedia"
+  ON public.multimedia FOR INSERT
+  WITH CHECK (true);
 
-create policy "Multimedia es pública"
-  on public.multimedia for select
-  using (true);
+CREATE POLICY "Multimedia es pública"
+  ON public.multimedia FOR SELECT
+  USING (true);
 
-insert into public.bodas (id, slug, nombre_novio, nombre_novia, fecha, config_json)
-values (
+INSERT INTO public.bodas (id, slug, nombre_novio, nombre_novia, fecha, config_json)
+VALUES (
   'a0000000-0000-0000-0000-000000000001',
   'pilar-y-david',
   'David',
   'Pilar',
   '2027-03-06',
   '{}'
-) on conflict (slug) do nothing;
+) ON CONFLICT (slug) DO NOTHING;

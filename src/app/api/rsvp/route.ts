@@ -19,91 +19,80 @@ export async function POST(request: Request) {
       );
     }
 
-    const weddingId = bodaData.id;
+    const inviteCode = body.invite_code || crypto.randomUUID().slice(0, 8);
+    const personas = Array.isArray(body.personas) ? body.personas : [];
 
-    const { data: asistenteData, error: asistenteError } = await supabase
-      .from("asistentes")
+    const { data: invitacionData, error: invitacionError } = await supabase
+      .from("invitaciones")
       .insert({
-        wedding_id: weddingId,
-        nombre: body.nombre,
-        apellidos: body.apellidos,
-        email: body.email || null,
-        telefono: body.telefono || null,
-        confirma: body.confirma,
-        tiene_acompanante: body.tieneAcompanante || false,
-        alergias: body.alergias || null,
-        comentarios: body.comentarios || null,
-        transporte_id: body.transporteId || null,
+        wedding_id: bodaData.id,
+        invite_code: inviteCode,
+        nombre_visible: body.nombre_visible || body.nombre || "Invitación",
+        tipo_invitacion: body.tipo_invitacion || "individual",
+        personas_json: personas.map((persona: any) => ({
+          nombre: persona.nombre || "Invitado",
+          tipo_persona: persona.tipo_persona || "adulto",
+          edad: persona.edad ?? null,
+        })),
+        adultos_estimados: Number(body.adultos_estimados || personas.length || 1),
+        estado: body.confirma === true ? "confirmada" : "pendiente",
+        metadata: {
+          comentarios: body.comentarios || null,
+          transporte: body.transporteIds || [],
+        },
       })
       .select("id")
       .single();
 
-    if (asistenteError || !asistenteData) {
+    if (invitacionError || !invitacionData) {
       return NextResponse.json(
-        { error: asistenteError?.message || "No se pudo guardar el asistente" },
+        { error: invitacionError?.message || "No se pudo crear la invitación" },
         { status: 500 }
       );
     }
 
-    if (body.acompanante) {
-      const { error: acompananteError } = await supabase.from("acompanantes").insert({
-        wedding_id: weddingId,
-        asistente_id: asistenteData.id,
-        nombre: body.acompanante.nombre,
-        apellidos: body.acompanante.apellidos,
-        alergias: body.acompanante.alergias || null,
-        comentarios: null,
-      });
+    const asistentes = personas.length
+      ? personas.map((persona: any) => ({
+          invitation_id: invitacionData.id,
+          nombre: persona.nombre || "Invitado",
+          edad: persona.edad ?? null,
+          tipo_persona: persona.tipo_persona || "adulto",
+          estado_asistencia: persona.asistira === "si" ? "si" : persona.asistira === "no" ? "no" : "pendiente",
+          transporte: Array.isArray(persona.transporte) ? persona.transporte : [],
+          necesidades: {
+            alergias: persona.alergias || null,
+            necesidades_alimentarias: persona.necesidades_alimentarias || null,
+            come_con_padres: persona.come_con_padres ?? null,
+            menu_adulto: persona.menu_adulto ?? null,
+            necesita_trona: persona.necesita_trona ?? null,
+          },
+          comentarios: body.comentarios || null,
+        }))
+      : [
+          {
+            invitation_id: invitacionData.id,
+            nombre: body.nombre || "Invitado",
+            edad: body.edad ?? null,
+            tipo_persona: body.tipo_persona || "adulto",
+            estado_asistencia: body.confirma === true ? "si" : body.confirma === false ? "no" : "pendiente",
+            transporte: body.transporteIds || [],
+            necesidades: {
+              alergias: body.alergias || null,
+              necesidades_alimentarias: null,
+            },
+            comentarios: body.comentarios || null,
+          },
+        ];
 
-      if (acompananteError) {
-        return NextResponse.json(
-          { error: acompananteError.message || "No se pudo guardar el acompañante" },
-          { status: 500 }
-        );
-      }
+    const { error: asistentesError } = await supabase.from("asistentes").insert(asistentes);
+    if (asistentesError) {
+      return NextResponse.json(
+        { error: asistentesError.message || "No se pudieron guardar los asistentes" },
+        { status: 500 }
+      );
     }
 
-    if (body.ninos?.length) {
-      const ninosToInsert = body.ninos.map((nino: any) => ({
-        wedding_id: weddingId,
-        asistente_id: asistenteData.id,
-        nombre: nino.nombre,
-        edad: Number(nino.edad || 0),
-        alergias: nino.alergias || null,
-        come_con_padres: Boolean(nino.comeConPadres),
-      }));
-
-      const { error: ninosError } = await supabase.from("ninos").insert(ninosToInsert);
-
-      if (ninosError) {
-        return NextResponse.json(
-          { error: ninosError.message || "No se pudieron guardar los niños" },
-          { status: 500 }
-        );
-      }
-    }
-
-    if (body.transporteIds?.length) {
-      const reservasTransporte = body.transporteIds.map((trayectoId: string) => ({
-        wedding_id: weddingId,
-        asistente_id: asistenteData.id,
-        trayecto_id: trayectoId,
-        num_plazas: 1,
-      }));
-
-      const { error: transporteError } = await supabase
-        .from("reservas_transporte")
-        .insert(reservasTransporte);
-
-      if (transporteError) {
-        return NextResponse.json(
-          { error: transporteError.message || "No se pudo guardar la reserva de transporte" },
-          { status: 500 }
-        );
-      }
-    }
-
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, inviteCode });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Error inesperado" },
