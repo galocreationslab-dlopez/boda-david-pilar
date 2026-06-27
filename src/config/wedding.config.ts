@@ -53,13 +53,11 @@ export type WeddingConfig = {
   novia: { nombre: string; nombreCompleto: string };
 
   // Logo: si hay imagen propia, se usa en vez del SVG generado
-  //logo?: string;           // ruta en /public/images/ ej: "sello.png"
-  logo: "sello.png",      // tu imagen del sello
+  logo?: string;           // ruta en /public/images/ ej: "sello.png"
   iniciales: { novio: string; novia: string };
 
   // Hero
-  //heroImagen?: string;     // ruta en /public/images/ ej: "hero.jpg"
-  heroImagen: "Catedral de Granada.jpg", // foto de fondo del hero
+  heroImagen?: string;     // ruta en /public/images/ ej: "hero.jpg"
 
   fecha: string;
   fechaFormateada: string;
@@ -110,8 +108,8 @@ export const weddingConfig: WeddingConfig = {
 
   // ── Imágenes ──────────────────────────────────────────────
   // Cuando tengas los archivos en public/images/, descomenta y pon el nombre:
-  // logo: "sello.png",
-  // heroImagen: "hero.jpg",
+  logo: "sello.png",      // tu imagen del sello
+  heroImagen: "Catedral de Granada.jpg", // foto de fondo del hero
   iniciales: { novio: "D", novia: "P" },
 
   // ── Fecha ─────────────────────────────────────────────────
