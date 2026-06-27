@@ -108,7 +108,7 @@ export const weddingConfig: WeddingConfig = {
 
   // ── Imágenes ──────────────────────────────────────────────
   // Cuando tengas los archivos en public/images/, descomenta y pon el nombre:
-  logo: "Sello.svg",      // tu imagen del sello
+  //logo: "Sello.svg",      // tu imagen del sello
   //heroImagen: "Catedral de Granada.jpg", // foto de fondo del hero
   iniciales: { novio: "D", novia: "P" },
 
