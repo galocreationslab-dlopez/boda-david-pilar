@@ -23,7 +23,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/#informacion", label: "Información" },
   { href: "/transporte", label: "Transporte" },
   { href: "/galeria", label: "Galería" },
-  { href: "/rsvp", label: "Confirmar asistencia" },
 ];
 
 type NavegacionPublicaProps = {
