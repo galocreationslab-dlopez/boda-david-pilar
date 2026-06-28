@@ -49,6 +49,7 @@ function parseSpanishDate(input?: string): Date | null {
 export default function MainWithInvite({ config }: { config: any }) {
   const search = useSearchParams();
   const inviteCode = search?.get("inviteCode") || search?.get("invitecode") || null;
+  const hasInviteCode = Boolean(inviteCode && inviteCode.trim().length > 0);
   const [valid, setValid] = useState(false);
   const [loading, setLoading] = useState(false);
   const [invitacion, setInvitacion] = useState<any | null>(null);
@@ -58,9 +59,12 @@ export default function MainWithInvite({ config }: { config: any }) {
   const estaEnPlazo = !limiteConfirmacion || new Date() <= limiteConfirmacion;
 
   useEffect(() => {
+    let isActive = true;
+
     async function validate() {
-      if (!inviteCode) {
+      if (!hasInviteCode) {
         setValid(false);
+        setLoading(false);
         setInvitacion(null);
         setPersonas([]);
         setShowForm(false);
@@ -69,6 +73,8 @@ export default function MainWithInvite({ config }: { config: any }) {
       setLoading(true);
       try {
         const res = await fetch(`/api/rsvp/${inviteCode}`);
+        if (!isActive) return;
+
         if (!res.ok) {
           setValid(false);
           setInvitacion(null);
@@ -77,27 +83,36 @@ export default function MainWithInvite({ config }: { config: any }) {
           return;
         }
         const data: InvitacionAPI = await res.json();
+        if (!isActive) return;
+
         setInvitacion(data.invitacion);
         setPersonas(data.personas || []);
         setValid(true);
       } catch {
+        if (!isActive) return;
+
         setValid(false);
         setInvitacion(null);
         setPersonas([]);
         setShowForm(false);
       } finally {
+        if (!isActive) return;
         setLoading(false);
       }
     }
 
     validate();
-  }, [inviteCode]);
+
+    return () => {
+      isActive = false;
+    };
+  }, [inviteCode, hasInviteCode]);
 
   return (
     <div>
       <HeroPortada
         config={config}
-        mostrarBotonConfirmar={!loading && valid && Boolean(invitacion) && estaEnPlazo}
+        mostrarBotonConfirmar={hasInviteCode && !loading && valid && Boolean(invitacion) && estaEnPlazo}
         onConfirmarClick={() => setShowForm(true)}
       />
 
