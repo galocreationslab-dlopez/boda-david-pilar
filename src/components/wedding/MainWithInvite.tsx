@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { HeroPortada } from "./HeroPortada";
-import { InviteRsvpForm } from "./InviteRsvpForm";
 
 type InvitacionAPI = {
   invitacion: any;
@@ -47,17 +47,15 @@ function parseSpanishDate(input?: string): Date | null {
 
 type Props = {
   config: any;
-  onOpenForm?: (inviteCode: string, invitacion: any, personas: any[]) => void;
 };
 
-export default function MainWithInvite({ config, onOpenForm }: Props) {
+export default function MainWithInvite({ config }: Props) {
+  const router = useRouter();
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const hasInviteCode = Boolean(inviteCode && inviteCode.trim().length > 0);
   const [valid, setValid] = useState(false);
   const [loading, setLoading] = useState(false);
   const [invitacion, setInvitacion] = useState<any | null>(null);
-  const [personas, setPersonas] = useState<any[]>([]);
-  const [showForm, setShowForm] = useState(false);
   const limiteConfirmacion = parseSpanishDate(config?.textos?.confirmacionLimite);
   const estaEnPlazo = !limiteConfirmacion || new Date() <= limiteConfirmacion;
 
@@ -76,8 +74,6 @@ export default function MainWithInvite({ config, onOpenForm }: Props) {
         setValid(false);
         setLoading(false);
         setInvitacion(null);
-        setPersonas([]);
-        setShowForm(false);
         return;
       }
       setLoading(true);
@@ -88,23 +84,18 @@ export default function MainWithInvite({ config, onOpenForm }: Props) {
         if (!res.ok) {
           setValid(false);
           setInvitacion(null);
-          setPersonas([]);
-          setShowForm(false);
           return;
         }
         const data: InvitacionAPI = await res.json();
         if (!isActive) return;
 
         setInvitacion(data.invitacion);
-        setPersonas(data.personas || []);
         setValid(true);
       } catch {
         if (!isActive) return;
 
         setValid(false);
         setInvitacion(null);
-        setPersonas([]);
-        setShowForm(false);
       } finally {
         if (!isActive) return;
         setLoading(false);
@@ -119,10 +110,8 @@ export default function MainWithInvite({ config, onOpenForm }: Props) {
   }, [inviteCode, hasInviteCode]);
 
   const handleConfirmarClick = () => {
-    if (onOpenForm && inviteCode && invitacion) {
-      onOpenForm(inviteCode, invitacion, personas);
-    } else {
-      setShowForm(true);
+    if (inviteCode) {
+      router.push(`/rsvp/${inviteCode}`);
     }
   };
 
@@ -133,13 +122,6 @@ export default function MainWithInvite({ config, onOpenForm }: Props) {
         mostrarBotonConfirmar={hasInviteCode && !loading && valid && Boolean(invitacion) && estaEnPlazo}
         onConfirmarClick={handleConfirmarClick}
       />
-
-      {/* Fallback: formulario inline si no hay onOpenForm (ej: ruta /[inviteCode]) */}
-      {!onOpenForm && showForm && valid && invitacion && (
-        <div className="mt-8">
-          <InviteRsvpForm inviteCode={inviteCode!} invitacion={invitacion} personas={personas} />
-        </div>
-      )}
     </div>
   );
 }
