@@ -277,26 +277,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
           <p className="text-base text-stone-600">Esta respuesta está ligada a tu invitación única y nos ayudará a preparar mejor el día.</p>
         </div>
 
-        <div className="rounded-2xl border border-stone-200 bg-stone-50 p-5 text-sm text-stone-600">
-          <p className="font-medium text-stone-700">Resumen de la invitación</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <span className="rounded-full bg-white px-3 py-1">{invitacion.tipo_invitacion}</span>
-            <span className="rounded-full bg-white px-3 py-1">Adultos: {invitacion.adultos_estimados ?? 0}</span>
-            <span className="rounded-full bg-white px-3 py-1">Niños: {invitacion.ninos_estimados ?? 0}</span>
-            <span className="rounded-full bg-white px-3 py-1">Bebés: {invitacion.bebes_estimados ?? 0}</span>
-          </div>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="rounded-2xl border border-stone-200 p-5">
-            <label className="text-sm font-medium text-stone-700" htmlFor="asistencia">¿Vais a asistir?</label>
-            <select id="asistencia" className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm" value={asistencia} onChange={(e) => setAsistencia(e.target.value as any)}>
-              <option value="si">Sí, asistiremos</option>
-              <option value="no">No podremos asistir</option>
-              <option value="puede">Todavía lo estamos pensando</option>
-            </select>
-          </div>
-
           <div className="space-y-4">
             {personasState.map((persona, index) => (
               <div key={`${persona.nombre}-${index}`} className="rounded-2xl border border-stone-200 p-5">
