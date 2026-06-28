@@ -3,14 +3,12 @@
  * Página principal con secciones colapsables.
  */
 
-import { Suspense } from "react";
 import { weddingConfig } from "@/config/wedding.config";
 import { NavegacionPublica } from "@/components/layout/NavegacionPublica";
 import { PieDePagina } from "@/components/layout/PieDePagina";
 import { SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
 import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
-import { HeroPortada } from "@/components/wedding/HeroPortada";
 import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
 
@@ -22,9 +20,7 @@ export default function PaginaPrincipal() {
       <NavegacionPublica config={config} />
       <main>
         <SeccionColapsable id="portada" abiertaPorDefecto={true} ocultarCabecera={true}>
-          <Suspense fallback={<HeroPortada config={config} />}>
-            <MainWithInvite config={config} />
-          </Suspense>
+          <MainWithInvite config={config} />
         </SeccionColapsable>
 
         <SeparadorSeccion colorDesde="#2E1F0E" colorHacia="#F7F3EC" />

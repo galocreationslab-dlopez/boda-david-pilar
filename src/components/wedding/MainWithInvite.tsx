@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { HeroPortada } from "./HeroPortada";
 import { InviteRsvpForm } from "./InviteRsvpForm";
 
@@ -47,8 +46,7 @@ function parseSpanishDate(input?: string): Date | null {
 }
 
 export default function MainWithInvite({ config }: { config: any }) {
-  const search = useSearchParams();
-  const inviteCode = search?.get("inviteCode") || search?.get("invitecode") || null;
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const hasInviteCode = Boolean(inviteCode && inviteCode.trim().length > 0);
   const [valid, setValid] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -57,6 +55,13 @@ export default function MainWithInvite({ config }: { config: any }) {
   const [showForm, setShowForm] = useState(false);
   const limiteConfirmacion = parseSpanishDate(config?.textos?.confirmacionLimite);
   const estaEnPlazo = !limiteConfirmacion || new Date() <= limiteConfirmacion;
+
+  // Leer el código de la URL en el cliente, sin useSearchParams → no necesita Suspense
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("inviteCode") || params.get("invitecode") || null;
+    setInviteCode(code);
+  }, []);
 
   useEffect(() => {
     let isActive = true;
