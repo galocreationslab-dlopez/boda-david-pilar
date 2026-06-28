@@ -45,7 +45,12 @@ function parseSpanishDate(input?: string): Date | null {
   return new Date(year, month, day, 23, 59, 59, 999);
 }
 
-export default function MainWithInvite({ config }: { config: any }) {
+type Props = {
+  config: any;
+  onOpenForm?: (inviteCode: string, invitacion: any, personas: any[]) => void;
+};
+
+export default function MainWithInvite({ config, onOpenForm }: Props) {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const hasInviteCode = Boolean(inviteCode && inviteCode.trim().length > 0);
   const [valid, setValid] = useState(false);
@@ -113,15 +118,24 @@ export default function MainWithInvite({ config }: { config: any }) {
     };
   }, [inviteCode, hasInviteCode]);
 
+  const handleConfirmarClick = () => {
+    if (onOpenForm && inviteCode && invitacion) {
+      onOpenForm(inviteCode, invitacion, personas);
+    } else {
+      setShowForm(true);
+    }
+  };
+
   return (
     <div>
       <HeroPortada
         config={config}
         mostrarBotonConfirmar={hasInviteCode && !loading && valid && Boolean(invitacion) && estaEnPlazo}
-        onConfirmarClick={() => setShowForm(true)}
+        onConfirmarClick={handleConfirmarClick}
       />
 
-      {showForm && valid && invitacion && (
+      {/* Fallback: formulario inline si no hay onOpenForm (ej: ruta /[inviteCode]) */}
+      {!onOpenForm && showForm && valid && invitacion && (
         <div className="mt-8">
           <InviteRsvpForm inviteCode={inviteCode!} invitacion={invitacion} personas={personas} />
         </div>
