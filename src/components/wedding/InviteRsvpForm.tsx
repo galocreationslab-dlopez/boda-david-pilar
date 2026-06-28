@@ -10,6 +10,7 @@ type PersonaProps = {
   estado_asistencia?: string;
   transporte?: string[] | null;
   necesidades?: any;
+  comentarios?: string | null;
 };
 
 type InvitacionProps = {
@@ -19,6 +20,7 @@ type InvitacionProps = {
     tipo_invitacion: string;
     nombre1?: string;
     nombre2?: string;
+    estado?: string;
     adultos_estimados?: number | null;
     adolescentes_estimados?: number | null;
     ninos_estimados?: number | null;
@@ -47,8 +49,14 @@ type PersonaForm = {
 };
 
 export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionProps) {
-  const [comentarios, setComentarios] = useState("");
-  const [asistencia, setAsistencia] = useState<"si" | "no" | "puede">("si");
+  const defaultAsistencia: "si" | "no" | "puede" =
+    invitacion.estado === "confirmada"
+      ? "si"
+      : invitacion.estado === "rechazada"
+        ? "no"
+        : "puede";
+  const [comentarios, setComentarios] = useState(personas?.[0]?.comentarios || "");
+  const [asistencia, setAsistencia] = useState<"si" | "no" | "puede">(defaultAsistencia);
 
   const getTipoPersona = (tipo?: string): PersonaForm["tipo_persona"] => {
     if (tipo === "adulto" || tipo === "nino" || tipo === "bebe") return tipo;
@@ -123,16 +131,23 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
       return list;
     }
 
-    return personas.map((p) => ({
+    return personas.map((p) => {
+      const [nombreBase, ...resto] = (p.nombre || "").trim().split(/\s+/);
+      return {
       id: p.id,
-      nombre: p.nombre,
-      apellidos: "",
+      nombre: nombreBase || p.nombre,
+      apellidos: resto.join(" "),
       edad: p.edad?.toString() || "",
       tipo_persona: getTipoPersona(p.tipo_persona),
-      asistira: "si",
+      asistira:
+        p.estado_asistencia === "si"
+          ? "si"
+          : p.estado_asistencia === "no"
+            ? "no"
+            : "pendiente",
       alergias: p.necesidades?.alergias || "",
       necesidades_alimentarias: p.necesidades?.necesidades_alimentarias || "",
-      alojamiento: "",
+      alojamiento: p.necesidades?.alojamiento || "",
       transporte_g_to_b: Array.isArray(p.transporte) ? p.transporte.includes("granada-beas") : false,
       transporte_b_to_t: Array.isArray(p.transporte) ? p.transporte.includes("beas-torre") : false,
       transporte_t_to_g: Array.isArray(p.transporte) ? p.transporte.includes("torre-granada") : false,
@@ -140,7 +155,8 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
       menu_adulto: p.necesidades?.menu_adulto || false,
       necesita_trona: p.necesidades?.necesita_trona || false,
       necesita_ayuda: p.necesidades?.necesita_ayuda || false,
-    }));
+      };
+    });
   };
 
   const [personasState, setPersonasState] = useState<PersonaForm[]>(initial);

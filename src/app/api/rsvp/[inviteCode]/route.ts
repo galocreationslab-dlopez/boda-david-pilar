@@ -11,7 +11,7 @@ export async function GET(
 
     const { data: invitacion, error } = await supabase
       .from("invitaciones")
-      .select("id, invite_code, nombre_visible, tipo_invitacion, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
+      .select("id, invite_code, nombre_visible, tipo_invitacion, nombre1, nombre2, estado, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
       .eq("invite_code", inviteCode)
       .maybeSingle();
 
@@ -104,11 +104,13 @@ export async function POST(
         necesidades: {
           alergias: persona.alergias || null,
           necesidades_alimentarias: persona.necesidades_alimentarias || null,
+          alojamiento: persona.alojamiento || null,
           come_con_padres: persona.come_con_padres ?? null,
           menu_adulto: persona.menu_adulto ?? null,
           necesita_trona: persona.necesita_trona ?? null,
+          necesita_ayuda: persona.necesita_ayuda ?? null,
         },
-        comentarios: persona.comentarios || (personas.length === 1 ? body.comentarios || null : null),
+        comentarios: persona.comentarios || body.comentarios || null,
       };
 
       if (persona.id) {

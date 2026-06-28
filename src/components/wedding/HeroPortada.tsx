@@ -3,7 +3,6 @@
  * Portada/invitación — siempre desplegada, fondo oscuro con gradiente.
  */
 
-import Link from "next/link";
 import { SelloNupcial } from "@/components/ui/SelloNupcial";
 import { CuentaAtras } from "@/components/ui/CuentaAtras";
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
@@ -11,9 +10,11 @@ import type { WeddingConfig } from "@/config/wedding.config";
 
 type Props = {
   config: Pick<WeddingConfig, "novia" | "novio" | "iniciales" | "fecha" | "fechaFormateada" | "textos">;
+  mostrarBotonConfirmar?: boolean;
+  onConfirmarClick?: () => void;
 };
 
-export function HeroPortada({ config }: Props) {
+export function HeroPortada({ config, mostrarBotonConfirmar = false, onConfirmarClick }: Props) {
   return (
     <div
       className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden"
@@ -78,12 +79,14 @@ export function HeroPortada({ config }: Props) {
           &ldquo;{config.textos.bienvenida}&rdquo;
         </p>
 
-        {/* CTA */}
-        <div className="animate-fade-up delay-500 mt-2">
-          <Link href="/rsvp" className="btn-primary">
-            Confirmar asistencia
-          </Link>
-        </div>
+        {/* CTA: solo visible con código de invitación válido */}
+        {mostrarBotonConfirmar && (
+          <div className="animate-fade-up delay-500 mt-2">
+            <button type="button" className="btn-primary" onClick={onConfirmarClick}>
+              Confirmar asistencia
+            </button>
+          </div>
+        )}
 
         {/* Cuenta atrás */}
         <div

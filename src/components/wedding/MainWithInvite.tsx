@@ -10,6 +10,42 @@ type InvitacionAPI = {
   personas: any[];
 };
 
+const MONTHS_ES: Record<string, number> = {
+  enero: 0,
+  febrero: 1,
+  marzo: 2,
+  abril: 3,
+  mayo: 4,
+  junio: 5,
+  julio: 6,
+  agosto: 7,
+  septiembre: 8,
+  octubre: 9,
+  noviembre: 10,
+  diciembre: 11,
+};
+
+function parseSpanishDate(input?: string): Date | null {
+  if (!input) return null;
+  const match = input
+    .trim()
+    .toLowerCase()
+    .match(/^(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+de\s+(\d{4})$/);
+
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const monthName = match[2]
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  const year = Number(match[3]);
+  const month = MONTHS_ES[monthName];
+
+  if (Number.isNaN(day) || Number.isNaN(year) || month === undefined) return null;
+
+  return new Date(year, month, day, 23, 59, 59, 999);
+}
+
 export default function MainWithInvite({ config }: { config: any }) {
   const search = useSearchParams();
   const inviteCode = search?.get("inviteCode") || search?.get("invitecode") || null;
@@ -18,27 +54,37 @@ export default function MainWithInvite({ config }: { config: any }) {
   const [invitacion, setInvitacion] = useState<any | null>(null);
   const [personas, setPersonas] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const limiteConfirmacion = parseSpanishDate(config?.textos?.confirmacionLimite);
+  const estaEnPlazo = !limiteConfirmacion || new Date() <= limiteConfirmacion;
 
   useEffect(() => {
     async function validate() {
-      if (!inviteCode) return setValid(false);
+      if (!inviteCode) {
+        setValid(false);
+        setInvitacion(null);
+        setPersonas([]);
+        setShowForm(false);
+        return;
+      }
       setLoading(true);
-      setError(null);
       try {
         const res = await fetch(`/api/rsvp/${inviteCode}`);
         if (!res.ok) {
           setValid(false);
-          setError("Código de invitación no válido");
+          setInvitacion(null);
+          setPersonas([]);
+          setShowForm(false);
           return;
         }
         const data: InvitacionAPI = await res.json();
         setInvitacion(data.invitacion);
         setPersonas(data.personas || []);
         setValid(true);
-      } catch (e) {
+      } catch {
         setValid(false);
-        setError("Error validando invitación");
+        setInvitacion(null);
+        setPersonas([]);
+        setShowForm(false);
       } finally {
         setLoading(false);
       }
@@ -49,31 +95,11 @@ export default function MainWithInvite({ config }: { config: any }) {
 
   return (
     <div>
-      <HeroPortada config={config} />
-
-      {inviteCode && (
-        <div className="mx-auto mt-6 max-w-4xl px-6">
-          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-            {loading ? (
-              <p className="text-sm text-stone-600">Comprobando invitación...</p>
-            ) : valid && invitacion ? (
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-stone-600">Invitación detectada para</p>
-                  <p className="text-lg font-semibold">{invitacion.nombre_visible}</p>
-                </div>
-                <div className="flex gap-3">
-                  <button className="rounded-full bg-amber-700 px-4 py-2 text-sm font-semibold text-white" onClick={() => setShowForm((s) => !s)}>
-                    {showForm ? "Ocultar formulario" : "Confirmar asistencia"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-stone-600">{error || "Código de invitación no válido"}</p>
-            )}
-          </div>
-        </div>
-      )}
+      <HeroPortada
+        config={config}
+        mostrarBotonConfirmar={!loading && valid && Boolean(invitacion) && estaEnPlazo}
+        onConfirmarClick={() => setShowForm(true)}
+      />
 
       {showForm && valid && invitacion && (
         <div className="mt-8">
