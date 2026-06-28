@@ -79,14 +79,21 @@ export function HeroPortada({ config, mostrarBotonConfirmar = false, onConfirmar
           &ldquo;{config.textos.bienvenida}&rdquo;
         </p>
 
-        {/* CTA: solo visible con código de invitación válido */}
-        {mostrarBotonConfirmar && (
-          <div className="animate-fade-up delay-500 mt-2">
-            <button type="button" className="btn-primary" onClick={onConfirmarClick}>
-              Confirmar asistencia
-            </button>
-          </div>
-        )}
+        {/* CTA: siempre en el DOM para no reejecutar la animación inicial;
+              se hace visible vía transición cuando el código es válido */}
+        <div
+          className="animate-fade-up delay-500 mt-2 transition-opacity duration-700"
+          style={{
+            opacity: mostrarBotonConfirmar ? 1 : 0,
+            pointerEvents: mostrarBotonConfirmar ? "auto" : "none",
+            userSelect: mostrarBotonConfirmar ? "auto" : "none",
+          }}
+          aria-hidden={!mostrarBotonConfirmar}
+        >
+          <button type="button" className="btn-primary" onClick={onConfirmarClick}>
+            Confirmar asistencia
+          </button>
+        </div>
 
         {/* Cuenta atrás */}
         <div
