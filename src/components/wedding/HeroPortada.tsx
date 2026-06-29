@@ -11,10 +11,11 @@ import type { WeddingConfig } from "@/config/wedding.config";
 type Props = {
   config: Pick<WeddingConfig, "novia" | "novio" | "iniciales" | "fecha" | "fechaFormateada" | "textos">;
   mostrarBotonConfirmar?: boolean;
+  labelBotonConfirmar?: string;
   onConfirmarClick?: () => void;
 };
 
-export function HeroPortada({ config, mostrarBotonConfirmar = false, onConfirmarClick }: Props) {
+export function HeroPortada({ config, mostrarBotonConfirmar = false, labelBotonConfirmar, onConfirmarClick }: Props) {
   return (
     <div
       className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden"
@@ -83,7 +84,7 @@ export function HeroPortada({ config, mostrarBotonConfirmar = false, onConfirmar
         {mostrarBotonConfirmar && (
           <div className="mt-2 animate-fade-in">
             <button type="button" className="btn-primary" onClick={onConfirmarClick}>
-              Confirmar asistencia
+              {labelBotonConfirmar ?? "Confirmar asistencia"}
             </button>
           </div>
         )}

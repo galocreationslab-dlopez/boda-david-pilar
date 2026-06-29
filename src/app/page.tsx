@@ -3,7 +3,7 @@
  * Página principal con secciones colapsables.
  */
 
-import { weddingConfig } from "@/config/wedding.config";
+import { getWeddingConfig } from "@/lib/wedding-config-server";
 import { NavegacionPublica } from "@/components/layout/NavegacionPublica";
 import { PieDePagina } from "@/components/layout/PieDePagina";
 import { SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
@@ -12,8 +12,8 @@ import MainWithInvite from "@/components/wedding/MainWithInvite";
 import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
 
-export default function PaginaPrincipal() {
-  const config = weddingConfig;
+export default async function PaginaPrincipal() {
+  const config = await getWeddingConfig();
 
   return (
     <>

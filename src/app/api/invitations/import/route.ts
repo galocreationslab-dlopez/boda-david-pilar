@@ -84,6 +84,7 @@ function toOptionalNumber(value: string | undefined) {
 
 function inferTipoInvitacion(adultos: number, explicit?: string) {
   const normalized = (explicit || "").trim().toLowerCase();
+  if (normalized === "admin") return "admin";
   if (normalized.includes("pareja")) return "pareja";
   if (normalized.includes("solter") || normalized.includes("individual")) return "soltero";
   if (adultos >= 2) return "pareja";

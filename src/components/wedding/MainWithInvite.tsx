@@ -109,17 +109,26 @@ export default function MainWithInvite({ config }: Props) {
     };
   }, [inviteCode, hasInviteCode]);
 
+  const esAdmin = invitacion?.tipo_invitacion === "admin";
+
   const handleConfirmarClick = () => {
-    if (inviteCode) {
+    if (!inviteCode) return;
+    if (esAdmin) {
+      router.push(`/admin/${inviteCode}`);
+    } else {
       router.push(`/rsvp/${inviteCode}`);
     }
   };
+
+  const mostrarBoton =
+    hasInviteCode && !loading && valid && Boolean(invitacion) && (esAdmin || estaEnPlazo);
 
   return (
     <div>
       <HeroPortada
         config={config}
-        mostrarBotonConfirmar={hasInviteCode && !loading && valid && Boolean(invitacion) && estaEnPlazo}
+        mostrarBotonConfirmar={mostrarBoton}
+        labelBotonConfirmar={esAdmin ? "Panel de administración" : undefined}
         onConfirmarClick={handleConfirmarClick}
       />
     </div>

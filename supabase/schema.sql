@@ -23,7 +23,7 @@ create table if not exists public.invitaciones (
   wedding_id            uuid not null references public.bodas(id) on delete cascade,
   invite_code           text unique not null,
   nombre_visible        text not null,
-  tipo_invitacion       text not null check (tipo_invitacion in ('individual','pareja','familia','otro','soltero')),
+  tipo_invitacion       text not null check (tipo_invitacion in ('individual','pareja','familia','otro','soltero','admin')),
   nombre1               text not null,
   nombre2               text,
   adultos_estimados     integer not null default 0 check (adultos_estimados >= 0),
