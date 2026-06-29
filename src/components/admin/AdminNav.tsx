@@ -4,10 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
-  { label: "Invitaciones",   segment: "invitaciones" },
-  { label: "Informes",       segment: "informes" },
-  { label: "Importar",       segment: "importar" },
-  { label: "Configuración",  segment: "configuracion" },
+  { label: "Invitaciones",  segment: "invitaciones" },
+  { label: "Configuración", segment: "configuracion" },
 ];
 
 export default function AdminNav({ inviteCode }: { inviteCode: string }) {

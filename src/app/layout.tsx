@@ -30,9 +30,10 @@ export default async function RootLayout({
           rel="stylesheet"
         />
         {/* CSS variables desde configuración en BD — sobreescriben globals.css */}
-        <style dangerouslySetInnerHTML={{ __html: cssOverrides }} />
       </head>
       <body>
+        {/* CSS variables desde BD — en body para sobrescribir globals.css en cascade */}
+        <style dangerouslySetInnerHTML={{ __html: cssOverrides }} />
         {children}
       </body>
     </html>
