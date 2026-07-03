@@ -30,9 +30,45 @@ export function SeccionHistoria({ eventos }: Props) {
           <OrnamentoDivisor />
         </div>
 
-        {/* Visor */}
+        <div className="space-y-6 md:hidden">
+          {eventos.map((item) => (
+            <article
+              key={item.id}
+              className="overflow-hidden border"
+              style={{
+                backgroundColor: "var(--white)",
+                borderColor: "var(--cream-dark)",
+              }}
+            >
+              {item.imagen && (
+                <div className="relative h-48 w-full">
+                  <Image
+                    src={`/images/${item.imagen}`}
+                    alt={item.titulo}
+                    fill
+                    className="object-cover"
+                    sizes="100vw"
+                  />
+                </div>
+              )}
+              <div className="space-y-3 p-6 text-left">
+                <p className="smallcaps text-xs tracking-widest" style={{ color: "var(--bronze)" }}>
+                  {item.fecha}
+                </p>
+                <h3 className="font-display text-3xl font-light" style={{ color: "var(--brown-dark)" }}>
+                  {item.titulo}
+                </h3>
+                <p className="font-display text-lg italic font-light leading-relaxed" style={{ color: "var(--brown-mid)" }}>
+                  {item.descripcion}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {/* Visor escritorio */}
         <div
-          className="relative overflow-hidden"
+          className="relative hidden overflow-hidden md:block"
           style={{
             backgroundColor: "var(--white)",
             border: "1px solid var(--cream-dark)",
@@ -41,29 +77,29 @@ export function SeccionHistoria({ eventos }: Props) {
           {/* Slide */}
           <div
             key={actual}
-            className="animate-fade-in flex flex-col md:flex-row min-h-[380px]"
+            className="animate-fade-in flex min-h-[380px]"
           >
             {/* Imagen — izquierda o derecha según config */}
             {evento.imagen && evento.lado === "izquierda" && (
-              <div className="relative w-full md:w-2/5 min-h-[220px] md:min-h-full flex-shrink-0">
+              <div className="relative min-h-full w-2/5 flex-shrink-0">
                 <Image
                   src={`/images/${evento.imagen}`}
                   alt={evento.titulo}
                   fill
                   className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 40vw"
+                  sizes="40vw"
                 />
               </div>
             )}
 
             {/* Texto */}
             <div
-              className="flex-1 flex flex-col justify-center p-8 sm:p-12"
+              className="flex flex-1 flex-col justify-center p-12"
               style={{ textAlign: evento.lado === "derecha" ? "right" : "left" }}
             >
               {/* Fecha / subtítulo */}
               <p
-                className="smallcaps text-xs tracking-widest mb-3"
+                className="smallcaps mb-3 text-xs tracking-widest"
                 style={{ color: "var(--bronze)" }}
               >
                 {evento.fecha}
@@ -71,7 +107,7 @@ export function SeccionHistoria({ eventos }: Props) {
 
               {/* Título */}
               <h3
-                className="font-display text-3xl sm:text-4xl font-light mb-4"
+                className="font-display mb-4 text-4xl font-light"
                 style={{ color: "var(--brown-dark)" }}
               >
                 {evento.titulo}
@@ -88,13 +124,13 @@ export function SeccionHistoria({ eventos }: Props) {
 
             {/* Imagen — derecha */}
             {evento.imagen && evento.lado === "derecha" && (
-              <div className="relative w-full md:w-2/5 min-h-[220px] md:min-h-full flex-shrink-0">
+              <div className="relative min-h-full w-2/5 flex-shrink-0">
                 <Image
                   src={`/images/${evento.imagen}`}
                   alt={evento.titulo}
                   fill
                   className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 40vw"
+                  sizes="40vw"
                 />
               </div>
             )}
@@ -102,7 +138,7 @@ export function SeccionHistoria({ eventos }: Props) {
             {/* Placeholder si no hay imagen */}
             {!evento.imagen && (
               <div
-                className="hidden md:flex w-2/5 flex-shrink-0 items-center justify-center"
+                className="flex w-2/5 flex-shrink-0 items-center justify-center"
                 style={{ backgroundColor: "var(--cream)" }}
                 aria-hidden="true"
               >
@@ -150,7 +186,7 @@ export function SeccionHistoria({ eventos }: Props) {
                 <button
                   key={i}
                   onClick={() => setActual(i)}
-                  className="w-2 h-2 rounded-full transition-all duration-200"
+                  className="h-2 w-2 rounded-full transition-all duration-200"
                   style={{
                     backgroundColor: i === actual ? "var(--bronze)" : "var(--bronze-pale)",
                     transform: i === actual ? "scale(1.3)" : "scale(1)",

@@ -81,6 +81,9 @@ const ICONOS: Record<string, React.ReactNode> = {
 };
 
 export function SeccionTimeline({ localizaciones, timeline }: Props) {
+  void localizaciones;
+  void timeline;
+
   return (
     <div className="section-wedding" style={{ backgroundColor: "var(--cream-dark)" }}>
       <div className="container-wedding">
@@ -91,8 +94,77 @@ export function SeccionTimeline({ localizaciones, timeline }: Props) {
           <OrnamentoDivisor />
         </div>
 
-        {/* ── Timeline horizontal ── */}
-        <div className="relative w-full overflow-x-auto pb-4">
+        {/* ── Timeline móvil (vertical) ── */}
+        <div className="space-y-6 md:hidden">
+          {PUNTOS.map((punto, index) => (
+            <article key={punto.id} className="relative pl-10">
+              {index < PUNTOS.length - 1 && (
+                <span
+                  className="absolute left-[21px] top-12 h-[calc(100%-0.5rem)] w-px"
+                  style={{ backgroundColor: "var(--bronze-pale)" }}
+                  aria-hidden="true"
+                />
+              )}
+
+              <div
+                className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full"
+                style={{
+                  backgroundColor: "var(--brown-dark)",
+                  color: "var(--bronze-light)",
+                  boxShadow: "0 0 0 3px var(--cream-dark), 0 0 0 5px var(--bronze-pale)",
+                }}
+              >
+                {ICONOS[punto.icono]}
+              </div>
+
+              <div
+                className="space-y-3 border px-4 pb-4 pt-3"
+                style={{
+                  backgroundColor: "var(--white)",
+                  borderColor: "var(--cream-dark)",
+                  borderTop: "3px solid var(--bronze)",
+                }}
+              >
+                <p className="smallcaps text-xs tracking-widest" style={{ color: "var(--bronze)" }}>
+                  {punto.hora}
+                </p>
+                <h3 className="font-display text-2xl font-light" style={{ color: "var(--brown-dark)" }}>
+                  {punto.titulo}
+                </h3>
+                <p className="text-sm" style={{ color: "var(--olive-muted)" }}>
+                  {punto.subtitulo}
+                </p>
+
+                {punto.mapaSrc && (
+                  <div className="overflow-hidden" style={{ height: "150px" }}>
+                    <iframe
+                      src={punto.mapaSrc}
+                      width="100%"
+                      height="150"
+                      style={{ border: 0 }}
+                      allowFullScreen={false}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      title="Punto de recogida"
+                    />
+                  </div>
+                )}
+
+                <a
+                  href={punto.mapaLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary !w-full !justify-center !px-3 !py-2 !text-xs"
+                >
+                  {punto.mapaTexto}
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {/* ── Timeline escritorio (horizontal) ── */}
+        <div className="relative hidden w-full overflow-x-auto pb-4 md:block">
           <div className="min-w-[700px] relative">
 
             {/* Camino curvo punteado SVG entre los puntos */}

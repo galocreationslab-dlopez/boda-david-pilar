@@ -40,7 +40,7 @@ export default function AdminNav({ inviteCode }: { inviteCode: string }) {
         </nav>
 
         <Link
-          href="/"
+          href={`/?inviteCode=${encodeURIComponent(inviteCode)}`}
           className="text-sm text-stone-500 hover:text-stone-800 transition-colors"
         >
           ← Volver a la web
