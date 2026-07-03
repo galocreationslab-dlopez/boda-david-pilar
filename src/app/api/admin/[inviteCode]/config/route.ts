@@ -5,10 +5,43 @@
  */
 
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createServerClient } from "@/lib/supabase/server";
 import { validateAdminCode } from "@/lib/admin-auth";
 import { getWeddingConfig } from "@/lib/wedding-config-server";
 import { weddingConfig } from "@/config/wedding.config";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function deepMerge(
+  target: Record<string, unknown>,
+  source: unknown,
+): Record<string, unknown> {
+  if (!isRecord(source)) return target;
+
+  const result = { ...target };
+  for (const key of Object.keys(source)) {
+    const val = source[key];
+    if (val === null || val === undefined) continue;
+
+    if (Array.isArray(val)) {
+      result[key] = val;
+      continue;
+    }
+
+    if (isRecord(val)) {
+      const current = isRecord(target[key]) ? target[key] : {};
+      result[key] = deepMerge(current, val);
+      continue;
+    }
+
+    result[key] = val;
+  }
+
+  return result;
+}
 
 export async function GET(
   _req: Request,
@@ -31,7 +64,7 @@ export async function POST(
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
-  const body = await req.json();
+  const body: unknown = await req.json();
   const supabase = createServerClient();
 
   // Obtener config_json existente
@@ -45,25 +78,7 @@ export async function POST(
     return NextResponse.json({ error: "Boda no encontrada" }, { status: 404 });
   }
 
-  const existing = boda.config_json ?? {};
-  // Merge patch sobre existing (reemplazamos arrays, fusionamos objetos)
-  function deepMerge(target: any, source: any): any {
-    if (!source || typeof source !== "object") return target;
-    const result = { ...target };
-    for (const key of Object.keys(source)) {
-      const val = source[key];
-      if (val === null || val === undefined) continue;
-      if (Array.isArray(val)) {
-        result[key] = val;
-      } else if (typeof val === "object") {
-        result[key] = deepMerge(target[key] ?? {}, val);
-      } else {
-        result[key] = val;
-      }
-    }
-    return result;
-  }
-
+  const existing = isRecord(boda.config_json) ? boda.config_json : {};
   const newConfigJson = deepMerge(existing, body);
 
   const { error } = await supabase
@@ -74,6 +89,13 @@ export async function POST(
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Refresca cache de App Router para que la web publica muestre cambios al recargar.
+  revalidatePath("/", "layout");
+  revalidatePath("/", "page");
+  revalidatePath("/[inviteCode]", "page");
+  revalidatePath("/rsvp", "page");
+  revalidatePath("/rsvp/[inviteCode]", "page");
 
   return NextResponse.json({ ok: true });
 }

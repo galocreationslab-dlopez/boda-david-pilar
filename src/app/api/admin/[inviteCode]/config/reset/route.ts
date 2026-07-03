@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createServerClient } from "@/lib/supabase/server";
 import { validateAdminCode } from "@/lib/admin-auth";
 import { weddingConfig } from "@/config/wedding.config";
@@ -24,5 +25,12 @@ export async function DELETE(
     .eq("slug", weddingConfig.slug);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  revalidatePath("/", "layout");
+  revalidatePath("/", "page");
+  revalidatePath("/[inviteCode]", "page");
+  revalidatePath("/rsvp", "page");
+  revalidatePath("/rsvp/[inviteCode]", "page");
+
   return NextResponse.json({ ok: true });
 }

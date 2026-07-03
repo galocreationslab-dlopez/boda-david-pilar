@@ -7,18 +7,28 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { weddingConfig, type WeddingConfig } from "@/config/wedding.config";
+import { unstable_noStore as noStore } from "next/cache";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 /** Merge profundo: arrays se reemplazan por completo, objetos se fusionan. */
-function deepMerge(target: any, source: any): any {
-  if (!source || typeof source !== "object") return target;
+function deepMerge(
+  target: Record<string, unknown>,
+  source: unknown,
+): Record<string, unknown> {
+  if (!isRecord(source)) return target;
+
   const result = { ...target };
   for (const key of Object.keys(source)) {
     const val = source[key];
     if (val === null || val === undefined) continue;
     if (Array.isArray(val)) {
       result[key] = val;
-    } else if (typeof val === "object" && !Array.isArray(val)) {
-      result[key] = deepMerge(target[key] ?? {}, val);
+    } else if (isRecord(val)) {
+      const current = isRecord(target[key]) ? target[key] : {};
+      result[key] = deepMerge(current, val);
     } else {
       result[key] = val;
     }
@@ -27,6 +37,9 @@ function deepMerge(target: any, source: any): any {
 }
 
 export async function getWeddingConfig(): Promise<WeddingConfig> {
+  // Evita servir una version cacheada cuando el admin cambia tema, fuentes o contenido.
+  noStore();
+
   try {
     const supabase = createServerClient();
     const { data } = await supabase
@@ -36,8 +49,9 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
       .maybeSingle();
 
     const override = data?.config_json;
-    if (!override || Object.keys(override).length === 0) return weddingConfig;
-    return deepMerge(weddingConfig, override) as WeddingConfig;
+    if (!isRecord(override) || Object.keys(override).length === 0) return weddingConfig;
+
+    return deepMerge(weddingConfig as unknown as Record<string, unknown>, override) as WeddingConfig;
   } catch {
     return weddingConfig;
   }
