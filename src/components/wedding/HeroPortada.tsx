@@ -18,7 +18,7 @@ type Props = {
 export function HeroPortada({ config, mostrarBotonConfirmar = false, labelBotonConfirmar, onConfirmarClick }: Props) {
   return (
     <div
-      className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 overflow-hidden"
+      className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-4 text-center"
       style={{
         backgroundColor: "var(--brown-dark)",
         backgroundImage:
@@ -26,11 +26,11 @@ export function HeroPortada({ config, mostrarBotonConfirmar = false, labelBotonC
       }}
     >
       {/* Contenido principal */}
-      <div className="relative z-10 flex flex-col items-center gap-5 sm:gap-7 max-w-2xl mx-auto py-20">
+      <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-5 py-16 sm:gap-7 sm:py-20">
 
         {/* Sello */}
         <div className="animate-fade-up">
-          <SelloNupcial size={160} color="#C4964A" />
+          <SelloNupcial size={128} color="#C4964A" />
         </div>
 
         {/* Nombres */}
@@ -82,8 +82,8 @@ export function HeroPortada({ config, mostrarBotonConfirmar = false, labelBotonC
 
         {/* CTA: solo visible con código de invitación válido */}
         {mostrarBotonConfirmar && (
-          <div className="mt-2 animate-fade-in">
-            <button type="button" className="btn-primary" onClick={onConfirmarClick}>
+          <div className="mt-2 w-full animate-fade-in sm:w-auto">
+            <button type="button" className="btn-primary w-full sm:w-auto" onClick={onConfirmarClick}>
               {labelBotonConfirmar ?? "Confirmar asistencia"}
             </button>
           </div>
@@ -106,7 +106,7 @@ export function HeroPortada({ config, mostrarBotonConfirmar = false, labelBotonC
 
       {/* Flecha hacia abajo */}
       <div
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 animate-bounce"
+        className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 animate-bounce sm:block"
         aria-hidden="true"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ color: "rgba(196,150,74,0.5)" }}>

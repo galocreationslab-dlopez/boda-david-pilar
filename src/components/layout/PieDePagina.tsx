@@ -14,17 +14,17 @@ type PieDePaginaProps = {
 export function PieDePagina({ config }: PieDePaginaProps) {
   return (
     <footer
-      className="py-16 text-center border-t border-cream-dark"
+      className="border-t border-cream-dark py-12 text-center sm:py-16"
       style={{ backgroundColor: "var(--brown-dark)" }}
     >
       <div className="container-wedding flex flex-col items-center gap-6">
         <SelloNupcial
-          size={64}
+          size={56}
           color="#C4964A"
         />
 
         <p
-          className="font-display text-2xl font-light"
+          className="font-display text-xl font-light sm:text-2xl"
           style={{ color: "var(--bronze-pale)" }}
         >
           {config.novia.nombre} &amp; {config.novio.nombre}

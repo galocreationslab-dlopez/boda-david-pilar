@@ -13,6 +13,14 @@ type PersonaProps = {
   comentarios?: string | null;
 };
 
+function asString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function asBoolean(value: unknown): boolean {
+  return typeof value === "boolean" ? value : false;
+}
+
 type InvitacionProps = {
   inviteCode: string;
   invitacion: {
@@ -132,6 +140,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
     }
 
     return personas.map((p) => {
+      const necesidades = p.necesidades ?? {};
       const [nombreBase, ...resto] = (p.nombre || "").trim().split(/\s+/);
       return {
       id: p.id,
@@ -145,16 +154,16 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
           : p.estado_asistencia === "no"
             ? "no"
             : "pendiente",
-      alergias: p.necesidades?.alergias || "",
-      necesidades_alimentarias: p.necesidades?.necesidades_alimentarias || "",
-      alojamiento: p.necesidades?.alojamiento || "",
+      alergias: asString(necesidades.alergias),
+      necesidades_alimentarias: asString(necesidades.necesidades_alimentarias),
+      alojamiento: asString(necesidades.alojamiento),
       transporte_g_to_b: Array.isArray(p.transporte) ? p.transporte.includes("granada-beas") : false,
       transporte_b_to_t: Array.isArray(p.transporte) ? p.transporte.includes("beas-torre") : false,
       transporte_t_to_g: Array.isArray(p.transporte) ? p.transporte.includes("torre-granada") : false,
-      come_con_padres: p.necesidades?.come_con_padres || false,
-      menu_adulto: p.necesidades?.menu_adulto || false,
-      necesita_trona: p.necesidades?.necesita_trona || false,
-      necesita_ayuda: p.necesidades?.necesita_ayuda || false,
+      come_con_padres: asBoolean(necesidades.come_con_padres),
+      menu_adulto: asBoolean(necesidades.menu_adulto),
+      necesita_trona: asBoolean(necesidades.necesita_trona),
+      necesita_ayuda: asBoolean(necesidades.necesita_ayuda),
       };
     });
   };
@@ -290,7 +299,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
 
   return (
     <main className="min-h-screen bg-stone-50 px-4 py-10 text-stone-800 sm:px-6 sm:py-16">
-      <div className="mx-auto flex max-w-4xl flex-col gap-8 rounded-3xl border border-stone-200 bg-white p-8 shadow-sm">
+      <div className="mx-auto flex max-w-4xl flex-col gap-6 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:gap-8 sm:p-8">
         <div className="space-y-2">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-700">Confirmación de asistencia</p>
           <h1 className="text-3xl font-semibold text-stone-900">Hola, {invitacion.nombre_visible}</h1>
@@ -332,7 +341,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
 
                 <div className="mt-4">
                   <p className="text-sm font-medium text-stone-700">Transporte</p>
-                  <div className="mt-2 flex flex-wrap gap-3">
+                  <div className="mt-2 grid gap-2 sm:flex sm:flex-wrap sm:gap-3">
                     <label className="flex items-center gap-2 rounded-xl border border-stone-200 px-3 py-2 text-sm">
                       <input type="checkbox" checked={persona.transporte_g_to_b} onChange={(e) => { updatePersona(index, "transporte_g_to_b", e.target.checked); if (index === 0) copyAccommodationAndTransport(0); }} /> Granada → Beas de Granada
                     </label>

@@ -32,7 +32,7 @@ export function SeccionColapsable({
       {!ocultarCabecera && (
         <button
           onClick={() => setAbierta(!abierta)}
-          className="w-full flex items-center justify-between px-6 sm:px-12 py-5 group"
+          className="group flex w-full items-center justify-between gap-4 px-4 py-4 sm:px-12 sm:py-5"
           style={{
             borderBottom: abierta ? "1px solid var(--cream-dark)" : "none",
             backgroundColor: bgColor,
@@ -41,7 +41,7 @@ export function SeccionColapsable({
           aria-controls={`contenido-${id}`}
         >
           <span
-            className="font-display text-2xl sm:text-3xl font-light"
+            className="font-display text-left text-xl font-light sm:text-3xl"
             style={{ color: "var(--brown-dark)" }}
           >
             {titulo}
@@ -49,7 +49,7 @@ export function SeccionColapsable({
 
           {/* Icono + / - */}
           <span
-            className="flex items-center justify-center w-9 h-9 rounded-full flex-shrink-0 transition-all duration-300"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-all duration-300"
             style={{
               border: "1px solid var(--bronze-pale)",
               color: "var(--bronze)",

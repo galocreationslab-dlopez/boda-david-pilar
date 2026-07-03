@@ -20,9 +20,8 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/#historia", label: "Nuestra historia" },
-  { href: "/#informacion", label: "Información" },
-  { href: "/transporte", label: "Transporte" },
-  { href: "/galeria", label: "Galería" },
+  { href: "/#timeline", label: "El gran día" },
+  { href: "/rsvp", label: "Confirmación" },
 ];
 
 type NavegacionPublicaProps = {
@@ -39,6 +38,13 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = menuAbierto ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuAbierto]);
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
@@ -47,7 +53,7 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
           : "bg-transparent"
       }`}
     >
-      <nav className="container-wedding flex items-center justify-between h-16 sm:h-20">
+      <nav className="container-wedding flex h-16 items-center justify-between sm:h-20">
         {/* Logo / Sello */}
         <Link
           href="/"
@@ -59,11 +65,16 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
             color={scrolled ? "#8C6A3F" : "#FDFAF5"}
           />
           <span
-            className={`font-display text-sm tracking-widest hidden sm:block transition-colors ${
+            className={`font-display text-xs tracking-widest sm:text-sm transition-colors ${
               scrolled ? "text-brown-dark" : "text-white"
             }`}
           >
-            {config.novia.nombre} &amp; {config.novio.nombre}
+            <span className="sm:hidden">
+              {config.novia.nombre} &amp; {config.novio.nombre}
+            </span>
+            <span className="hidden sm:inline">
+              {config.novia.nombre} &amp; {config.novio.nombre}
+            </span>
           </span>
         </Link>
 
@@ -117,17 +128,17 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
 
       {/* Menú móvil desplegable */}
       {menuAbierto && (
-        <div className="lg:hidden bg-white border-t border-cream-dark animate-fade-in">
-          <ul className="container-wedding py-6 flex flex-col gap-4">
+        <div className="lg:hidden border-t border-cream-dark bg-white animate-fade-in">
+          <ul className="container-wedding flex flex-col gap-2 py-5">
             {NAV_ITEMS.map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}
                   onClick={() => setMenuAbierto(false)}
-                  className={`block smallcaps text-sm tracking-widest text-brown-mid hover:text-bronze transition-colors ${
+                  className={`block rounded-xl px-2 py-3 smallcaps text-sm tracking-widest text-brown-mid transition-colors hover:bg-stone-50 hover:text-bronze ${
                     item.href === "/rsvp"
                       ? "btn-primary !inline-flex mt-2"
-                      : "py-1"
+                      : ""
                   }`}
                 >
                   {item.label}

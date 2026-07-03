@@ -47,9 +47,9 @@ function UnidadTiempo({
   etiqueta: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex min-w-0 flex-col items-center gap-1 rounded-2xl px-2 py-1 sm:px-0 sm:py-0">
       <span
-        className="font-display text-5xl sm:text-6xl font-light tabular-nums"
+        className="font-display text-4xl sm:text-6xl font-light tabular-nums"
         style={{ color: "var(--white)" }}
         aria-live="polite"
         aria-atomic="true"
@@ -69,7 +69,7 @@ function UnidadTiempo({
 function Separador() {
   return (
     <span
-      className="font-display text-3xl font-light self-center pb-4"
+      className="hidden self-center pb-4 font-display text-3xl font-light sm:inline"
       style={{ color: "var(--bronze-pale)", opacity: 0.5 }}
       aria-hidden="true"
     >
@@ -82,19 +82,14 @@ export function CuentaAtras({ fechaObjetivo, className = "" }: CuentaAtrasProps)
   const [tiempo, setTiempo] = useState<TiempoRestante>(() =>
     calcularTiempo(fechaObjetivo)
   );
-  const [montado, setMontado] = useState(false);
 
   useEffect(() => {
-    setMontado(true);
     const intervalo = setInterval(() => {
       setTiempo(calcularTiempo(fechaObjetivo));
     }, 1000);
 
     return () => clearInterval(intervalo);
   }, [fechaObjetivo]);
-
-  // Evitar mismatch de hidratación
-  if (!montado) return null;
 
   const haTerminado =
     tiempo.dias === 0 &&
@@ -116,7 +111,7 @@ export function CuentaAtras({ fechaObjetivo, className = "" }: CuentaAtrasProps)
   }
 
   return (
-    <div className={`flex items-end justify-center gap-3 sm:gap-6 ${className}`}>
+    <div className={`grid grid-cols-2 gap-x-4 gap-y-3 sm:flex sm:items-end sm:justify-center sm:gap-6 ${className}`}>
       <UnidadTiempo valor={tiempo.dias} etiqueta="días" />
       <Separador />
       <UnidadTiempo valor={tiempo.horas} etiqueta="horas" />
