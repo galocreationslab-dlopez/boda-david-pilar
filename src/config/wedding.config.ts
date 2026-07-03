@@ -33,7 +33,7 @@ export type EventoTimeline = {
   hora: string;
   titulo: string;
   descripcion: string;
-  icono: "rings" | "cocktail" | "fork" | "cake" | "music" | "car";
+  icono: "rings" | "cocktail" | "fork" | "cake" | "music" | "car" | "iglesia" | "finca";
 };
 
 export type TrayectoTransporte = {

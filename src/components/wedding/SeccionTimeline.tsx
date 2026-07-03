@@ -10,11 +10,21 @@ import type { Localizacion } from "@/config/wedding.config";
 
 type Props = {
   localizaciones: Localizacion[];
-  timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string }>;
+  timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; enlaceMaps?: string }>;
 };
 
-// Los 3 puntos fijos del timeline visible en la portada
-const PUNTOS = [
+type PuntoTimeline = {
+  id: string;
+  hora: string;
+  titulo: string;
+  subtitulo: string;
+  icono: string;
+  mapaSrc: string | null;
+  mapaLink: string | null;
+  mapaTexto: string;
+};
+
+const PUNTOS_FALLBACK: PuntoTimeline[] = [
   {
     id: "bus",
     hora: "11:30",
@@ -24,8 +34,6 @@ const PUNTOS = [
     mapaSrc: "https://maps.google.com/maps?q=Granada+Capital&output=embed",
     mapaLink: "https://maps.google.com/?q=Granada+Capital",
     mapaTexto: "Ver punto de recogida",
-    descripcion: "Granada capital — lugar exacto por confirmar",
-    imagen: null,
   },
   {
     id: "ceremonia",
@@ -36,8 +44,6 @@ const PUNTOS = [
     mapaSrc: null,
     mapaLink: "https://maps.google.com/?q=Iglesia+Beas+de+Granada",
     mapaTexto: "Cómo llegar",
-    descripcion: "Iglesia de Beas de Granada",
-    imagen: null, // pondrás: "iglesia-beas.jpg"
   },
   {
     id: "celebracion",
@@ -48,8 +54,6 @@ const PUNTOS = [
     mapaSrc: null,
     mapaLink: "https://maps.google.com/?q=Finca+Torre+del+Rey+Granada",
     mapaTexto: "Cómo llegar",
-    descripcion: "Finca Torre del Rey, Granada",
-    imagen: null, // pondrás: "finca-torre-del-rey.jpg"
   },
 ];
 
@@ -80,9 +84,54 @@ const ICONOS: Record<string, React.ReactNode> = {
   bus: <IconoBus />, rings: <IconoRings />, finca: <IconoFinca />,
 };
 
+function normalizeIcon(icono: string): string {
+  if (icono === "car") return "bus";
+  if (icono === "rings") return "rings";
+  if (icono === "iglesia") return "rings";
+  if (icono === "finca") return "finca";
+  return "finca";
+}
+
+function inferMapLink(
+  item: { titulo: string; descripcion: string; enlaceMaps?: string },
+  localizaciones: Localizacion[],
+): string | null {
+  if (item.enlaceMaps) return item.enlaceMaps;
+
+  const match = localizaciones.find((loc) => {
+    const titulo = item.titulo.toLowerCase();
+    const descripcion = item.descripcion.toLowerCase();
+    return (
+      titulo.includes(loc.nombre.toLowerCase()) ||
+      descripcion.includes(loc.nombre.toLowerCase()) ||
+      descripcion.includes(loc.descripcion.toLowerCase())
+    );
+  });
+
+  return match?.enlaceMaps ?? null;
+}
+
+function buildTimelinePoints(
+  timeline: Props["timeline"],
+  localizaciones: Localizacion[],
+): PuntoTimeline[] {
+  if (timeline.length === 0) return PUNTOS_FALLBACK;
+
+  return timeline.map((item) => ({
+    id: item.id,
+    hora: item.hora,
+    titulo: item.titulo,
+    subtitulo: item.descripcion,
+    icono: normalizeIcon(item.icono),
+    mapaSrc: null,
+    mapaLink: inferMapLink(item, localizaciones),
+    mapaTexto: "Cómo llegar",
+  }));
+}
+
 export function SeccionTimeline({ localizaciones, timeline }: Props) {
-  void localizaciones;
-  void timeline;
+  const puntos = buildTimelinePoints(timeline, localizaciones);
+  const showCurvedLine = puntos.length === 3;
 
   return (
     <div className="section-wedding" style={{ backgroundColor: "var(--cream-dark)" }}>
@@ -96,9 +145,9 @@ export function SeccionTimeline({ localizaciones, timeline }: Props) {
 
         {/* ── Timeline móvil (vertical) ── */}
         <div className="space-y-6 md:hidden">
-          {PUNTOS.map((punto, index) => (
+          {puntos.map((punto, index) => (
             <article key={punto.id} className="relative pl-10">
-              {index < PUNTOS.length - 1 && (
+              {index < puntos.length - 1 && (
                 <span
                   className="absolute left-[21px] top-12 h-[calc(100%-0.5rem)] w-px"
                   style={{ backgroundColor: "var(--bronze-pale)" }}
@@ -150,14 +199,16 @@ export function SeccionTimeline({ localizaciones, timeline }: Props) {
                   </div>
                 )}
 
-                <a
-                  href={punto.mapaLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-secondary !w-full !justify-center !px-3 !py-2 !text-xs"
-                >
-                  {punto.mapaTexto}
-                </a>
+                {punto.mapaLink && (
+                  <a
+                    href={punto.mapaLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-secondary !w-full !justify-center !px-3 !py-2 !text-xs"
+                  >
+                    {punto.mapaTexto}
+                  </a>
+                )}
               </div>
             </article>
           ))}
@@ -165,29 +216,31 @@ export function SeccionTimeline({ localizaciones, timeline }: Props) {
 
         {/* ── Timeline escritorio (horizontal) ── */}
         <div className="relative hidden w-full overflow-x-auto pb-4 md:block">
-          <div className="min-w-[700px] relative">
+          <div className="relative" style={{ minWidth: `${Math.max(700, puntos.length * 280)}px` }}>
 
             {/* Camino curvo punteado SVG entre los puntos */}
-            <svg
-              viewBox="0 0 900 80"
-              className="absolute top-[52px] left-0 right-0 w-full"
-              style={{ height: "80px", zIndex: 0 }}
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M 120 40 C 200 10, 280 70, 380 40 C 480 10, 580 70, 680 40 C 730 25, 760 40, 780 40"
-                fill="none"
-                stroke="var(--bronze-pale)"
-                strokeWidth="2"
-                strokeDasharray="6 5"
-                strokeLinecap="round"
-              />
-            </svg>
+            {showCurvedLine && (
+              <svg
+                viewBox="0 0 900 80"
+                className="absolute top-[52px] left-0 right-0 w-full"
+                style={{ height: "80px", zIndex: 0 }}
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M 120 40 C 200 10, 280 70, 380 40 C 480 10, 580 70, 680 40 C 730 25, 760 40, 780 40"
+                  fill="none"
+                  stroke="var(--bronze-pale)"
+                  strokeWidth="2"
+                  strokeDasharray="6 5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            )}
 
             {/* Los 3 puntos */}
-            <div className="relative z-10 grid grid-cols-3 gap-4">
-              {PUNTOS.map((punto) => (
+            <div className="relative z-10 grid gap-4" style={{ gridTemplateColumns: `repeat(${puntos.length}, minmax(220px, 1fr))` }}>
+              {puntos.map((punto) => (
                 <div key={punto.id} className="flex flex-col items-center gap-4">
 
                   {/* Nodo circular con icono */}
@@ -247,33 +300,17 @@ export function SeccionTimeline({ localizaciones, timeline }: Props) {
                       </div>
                     )}
 
-                    {/* Imagen para iglesia/finca */}
-                    {punto.imagen && (
-                      <div
-                        className="mb-3 overflow-hidden"
-                        style={{ height: "100px", backgroundColor: "var(--cream)" }}
-                      >
-                        {/* <Image src={`/images/${punto.imagen}`} alt={punto.titulo} fill className="object-cover" /> */}
-                        <div
-                          className="w-full h-full flex items-center justify-center"
-                          style={{ color: "var(--bronze-pale)" }}
-                        >
-                          <span className="text-xs" style={{ fontFamily: "var(--font-body)" }}>
-                            Añade imagen en SeccionTimeline.tsx
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
                     {/* Enlace al mapa */}
-                    <a
-                      href={punto.mapaLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-secondary !py-1.5 !px-3 !text-xs w-full justify-center"
-                    >
-                      {punto.mapaTexto}
-                    </a>
+                    {punto.mapaLink && (
+                      <a
+                        href={punto.mapaLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-secondary !py-1.5 !px-3 !text-xs w-full justify-center"
+                      >
+                        {punto.mapaTexto}
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}

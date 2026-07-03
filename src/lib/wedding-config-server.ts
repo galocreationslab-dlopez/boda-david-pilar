@@ -9,6 +9,109 @@ import { createServerClient } from "@/lib/supabase/server";
 import { weddingConfig, type WeddingConfig } from "@/config/wedding.config";
 import { unstable_noStore as noStore } from "next/cache";
 
+type SectionRow = {
+  id: string;
+  clave_config: string;
+  audiencia_roles: string[] | null;
+};
+
+type SectionItemRow = {
+  id: string;
+  seccion_id: string;
+  orden: number;
+  payload: Record<string, unknown> | null;
+  visible: boolean;
+};
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asHistoriaItem(item: SectionItemRow): WeddingConfig["historia"][number] {
+  const payload = isRecord(item.payload) ? item.payload : {};
+  return {
+    id: asString(payload.id, item.id),
+    fecha: asString(payload.fecha),
+    titulo: asString(payload.titulo),
+    descripcion: asString(payload.descripcion),
+    imagen: asString(payload.imagen) || undefined,
+    lado: asString(payload.lado, "derecha") === "izquierda" ? "izquierda" : "derecha",
+  };
+}
+
+function asTimelineItem(item: SectionItemRow): WeddingConfig["timeline"][number] {
+  const payload = isRecord(item.payload) ? item.payload : {};
+  return {
+    id: asString(payload.id, item.id),
+    hora: asString(payload.hora),
+    titulo: asString(payload.titulo),
+    descripcion: asString(payload.descripcion),
+    icono: asString(payload.icono, "rings") as WeddingConfig["timeline"][number]["icono"],
+  };
+}
+
+async function applySectionOverrides(
+  supabase: ReturnType<typeof createServerClient>,
+  bodaId: string,
+  config: WeddingConfig,
+): Promise<WeddingConfig> {
+  const { data: sectionRows, error: sectionError } = await supabase
+    .from("bodas_secciones")
+    .select("id, clave_config, audiencia_roles")
+    .eq("boda_id", bodaId)
+    .eq("visible", true)
+    .order("orden", { ascending: true });
+
+  if (sectionError || !sectionRows || sectionRows.length === 0) {
+    return config;
+  }
+
+  const publicSections = (sectionRows as SectionRow[]).filter((row) => {
+    const roles = row.audiencia_roles ?? [];
+    return roles.includes("*") || roles.includes("public");
+  });
+
+  if (publicSections.length === 0) return config;
+
+  const sectionIds = publicSections.map((row) => row.id);
+  const { data: itemRows, error: itemsError } = await supabase
+    .from("secciones_items")
+    .select("id, seccion_id, orden, payload, visible")
+    .in("seccion_id", sectionIds)
+    .eq("visible", true)
+    .order("orden", { ascending: true });
+
+  if (itemsError || !itemRows) {
+    return config;
+  }
+
+  const itemsBySection = new Map<string, SectionItemRow[]>();
+  for (const item of itemRows as SectionItemRow[]) {
+    const current = itemsBySection.get(item.seccion_id) ?? [];
+    current.push(item);
+    itemsBySection.set(item.seccion_id, current);
+  }
+
+  const historiaItems: WeddingConfig["historia"] = [];
+  const timelineItems: WeddingConfig["timeline"] = [];
+
+  for (const section of publicSections) {
+    const rows = itemsBySection.get(section.id) ?? [];
+    if (section.clave_config === "historia") {
+      historiaItems.push(...rows.map(asHistoriaItem));
+    }
+    if (section.clave_config === "timeline") {
+      timelineItems.push(...rows.map(asTimelineItem));
+    }
+  }
+
+  return {
+    ...config,
+    historia: historiaItems.length > 0 ? historiaItems : config.historia,
+    timeline: timelineItems.length > 0 ? timelineItems : config.timeline,
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -44,14 +147,24 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
     const supabase = createServerClient();
     const { data } = await supabase
       .from("bodas")
-      .select("config_json")
+      .select("id, config_json")
       .eq("slug", weddingConfig.slug)
       .maybeSingle();
 
     const override = data?.config_json;
-    if (!isRecord(override) || Object.keys(override).length === 0) return weddingConfig;
+    const merged = isRecord(override) && Object.keys(override).length > 0
+      ? (deepMerge(weddingConfig as unknown as Record<string, unknown>, override) as WeddingConfig)
+      : weddingConfig;
 
-    return deepMerge(weddingConfig as unknown as Record<string, unknown>, override) as WeddingConfig;
+    const bodaId = asString(data?.id);
+    if (!bodaId) return merged;
+
+    try {
+      return await applySectionOverrides(supabase, bodaId, merged);
+    } catch {
+      // Si las tablas nuevas no existen todavía, mantenemos el comportamiento actual.
+      return merged;
+    }
   } catch {
     return weddingConfig;
   }

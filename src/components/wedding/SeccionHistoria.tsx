@@ -12,6 +12,13 @@ import type { EventoHistoria } from "@/config/wedding.config";
 
 type Props = { eventos: EventoHistoria[] };
 
+function resolveImageSrc(value: string): string {
+  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")) {
+    return value;
+  }
+  return `/images/${value}`;
+}
+
 export function SeccionHistoria({ eventos }: Props) {
   const [actual, setActual] = useState(0);
   const evento = eventos[actual];
@@ -43,7 +50,7 @@ export function SeccionHistoria({ eventos }: Props) {
               {item.imagen && (
                 <div className="relative h-48 w-full">
                   <Image
-                    src={`/images/${item.imagen}`}
+                    src={resolveImageSrc(item.imagen)}
                     alt={item.titulo}
                     fill
                     className="object-cover"
@@ -83,7 +90,7 @@ export function SeccionHistoria({ eventos }: Props) {
             {evento.imagen && evento.lado === "izquierda" && (
               <div className="relative min-h-full w-2/5 flex-shrink-0">
                 <Image
-                  src={`/images/${evento.imagen}`}
+                  src={resolveImageSrc(evento.imagen)}
                   alt={evento.titulo}
                   fill
                   className="object-cover"
@@ -126,7 +133,7 @@ export function SeccionHistoria({ eventos }: Props) {
             {evento.imagen && evento.lado === "derecha" && (
               <div className="relative min-h-full w-2/5 flex-shrink-0">
                 <Image
-                  src={`/images/${evento.imagen}`}
+                  src={resolveImageSrc(evento.imagen)}
                   alt={evento.titulo}
                   fill
                   className="object-cover"

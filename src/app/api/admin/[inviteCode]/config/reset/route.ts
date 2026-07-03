@@ -19,12 +19,32 @@ export async function DELETE(
   }
 
   const supabase = createServerClient();
+  const { data: boda, error: bodaError } = await supabase
+    .from("bodas")
+    .select("id")
+    .eq("slug", weddingConfig.slug)
+    .maybeSingle();
+
+  if (bodaError || !boda?.id) {
+    return NextResponse.json({ error: "Boda no encontrada" }, { status: 404 });
+  }
+
   const { error } = await supabase
     .from("bodas")
     .update({ config_json: {} })
-    .eq("slug", weddingConfig.slug);
+    .eq("id", boda.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  try {
+    await supabase
+      .from("bodas_secciones")
+      .delete()
+      .eq("boda_id", boda.id)
+      .in("clave_config", ["historia", "timeline"]);
+  } catch {
+    // Si las tablas nuevas no existen todavia, no bloquear el reset clasico.
+  }
 
   revalidatePath("/", "layout");
   revalidatePath("/", "page");
