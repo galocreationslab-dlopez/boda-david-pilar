@@ -41,7 +41,7 @@ const PUNTOS_FALLBACK: PuntoTimeline[] = [
     titulo: "Ceremonia nupcial",
     subtitulo: "Iglesia de Beas de Granada",
     icono: "rings",
-    mapaSrc: null,
+    mapaSrc: "https://maps.google.com/maps?q=Iglesia+Beas+de+Granada&output=embed",
     mapaLink: "https://maps.google.com/?q=Iglesia+Beas+de+Granada",
     mapaTexto: "Cómo llegar",
   },
@@ -51,7 +51,7 @@ const PUNTOS_FALLBACK: PuntoTimeline[] = [
     titulo: "Cóctel y celebración",
     subtitulo: "Finca Torre del Rey",
     icono: "finca",
-    mapaSrc: null,
+    mapaSrc: "https://maps.google.com/maps?q=Finca+Torre+del+Rey+Granada&output=embed",
     mapaLink: "https://maps.google.com/?q=Finca+Torre+del+Rey+Granada",
     mapaTexto: "Cómo llegar",
   },
@@ -111,22 +111,47 @@ function inferMapLink(
   return match?.enlaceMaps ?? null;
 }
 
+function toMapEmbedUrl(link: string | null, fallbackQuery?: string): string | null {
+  if (!link) return null;
+  if (link.includes("output=embed")) return link;
+
+  try {
+    const url = new URL(link);
+    const q = url.searchParams.get("q");
+    if (q) return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&output=embed`;
+    if (fallbackQuery && fallbackQuery.trim().length > 0) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(fallbackQuery)}&output=embed`;
+    }
+    return null;
+  } catch {
+    if (fallbackQuery && fallbackQuery.trim().length > 0) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(fallbackQuery)}&output=embed`;
+    }
+    return null;
+  }
+}
+
 function buildTimelinePoints(
   timeline: Props["timeline"],
   localizaciones: Localizacion[],
 ): PuntoTimeline[] {
   if (timeline.length === 0) return PUNTOS_FALLBACK;
 
-  return timeline.map((item) => ({
+  return timeline.slice(0, 3).map((item) => {
+    const mapaLink = inferMapLink(item, localizaciones);
+    const fallbackQuery = `${item.titulo} ${item.descripcion}`.trim();
+    const icono = normalizeIcon(item.icono);
+    return {
     id: item.id,
     hora: item.hora,
     titulo: item.titulo,
     subtitulo: item.descripcion,
-    icono: normalizeIcon(item.icono),
-    mapaSrc: null,
-    mapaLink: inferMapLink(item, localizaciones),
-    mapaTexto: "Cómo llegar",
-  }));
+    icono,
+    mapaSrc: toMapEmbedUrl(mapaLink, fallbackQuery),
+    mapaLink,
+    mapaTexto: icono === "bus" ? "Ver punto de recogida" : "Cómo llegar",
+  };
+  });
 }
 
 export function SeccionTimeline({ localizaciones, timeline }: Props) {
@@ -215,8 +240,8 @@ export function SeccionTimeline({ localizaciones, timeline }: Props) {
         </div>
 
         {/* ── Timeline escritorio (horizontal) ── */}
-        <div className="relative hidden w-full overflow-x-auto pb-4 md:block">
-          <div className="relative" style={{ minWidth: `${Math.max(700, puntos.length * 280)}px` }}>
+        <div className="relative hidden w-full pb-4 md:block">
+          <div className="relative">
 
             {/* Camino curvo punteado SVG entre los puntos */}
             {showCurvedLine && (
@@ -239,7 +264,7 @@ export function SeccionTimeline({ localizaciones, timeline }: Props) {
             )}
 
             {/* Los 3 puntos */}
-            <div className="relative z-10 grid gap-4" style={{ gridTemplateColumns: `repeat(${puntos.length}, minmax(220px, 1fr))` }}>
+            <div className="relative z-10 grid grid-cols-3 gap-4">
               {puntos.map((punto) => (
                 <div key={punto.id} className="flex flex-col items-center gap-4">
 
