@@ -1,16 +1,5 @@
-import { weddingConfig } from "@/config/wedding.config";
-import { RsvpForm } from "@/components/wedding/RsvpForm";
-import { NavegacionPublica } from "@/components/layout/NavegacionPublica";
-import { PieDePagina } from "@/components/layout/PieDePagina";
+import { notFound } from "next/navigation";
 
 export default function RsvpPage() {
-  return (
-    <>
-      <NavegacionPublica config={weddingConfig} />
-      <main className="pt-24">
-        <RsvpForm config={weddingConfig} />
-      </main>
-      <PieDePagina config={weddingConfig} />
-    </>
-  );
+  notFound();
 }

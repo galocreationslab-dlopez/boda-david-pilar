@@ -21,7 +21,6 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: "/#historia", label: "Nuestra historia" },
   { href: "/#timeline", label: "El gran día" },
-  { href: "/rsvp", label: "Confirmación" },
 ];
 
 type NavegacionPublicaProps = {
@@ -86,10 +85,6 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
                 href={item.href}
                 className={`smallcaps text-xs tracking-widest transition-colors hover:opacity-70 ${
                   scrolled ? "text-brown-mid" : "text-white"
-                } ${
-                  item.href === "/rsvp"
-                    ? "btn-primary !py-2 !px-4 !text-xs hover:!opacity-100"
-                    : ""
                 }`}
               >
                 {item.label}
@@ -135,11 +130,7 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
                 <Link
                   href={item.href}
                   onClick={() => setMenuAbierto(false)}
-                  className={`block rounded-xl px-2 py-3 smallcaps text-sm tracking-widest text-brown-mid transition-colors hover:bg-stone-50 hover:text-bronze ${
-                    item.href === "/rsvp"
-                      ? "btn-primary !inline-flex mt-2"
-                      : ""
-                  }`}
+                  className="block rounded-xl px-2 py-3 smallcaps text-sm tracking-widest text-brown-mid transition-colors hover:bg-stone-50 hover:text-bronze"
                 >
                   {item.label}
                 </Link>

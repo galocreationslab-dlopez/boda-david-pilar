@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type PersonaProps = {
   id?: string;
@@ -300,10 +301,19 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
   return (
     <main className="min-h-screen bg-stone-50 px-4 py-10 text-stone-800 sm:px-6 sm:py-16">
       <div className="mx-auto flex max-w-4xl flex-col gap-6 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:gap-8 sm:p-8">
-        <div className="space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-700">Confirmación de asistencia</p>
-          <h1 className="text-3xl font-semibold text-stone-900">Hola, {invitacion.nombre_visible}</h1>
-          <p className="text-base text-stone-600">Esta respuesta está ligada a tu invitación única y nos ayudará a preparar mejor el día.</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-700">Confirmación de asistencia</p>
+            <h1 className="text-3xl font-semibold text-stone-900">Hola, {invitacion.nombre_visible}</h1>
+            <p className="text-base text-stone-600">Esta respuesta está ligada a tu invitación única y nos ayudará a preparar mejor el día.</p>
+          </div>
+
+          <Link
+            href={`/?inviteCode=${encodeURIComponent(inviteCode)}`}
+            className="text-sm text-stone-500 transition-colors hover:text-stone-800"
+          >
+            ← Volver a la web
+          </Link>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
