@@ -284,6 +284,25 @@ export async function makeDriveFilePublic(fileId: string): Promise<void> {
   }
 }
 
+export async function downloadDriveFile(fileId: string): Promise<{ buffer: Buffer; contentType: string }> {
+  const token = await getAccessToken();
+  const response = await fetch(`${GOOGLE_DRIVE_FILES_URL}/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo descargar el archivo de Drive: ${response.status}${detail ? ` - ${detail}` : ""}`);
+  }
+
+  const arr = await response.arrayBuffer();
+  return {
+    buffer: Buffer.from(arr),
+    contentType: response.headers.get("content-type") || "application/octet-stream",
+  };
+}
+
 export function driveFilePublicUrl(fileId: string): string {
   return buildDriveUrl(fileId);
 }

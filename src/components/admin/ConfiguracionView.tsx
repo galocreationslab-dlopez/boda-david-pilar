@@ -16,6 +16,18 @@ const COLOR_LABELS: Record<string, { label: string; desc: string }> = {
 };
 function uid() { return Math.random().toString(36).slice(2); }
 
+function isDriveUrl(value: string): boolean {
+  return value.includes("drive.google.com") || value.includes("drive.usercontent.google.com");
+}
+
+function previewSrcForAdmin(inviteCode: string, src: string): string {
+  if (!src) return src;
+  if (isDriveUrl(src)) {
+    return `/api/admin/${encodeURIComponent(inviteCode)}/resources/preview?src=${encodeURIComponent(src)}`;
+  }
+  return src;
+}
+
 type ResourceItem = {
   id: string;
   nombre: string;
@@ -278,7 +290,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     />
                     {loadingResources && <p className="text-xs text-stone-400">Cargando recursos de Drive...</p>}
                     {e.imagen && (
-                      <img src={e.imagen} alt="Preview historia" className="h-24 w-24 rounded-lg border border-stone-200 object-cover" />
+                      <img src={previewSrcForAdmin(inviteCode, e.imagen)} alt="Preview historia" className="h-24 w-24 rounded-lg border border-stone-200 object-cover" />
                     )}
                   </div>
                   <div><label className="label-field">Lado</label>
