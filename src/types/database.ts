@@ -61,8 +61,26 @@ export type ArchivoMultimedia = {
   nombre: string;
   tipo: "foto" | "video" | "audio";
   google_drive_id: string;
+  invitation_id?: string;
+  folder_tipo?: "recursos_web" | "invitados";
   url_publica?: string;
   subido_por?: string;
+  mime_type?: string;
+  file_size?: number;
+  featured?: boolean;
+  visible_public?: boolean;
+  created_at: string;
+};
+
+export type MensajeInvitacion = {
+  id: string;
+  wedding_id: string;
+  invitation_id: string;
+  author_role: "guest" | "admin";
+  author_name?: string;
+  contenido: string;
+  read_at_admin?: string | null;
+  read_at_guest?: string | null;
   created_at: string;
 };
 

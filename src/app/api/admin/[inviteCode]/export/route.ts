@@ -8,6 +8,37 @@ import * as XLSX from "xlsx";
 import { createServerClient } from "@/lib/supabase/server";
 import { validateAdminCode } from "@/lib/admin-auth";
 
+type ExportAsistente = {
+  nombre: string;
+  edad: number | null;
+  tipo_persona: string;
+  estado_asistencia: string;
+  transporte: unknown[];
+  necesidades: {
+    alojamiento?: string | null;
+    alergias?: string | null;
+    necesidades_alimentarias?: string | null;
+    menu_adulto?: boolean | null;
+    necesita_trona?: boolean | null;
+    come_con_padres?: boolean | null;
+    necesita_ayuda?: boolean | null;
+  };
+  comentarios: string | null;
+};
+
+type ExportInvitacion = {
+  invite_code: string;
+  nombre_visible: string;
+  tipo_invitacion: string;
+  estado: string;
+  adultos_estimados: number;
+  adolescentes_estimados: number;
+  ninos_estimados: number;
+  bebes_estimados: number;
+  created_at: string | null;
+  asistentes?: ExportAsistente[];
+};
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ inviteCode: string }> }
@@ -45,7 +76,7 @@ export async function GET(
     .order("nombre_visible");
 
   // ── Hoja 1: Invitaciones ──────────────────────────────────────
-  const rowsInvitaciones = (invitaciones ?? []).map((inv: any) => ({
+  const rowsInvitaciones = (invitaciones ?? []).map((inv: ExportInvitacion) => ({
     "Código":            inv.invite_code,
     "Nombre visible":    inv.nombre_visible,
     "Tipo":              inv.tipo_invitacion,
@@ -58,10 +89,12 @@ export async function GET(
   }));
 
   // ── Hoja 2: Asistentes ────────────────────────────────────────
-  const rowsAsistentes: Record<string, any>[] = [];
-  for (const inv of invitaciones ?? []) {
-    for (const a of (inv as any).asistentes ?? []) {
-      const transporte: string[] = Array.isArray(a.transporte) ? a.transporte : [];
+  const rowsAsistentes: Record<string, string | number>[] = [];
+  for (const inv of (invitaciones ?? []) as ExportInvitacion[]) {
+    for (const a of inv.asistentes ?? []) {
+      const transporte: string[] = Array.isArray(a.transporte)
+        ? a.transporte.filter((item): item is string => typeof item === "string")
+        : [];
       const nec = a.necesidades ?? {};
       rowsAsistentes.push({
         "Invitación":              inv.nombre_visible,
@@ -88,8 +121,8 @@ export async function GET(
 
   // ── Hoja 3: Resumen ───────────────────────────────────────────
   const total     = (invitaciones ?? []).length;
-  const confirmadas = (invitaciones ?? []).filter((i: any) => i.estado === "confirmada").length;
-  const rechazadas  = (invitaciones ?? []).filter((i: any) => i.estado === "rechazada").length;
+  const confirmadas = (invitaciones ?? []).filter((i: ExportInvitacion) => i.estado === "confirmada").length;
+  const rechazadas  = (invitaciones ?? []).filter((i: ExportInvitacion) => i.estado === "rechazada").length;
   const pendientes  = total - confirmadas - rechazadas;
   const asistentesConf = rowsAsistentes.filter((r) => r["¿Asistirá?"] === "si").length;
 

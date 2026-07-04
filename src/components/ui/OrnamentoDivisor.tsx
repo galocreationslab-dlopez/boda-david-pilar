@@ -84,10 +84,8 @@ export function OrnamentoDivisor({
  * Separador entre secciones grandes — ola suave con color de fondo
  */
 export function SeparadorSeccion({
-  colorDesde = "#F7F3EC",
   colorHacia = "#EDE7DB",
 }: {
-  colorDesde?: string;
   colorHacia?: string;
 }) {
   return (

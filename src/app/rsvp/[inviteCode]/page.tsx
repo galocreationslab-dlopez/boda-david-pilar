@@ -4,8 +4,28 @@ import { InviteRsvpForm } from "@/components/wedding/InviteRsvpForm";
 
 export const dynamic = "force-dynamic";
 
-function buildPersonasFromInvitation(invitacion: any) {
-  const personas = [] as Array<{ id: string; nombre: string; edad: number | null; tipo_persona: string; estado_asistencia: string; transporte: unknown[]; necesidades: Record<string, unknown>; comentarios: string | null }>;
+type InvitacionRow = {
+  id: string;
+  nombre_visible: string;
+  adultos_estimados?: number | null;
+  adolescentes_estimados?: number | null;
+  ninos_estimados?: number | null;
+  bebes_estimados?: number | null;
+};
+
+type AsistenteRow = {
+  id: string;
+  nombre: string;
+  edad: number | null;
+  tipo_persona: string;
+  estado_asistencia: string;
+  transporte: string[];
+  necesidades: Record<string, unknown>;
+  comentarios: string | null;
+};
+
+function buildPersonasFromInvitation(invitacion: InvitacionRow) {
+  const personas: AsistenteRow[] = [];
 
   for (let index = 0; index < Number(invitacion.adultos_estimados || 0); index += 1) {
     personas.push({
@@ -82,13 +102,13 @@ async function getInvitation(inviteCode: string) {
     .order("created_at", { ascending: true });
 
   const personas = asistentes?.length
-    ? asistentes.map((asistente: any) => ({
+    ? asistentes.map((asistente: AsistenteRow) => ({
         id: asistente.id,
         nombre: asistente.nombre,
         edad: asistente.edad,
         tipo_persona: asistente.tipo_persona,
         estado_asistencia: asistente.estado_asistencia,
-        transporte: asistente.transporte,
+      transporte: Array.isArray(asistente.transporte) ? asistente.transporte.filter((item): item is string => typeof item === "string") : [],
         necesidades: asistente.necesidades,
         comentarios: asistente.comentarios,
       }))

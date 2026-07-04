@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { InviteExtras } from "./InviteExtras";
 
 type PersonaProps = {
   id?: string;
@@ -404,6 +405,8 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
             <button type="submit" className="rounded-full bg-amber-700 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70">{sending ? "Guardando..." : "Guardar respuesta"}</button>
           </div>
         </form>
+
+        <InviteExtras inviteCode={inviteCode} invitacionNombre={invitacion.nombre_visible} />
       </div>
     </main>
   );

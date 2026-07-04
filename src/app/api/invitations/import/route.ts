@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
 type ImportRow = Record<string, string>;
-type PersonaImport = { nombre: string; nombre1: string; nombre2?: string; tipo_persona: "adulto" | "adolescente" | "nino" | "bebe"; edad?: number | null };
 
 type InvitacionInsertada = { invite_code: string; nombre_visible: string };
 
@@ -75,11 +74,6 @@ function parseCsvText(csvText: string) {
 function toNumber(value: string | undefined) {
   const parsed = Number(value ?? "0");
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function toOptionalNumber(value: string | undefined) {
-  const parsed = Number(value ?? "");
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function inferTipoInvitacion(adultos: number, explicit?: string) {

@@ -17,8 +17,16 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const body = await req.json();
   const allowed = ["nombre_visible", "tipo_invitacion", "estado", "nombre1", "nombre2",
     "adultos_estimados", "adolescentes_estimados", "ninos_estimados", "bebes_estimados"];
-  const patch: Record<string, any> = {};
-  for (const k of allowed) if (k in body) patch[k] = body[k];
+  const patch: Record<string, string | number | null> = {};
+  if (typeof body === "object" && body !== null) {
+    const record = body as Record<string, unknown>;
+    for (const k of allowed) {
+      const value = record[k];
+      if (typeof value === "string" || typeof value === "number" || value === null) {
+        patch[k] = value;
+      }
+    }
+  }
 
   const supabase = createServerClient();
   const { error } = await supabase.from("invitaciones").update(patch).eq("id", invitacionId);

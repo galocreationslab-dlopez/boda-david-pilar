@@ -19,9 +19,10 @@ const COLUMNAS_INFO = [
 ];
 
 export default function ImportarAdminView({ inviteCode }: { inviteCode: string }) {
+  void inviteCode;
   const [csvText, setCsvText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; created?: any[]; errors?: any[]; message?: string } | null>(null);
+  const [result, setResult] = useState<{ ok: boolean; created?: Array<{ invite_code: string; nombre_visible: string }>; errors?: Array<{ nombre_visible: string; error: string }>; message?: string } | null>(null);
   const [showTemplate, setShowTemplate] = useState(false);
 
   const handleImport = async () => {
@@ -156,7 +157,7 @@ export default function ImportarAdminView({ inviteCode }: { inviteCode: string }
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
-                      {result.created.map((inv: any) => (
+                      {result.created.map((inv) => (
                         <tr key={inv.invite_code}>
                           <td className="px-4 py-2 text-stone-700">{inv.nombre_visible}</td>
                           <td className="px-4 py-2 font-mono text-xs text-stone-500">{inv.invite_code}</td>
@@ -170,7 +171,7 @@ export default function ImportarAdminView({ inviteCode }: { inviteCode: string }
                 <div>
                   <p className="text-sm font-medium text-amber-700">Advertencias:</p>
                   <ul className="mt-1 space-y-1">
-                    {result.errors.map((e: any, i: number) => (
+                    {result.errors.map((e, i: number) => (
                       <li key={i} className="text-sm text-amber-600">{e.nombre_visible}: {e.error}</li>
                     ))}
                   </ul>

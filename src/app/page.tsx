@@ -9,11 +9,14 @@ import { PieDePagina } from "@/components/layout/PieDePagina";
 import { SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
 import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
+import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
 import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
+import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
 
 export default async function PaginaPrincipal() {
   const config = await getWeddingConfig();
+  const galleryMedia = await getFeaturedGalleryMedia();
 
   return (
     <>
@@ -23,7 +26,7 @@ export default async function PaginaPrincipal() {
           <MainWithInvite config={config} />
         </SeccionColapsable>
 
-        <SeparadorSeccion colorDesde="#2E1F0E" colorHacia="#F7F3EC" />
+        <SeparadorSeccion colorHacia="#F7F3EC" />
 
         {/* SECCIÓN 2 — Nuestra historia, plegada por defecto */}
         <SeccionColapsable
@@ -35,7 +38,16 @@ export default async function PaginaPrincipal() {
           <SeccionHistoria eventos={config.historia} />
         </SeccionColapsable>
 
-        <SeparadorSeccion colorDesde="#F7F3EC" colorHacia="#EDE7DB" />
+        <SeccionColapsable
+          id="galeria"
+          titulo="Galería"
+          abiertaPorDefecto={false}
+          bgColor="var(--cream)"
+        >
+          <SeccionGaleria media={galleryMedia} />
+        </SeccionColapsable>
+
+        <SeparadorSeccion colorHacia="#EDE7DB" />
 
         {/* SECCIÓN 3 — Timeline del día, plegada por defecto */}
         <SeccionColapsable

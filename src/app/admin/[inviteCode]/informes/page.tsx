@@ -6,7 +6,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import InformesView from "@/components/admin/InformesView";
 
-async function getReportData(inviteCode: string) {
+async function getReportData() {
   const supabase = createServerClient();
 
   const { data: invitaciones } = await supabase
@@ -45,7 +45,7 @@ export default async function InformesPage({
   params: Promise<{ inviteCode: string }>;
 }) {
   const { inviteCode } = await params;
-  const data = await getReportData(inviteCode);
+  const data = await getReportData();
 
   return <InformesView inviteCode={inviteCode} invitaciones={data.invitaciones} />;
 }

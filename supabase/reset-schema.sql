@@ -60,12 +60,30 @@ CREATE TABLE IF NOT EXISTS public.asistentes (
 CREATE TABLE IF NOT EXISTS public.multimedia (
   id                uuid primary key default uuid_generate_v4(),
   wedding_id        uuid not null references public.bodas(id) on delete cascade,
+  invitation_id     uuid references public.invitaciones(id) on delete cascade,
+  folder_tipo       text not null default 'recursos_web' check (folder_tipo in ('recursos_web','invitados')),
   nombre            text not null,
   tipo              text not null check (tipo in ('foto','video','audio')),
   google_drive_id   text not null,
   url_publica       text,
   subido_por        text,
+  mime_type         text,
+  file_size         bigint,
+  featured          boolean not null default false,
+  visible_public    boolean not null default false,
   created_at        timestamptz default now()
+);
+
+CREATE TABLE IF NOT EXISTS public.invitaciones_mensajes (
+  id              uuid primary key default uuid_generate_v4(),
+  wedding_id      uuid not null references public.bodas(id) on delete cascade,
+  invitation_id   uuid not null references public.invitaciones(id) on delete cascade,
+  author_role     text not null check (author_role in ('guest','admin')),
+  author_name     text,
+  contenido       text not null,
+  read_at_admin   timestamptz,
+  read_at_guest   timestamptz,
+  created_at      timestamptz default now()
 );
 
 CREATE INDEX IF NOT EXISTS invitaciones_wedding_id_idx ON public.invitaciones(wedding_id);

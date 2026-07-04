@@ -8,7 +8,10 @@ type Asistente = {
   tipo_persona: string;
   estado_asistencia: string;
   transporte: string[];
-  necesidades: Record<string, any>;
+  necesidades: {
+    alojamiento?: string | null;
+    alergias?: string | null;
+  };
   comentarios: string | null;
 };
 

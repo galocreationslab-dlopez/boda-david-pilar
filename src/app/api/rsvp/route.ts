@@ -1,9 +1,41 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
+type RSVPCreateBody = {
+  weddingSlug?: string;
+  invite_code?: string;
+  nombre_visible?: string;
+  nombre?: string;
+  tipo_invitacion?: string;
+  adultos_estimados?: number;
+  adolescentes_estimados?: number;
+  ninos_estimados?: number;
+  bebes_estimados?: number;
+  confirma?: boolean;
+  personas?: Array<{
+    nombre?: string;
+    edad?: number | null;
+    tipo_persona?: string;
+    asistira?: "si" | "no" | "pendiente";
+    transporte?: string[];
+    alergias?: string | null;
+    necesidades_alimentarias?: string | null;
+    come_con_padres?: boolean | null;
+    menu_adulto?: boolean | null;
+    necesita_trona?: boolean | null;
+  }>;
+  comentarios?: string | null;
+  edad?: number | null;
+  tipo_persona?: string;
+  alergias?: string | null;
+  transporteIds?: string[];
+};
+
+type RSVPCreatePersona = NonNullable<RSVPCreateBody["personas"]>[number];
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as RSVPCreateBody;
     const supabase = createServerClient();
 
     const { data: bodaData, error: bodaError } = await supabase
@@ -43,7 +75,7 @@ export async function POST(request: Request) {
     }
 
     const asistentes = personas.length
-      ? personas.map((persona: any) => ({
+        ? (personas as RSVPCreatePersona[]).map((persona) => ({
           invitation_id: invitacionData.id,
           nombre: persona.nombre || "Invitado",
           edad: persona.edad ?? null,
@@ -70,6 +102,10 @@ export async function POST(request: Request) {
             necesidades: {
               alergias: body.alergias || null,
               necesidades_alimentarias: null,
+              come_con_padres: null,
+              menu_adulto: null,
+              necesita_trona: null,
+              necesita_ayuda: null,
             },
             comentarios: body.comentarios || null,
           },

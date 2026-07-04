@@ -53,17 +53,39 @@ create table if not exists public.asistentes (
 create table if not exists public.multimedia (
   id                uuid primary key default uuid_generate_v4(),
   wedding_id        uuid not null references public.bodas(id) on delete cascade,
+  invitation_id     uuid references public.invitaciones(id) on delete cascade,
+  folder_tipo       text not null default 'recursos_web' check (folder_tipo in ('recursos_web','invitados')),
   nombre            text not null,
   tipo              text not null check (tipo in ('foto','video','audio')),
   google_drive_id   text not null,
   url_publica       text,
   subido_por        text,
+  mime_type         text,
+  file_size         bigint,
+  featured          boolean not null default false,
+  visible_public    boolean not null default false,
   created_at        timestamptz default now()
+);
+
+create table if not exists public.invitaciones_mensajes (
+  id              uuid primary key default uuid_generate_v4(),
+  wedding_id      uuid not null references public.bodas(id) on delete cascade,
+  invitation_id   uuid not null references public.invitaciones(id) on delete cascade,
+  author_role     text not null check (author_role in ('guest','admin')),
+  author_name     text,
+  contenido       text not null,
+  read_at_admin   timestamptz,
+  read_at_guest   timestamptz,
+  created_at      timestamptz default now()
 );
 
 create index if not exists invitaciones_wedding_id_idx on public.invitaciones(wedding_id);
 create index if not exists asistentes_invitation_id_idx on public.asistentes(invitation_id);
 create index if not exists multimedia_wedding_id_idx on public.multimedia(wedding_id);
+create index if not exists multimedia_invitation_id_idx on public.multimedia(invitation_id);
+create index if not exists multimedia_visible_public_idx on public.multimedia(visible_public, featured);
+create index if not exists mensajes_invitation_id_idx on public.invitaciones_mensajes(invitation_id);
+create index if not exists mensajes_admin_unread_idx on public.invitaciones_mensajes(read_at_admin);
 
 create table if not exists public.tipos_seccion (
   id uuid primary key default gen_random_uuid(),
@@ -139,6 +161,7 @@ alter table public.bodas enable row level security;
 alter table public.invitaciones enable row level security;
 alter table public.asistentes enable row level security;
 alter table public.multimedia enable row level security;
+alter table public.invitaciones_mensajes enable row level security;
 alter table public.tipos_seccion enable row level security;
 alter table public.bodas_secciones enable row level security;
 alter table public.secciones_items enable row level security;
@@ -168,6 +191,19 @@ create policy "Invitados pueden subir multimedia"
 create policy "Multimedia es pública"
   on public.multimedia for select
   using (true);
+
+create policy "Mensajes de invitaciones son visibles para el backend"
+  on public.invitaciones_mensajes for select
+  using (true);
+
+create policy "Mensajes de invitaciones pueden crearse"
+  on public.invitaciones_mensajes for insert
+  with check (true);
+
+create policy "Mensajes de invitaciones pueden actualizarse"
+  on public.invitaciones_mensajes for update
+  using (true)
+  with check (true);
 
 create policy "tipos_seccion visibles"
   on public.tipos_seccion for select

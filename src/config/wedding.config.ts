@@ -45,6 +45,20 @@ export type TrayectoTransporte = {
   plazasDisponibles?: number;
 };
 
+export type DriveFolderAccess = "private" | "shared" | "public";
+
+export type DriveFolderConfig = {
+  folderId: string;
+  folderPath: string;
+  access: DriveFolderAccess;
+  sharedDriveId?: string;
+};
+
+export type DriveConfig = {
+  recursosWeb: DriveFolderConfig;
+  invitados: DriveFolderConfig;
+};
+
 export type WeddingConfig = {
   weddingId: string;
   slug: string;
@@ -88,6 +102,7 @@ export type WeddingConfig = {
   localizaciones: Localizacion[];
   timeline: EventoTimeline[];
   transporte: TrayectoTransporte[];
+  drive: DriveConfig;
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -275,4 +290,17 @@ export const weddingConfig: WeddingConfig = {
       plazasDisponibles: 50,
     },
   ],
+
+  drive: {
+    recursosWeb: {
+      folderId: "",
+      folderPath: "Recursos de la web",
+      access: "private",
+    },
+    invitados: {
+      folderId: "",
+      folderPath: "Subidas de invitados",
+      access: "shared",
+    },
+  },
 };

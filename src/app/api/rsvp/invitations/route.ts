@@ -20,7 +20,6 @@ export async function POST(request: Request) {
     }
 
     const inviteCode = body.invite_code || crypto.randomUUID().slice(0, 8);
-    const personas = Array.isArray(body.personas) ? body.personas : [];
 
     const { data: invitacionData, error: invitacionError } = await supabase
       .from("invitaciones")

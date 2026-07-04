@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { HeroPortada } from "./HeroPortada";
+import type { WeddingConfig } from "@/config/wedding.config";
 
 type InvitacionAPI = {
-  invitacion: any;
-  personas: any[];
+  invitacion: {
+    tipo_invitacion?: string;
+  } | null;
+  personas: unknown[];
 };
 
 const MONTHS_ES: Record<string, number> = {
@@ -46,7 +49,7 @@ function parseSpanishDate(input?: string): Date | null {
 }
 
 type Props = {
-  config: any;
+  config: WeddingConfig;
 };
 
 export default function MainWithInvite({ config }: Props) {
@@ -55,7 +58,7 @@ export default function MainWithInvite({ config }: Props) {
   const hasInviteCode = Boolean(inviteCode && inviteCode.trim().length > 0);
   const [valid, setValid] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [invitacion, setInvitacion] = useState<any | null>(null);
+  const [invitacion, setInvitacion] = useState<InvitacionAPI["invitacion"]>(null);
   const limiteConfirmacion = parseSpanishDate(config?.textos?.confirmacionLimite);
   const estaEnPlazo = !limiteConfirmacion || new Date() <= limiteConfirmacion;
 
@@ -63,7 +66,8 @@ export default function MainWithInvite({ config }: Props) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("inviteCode") || params.get("invitecode") || null;
-    setInviteCode(code);
+    const raf = window.requestAnimationFrame(() => setInviteCode(code));
+    return () => window.cancelAnimationFrame(raf);
   }, []);
 
   useEffect(() => {

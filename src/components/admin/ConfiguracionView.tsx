@@ -26,8 +26,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [logoUrl, setLogoUrl] = useState(ic.logo ?? "");
   const [historia, setHistoria] = useState<EventoHistoria[]>(structuredClone(ic.historia));
   const [editandoH, setEditandoH] = useState<string | null>(null);
-  const [timeline, setTimeline] = useState<(EventoTimeline & { enlaceMaps?: string })[]>(
-    structuredClone(ic.timeline).map((e: any) => ({ ...e, enlaceMaps: e.enlaceMaps ?? "" }))
+  const [timeline, setTimeline] = useState<Array<EventoTimeline & { enlaceMaps?: string }>>(
+    structuredClone(ic.timeline).map((e) => ({ ...e, enlaceMaps: "" }))
   );
 
   const showMsg = (type: "ok"|"error", text: string) => { setMsg({ type, text }); setTimeout(() => setMsg(null), 5000); };
@@ -35,7 +35,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload: any = { tema: { colores, fuentes }, historia, timeline };
+      const payload: Record<string, unknown> = { tema: { colores, fuentes }, historia, timeline };
       if (logoUrl) payload.logo = logoUrl;
       const res = await fetch(`/api/admin/${inviteCode}/config`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -57,13 +57,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     finally { setResetting(false); }
   };
 
-  const updateH = (id: string, f: keyof EventoHistoria, v: any) =>
+  const updateH = (id: string, f: keyof EventoHistoria, v: EventoHistoria[keyof EventoHistoria]) =>
     setHistoria((p) => p.map((e) => (e.id === id ? { ...e, [f]: v } : e)));
   const addH = () => {
     const e: EventoHistoria = { id: uid(), fecha: "", titulo: "", descripcion: "", lado: "derecha" };
     setHistoria((p) => [...p, e]); setEditandoH(e.id);
   };
-  const updateT = (id: string, f: string, v: any) => setTimeline((p) => p.map((e) => (e.id === id ? { ...e, [f]: v } : e)));
+  const updateT = (id: string, f: keyof (EventoTimeline & { enlaceMaps?: string }), v: string) =>
+    setTimeline((p) => p.map((e) => (e.id === id ? { ...e, [f]: v } : e)));
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -94,7 +95,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         {(["diseno","historia","timeline"] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${tab===t ? "border-amber-700 text-amber-700" : "border-transparent text-stone-500 hover:text-stone-700"}`}>
-            {({"diseno":"Diseno","historia":"Historia","timeline":"El gran dia"} as any)[t]}
+            {({ diseno: "Diseno", historia: "Historia", timeline: "El gran dia" } as Record<Tab, string>)[t]}
           </button>
         ))}
       </div>
@@ -200,7 +201,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 <div><label className="label-field">Titulo</label><input className="input-field" value={e.titulo} onChange={(ev) => updateT(e.id,"titulo",ev.target.value)} /></div>
                 <div><label className="label-field">Descripcion / lugar</label><input className="input-field" value={e.descripcion} onChange={(ev) => updateT(e.id,"descripcion",ev.target.value)} /></div>
                 <div className="sm:col-span-2"><label className="label-field">Enlace Google Maps (como llegar)</label>
-                  <input type="url" className="input-field" value={(e as any).enlaceMaps??""} onChange={(ev) => updateT(e.id,"enlaceMaps",ev.target.value)} placeholder="https://maps.app.goo.gl/..." /></div>
+                  <input type="url" className="input-field" value={e.enlaceMaps ?? ""} onChange={(ev) => updateT(e.id,"enlaceMaps",ev.target.value)} placeholder="https://maps.app.goo.gl/..." /></div>
               </div>
             </div>
           ))}

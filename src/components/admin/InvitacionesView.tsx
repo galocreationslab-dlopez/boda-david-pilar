@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import * as XLSX from "xlsx";
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type Nec = Record<string, any>;
+type Nec = {
+  alojamiento?: string | null;
+  alergias?: string | null;
+};
 type Asistente = { id: string; nombre: string; edad: number|null; tipo_persona: string; estado_asistencia: string; transporte: string[]; necesidades: Nec; comentarios: string|null };
-type Invitacion = { id: string; invite_code: string; nombre_visible: string; tipo_invitacion: string; estado: string; adultos_estimados: number; adolescentes_estimados: number; ninos_estimados: number; bebes_estimados: number; created_at: string; asistentes: Asistente[] };
+type Invitacion = { id: string; invite_code: string; nombre_visible: string; tipo_invitacion: string; estado: string; nombre1?: string | null; nombre2?: string | null; adultos_estimados: number; adolescentes_estimados: number; ninos_estimados: number; bebes_estimados: number; created_at: string; asistentes: Asistente[] };
 
 const ESTADO_BADGE: Record<string,string> = {
   confirmada:"bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -26,7 +29,7 @@ Juan y Maria Garcia;pareja;2;0;1;0;Juan;Maria
 Carlos Lopez;soltero;1;0;0;0;Carlos;`;
 
 // ── Row de edicion de asistente ──────────────────────────────────────────────
-function AsistenteEditRow({ a, adminCode, invId, onSaved, onDeleted }: { a: Asistente; adminCode: string; invId: string; onSaved: (a: Asistente) => void; onDeleted: () => void }) {
+function AsistenteEditRow({ a, adminCode, onSaved, onDeleted }: { a: Asistente; adminCode: string; onSaved: (a: Asistente) => void; onDeleted: () => void }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...a });
   const [saving, setSaving] = useState(false);
@@ -40,7 +43,7 @@ function AsistenteEditRow({ a, adminCode, invId, onSaved, onDeleted }: { a: Asis
     if (res.ok) { onSaved({ ...a, ...payload }); setEditing(false); }
   };
   const del = async () => {
-    if (!confirm(`Eliminar asistente "${a.nombre}"?`)) return;
+    if (!confirm(`Eliminar asistente &quot;${a.nombre}&quot;?`)) return;
     const res = await fetch(`/api/admin/${adminCode}/asistentes/${a.id}`, { method: "DELETE" });
     if (res.ok) onDeleted();
   };
@@ -67,7 +70,7 @@ function AsistenteEditRow({ a, adminCode, invId, onSaved, onDeleted }: { a: Asis
         {nec.alojamiento && <span>🏨 {nec.alojamiento}</span>}
         {transp.length > 0 && <span>🚌 {transp.map((t) => TRANSP_LABELS[t]??t).join(", ")}</span>}
         {nec.alergias && <span className="text-amber-600">⚠ {nec.alergias}</span>}
-        {a.comentarios && <span className="italic text-stone-400">"{a.comentarios}"</span>}
+        {a.comentarios && <span className="italic text-stone-400">&quot;{a.comentarios}&quot;</span>}
       </div>
     </div>
   );
@@ -142,7 +145,7 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted 
   const [inv, setInv] = useState(initInv);
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ nombre_visible: inv.nombre_visible, tipo_invitacion: inv.tipo_invitacion, estado: inv.estado, nombre1: (inv as any).nombre1??"", nombre2: (inv as any).nombre2??"", adultos_estimados: inv.adultos_estimados, ninos_estimados: inv.ninos_estimados, bebes_estimados: inv.bebes_estimados, adolescentes_estimados: inv.adolescentes_estimados });
+  const [form, setForm] = useState({ nombre_visible: inv.nombre_visible, tipo_invitacion: inv.tipo_invitacion, estado: inv.estado, nombre1: inv.nombre1 ?? "", nombre2: inv.nombre2 ?? "", adultos_estimados: inv.adultos_estimados, ninos_estimados: inv.ninos_estimados, bebes_estimados: inv.bebes_estimados, adolescentes_estimados: inv.adolescentes_estimados });
   const [savingInv, setSavingInv] = useState(false);
   const [addingA, setAddingA] = useState(false);
 
@@ -153,7 +156,7 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted 
     if (res.ok) { setInv((i) => ({ ...i, ...form })); setEditing(false); }
   };
   const delInv = async () => {
-    if (!confirm(`Eliminar invitacion "${inv.nombre_visible}" y todos sus asistentes?`)) return;
+    if (!confirm(`Eliminar invitacion &quot;${inv.nombre_visible}&quot; y todos sus asistentes?`)) return;
     const res = await fetch(`/api/admin/${adminCode}/invitaciones/${inv.id}`, { method: "DELETE" });
     if (res.ok) onDeleted(inv.id);
   };
@@ -211,7 +214,7 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted 
         <div className="border-t border-stone-100 px-4 py-3 space-y-2">
           {inv.asistentes.length === 0 && !addingA && <p className="text-sm text-stone-400 italic">Sin respuestas todavia.</p>}
           {inv.asistentes.map((a) => (
-            <AsistenteEditRow key={a.id} a={a} adminCode={adminCode} invId={inv.id} onSaved={updateAsist} onDeleted={() => delAsist(a.id)} />
+            <AsistenteEditRow key={a.id} a={a} adminCode={adminCode} onSaved={updateAsist} onDeleted={() => delAsist(a.id)} />
           ))}
           {addingA
             ? <NuevoAsistente adminCode={adminCode} invitacionId={inv.id} onCreated={addAsist} onCancel={() => setAddingA(false)} />
@@ -228,7 +231,7 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted 
 function ImportModal({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
   const [csv, setCsv] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<{ ok?: boolean; created?: Array<{ invite_code: string; nombre_visible: string }>; errors?: Array<{ nombre_visible: string; error: string }>; error?: string } | null>(null);
   const doImport = async () => {
     if (!csv.trim()) return;
     setLoading(true);
@@ -266,7 +269,7 @@ function ImportModal({ onClose, onImported }: { onClose: () => void; onImported:
 
 // ── Export helpers ────────────────────────────────────────────────────────────
 function buildRows(invitaciones: Invitacion[]) {
-  const rows: Record<string,any>[] = [];
+  const rows: Record<string, string | number>[] = [];
   for (const inv of invitaciones) {
     if (inv.asistentes.length === 0) {
       rows.push({ "Invitacion": inv.nombre_visible, "Codigo": inv.invite_code, "Tipo": inv.tipo_invitacion, "Estado invitacion": inv.estado, "Adultos est.": inv.adultos_estimados, "Ninos est.": inv.ninos_estimados, "Asistente": "", "Tipo persona": "", "Asistira": "", "Alojamiento": "", "Granada-Beas": "", "Beas-Torre": "", "Torre-GR": "", "Alergias": "", "Comentarios": "" });
@@ -326,8 +329,14 @@ export default function InvitacionesView({ inviteCode, invitaciones: init }: { i
 
   const selectionForExport = filtradas.filter((i) => selected.size===0 || selected.has(i.invite_code));
 
-  const toggleSelect = (code: string) => setSelected((s) => { const n=new Set(s); n.has(code)?n.delete(code):n.add(code); return n; });
-  const toggleAll = () => setSelected(selected.size===filtradas.length ? new Set() : new Set(filtradas.map((i) => i.invite_code)));
+  const toggleSelect = (code: string) => setSelected((s) => { const n = new Set(s); if (n.has(code)) n.delete(code); else n.add(code); return n; });
+  const toggleAll = () => {
+    if (selected.size === filtradas.length) {
+      setSelected(new Set());
+      return;
+    }
+    setSelected(new Set(filtradas.map((i) => i.invite_code)));
+  };
   const handleDeleted = (id: string) => setInvitaciones((p) => p.filter((i) => i.id!==id));
 
   const totales = { total: invitaciones.length, confirmadas: invitaciones.filter((i) => i.estado==="confirmada").length, pendientes: invitaciones.filter((i) => i.estado.startsWith("pendiente")).length, rechazadas: invitaciones.filter((i) => i.estado==="rechazada").length, sin_respuesta: invitaciones.filter((i) => i.asistentes.length===0).length };

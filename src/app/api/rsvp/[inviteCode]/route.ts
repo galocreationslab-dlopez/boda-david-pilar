@@ -1,6 +1,38 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
+type RSVPUpdateBody = {
+  asistencia_estimada?: "si" | "no" | "pendiente";
+  comentarios?: string | null;
+  personas?: Array<{
+    id?: string;
+    nombre?: string;
+    edad?: number | null;
+    tipo_persona?: string;
+    asistira?: "si" | "no" | "pendiente";
+    transporte?: string[];
+    alergias?: string | null;
+    necesidades_alimentarias?: string | null;
+    alojamiento?: string | null;
+    come_con_padres?: boolean | null;
+    menu_adulto?: boolean | null;
+    necesita_trona?: boolean | null;
+    necesita_ayuda?: boolean | null;
+  }>;
+};
+
+type RSVPPersona = NonNullable<RSVPUpdateBody["personas"]>[number];
+type RSVPAsistenteRow = {
+  id: string;
+  nombre: string;
+  edad: number | null;
+  tipo_persona: string;
+  estado_asistencia: string;
+  transporte: unknown[];
+  necesidades: Record<string, unknown>;
+  comentarios: string | null;
+};
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ inviteCode: string }> }
@@ -30,7 +62,7 @@ export async function GET(
     }
 
     const personas = asistentes?.length
-      ? asistentes.map((asistente: any) => ({
+      ? asistentes.map((asistente: RSVPAsistenteRow) => ({
           id: asistente.id,
           nombre: asistente.nombre,
           edad: asistente.edad,
@@ -57,7 +89,7 @@ export async function POST(
 ) {
   try {
     const { inviteCode } = await params;
-    const body = await request.json();
+    const body = (await request.json()) as RSVPUpdateBody;
     const supabase = createServerClient();
 
     const { data: invitacion, error: invitacionError } = await supabase
@@ -90,7 +122,7 @@ export async function POST(
 
     const personas = Array.isArray(body.personas) ? body.personas : [];
 
-    for (const persona of personas) {
+    for (const persona of personas as RSVPPersona[]) {
       const payload = {
         invitation_id: invitacion.id,
         nombre: persona.nombre || "Invitado",
@@ -110,7 +142,7 @@ export async function POST(
           necesita_trona: persona.necesita_trona ?? null,
           necesita_ayuda: persona.necesita_ayuda ?? null,
         },
-        comentarios: persona.comentarios || body.comentarios || null,
+          comentarios: body.comentarios || null,
       };
 
       if (persona.id) {

@@ -16,8 +16,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
   const body = await req.json();
   const allowed = ["nombre", "edad", "tipo_persona", "estado_asistencia", "transporte", "necesidades", "comentarios"];
-  const patch: Record<string, any> = {};
-  for (const k of allowed) if (k in body) patch[k] = body[k];
+  const patch: Record<string, unknown> = {};
+  if (typeof body === "object" && body !== null) {
+    const record = body as Record<string, unknown>;
+    for (const k of allowed) {
+      if (k in record) patch[k] = record[k];
+    }
+  }
 
   const supabase = createServerClient();
   const { error } = await supabase.from("asistentes").update(patch).eq("id", asistenteId);
