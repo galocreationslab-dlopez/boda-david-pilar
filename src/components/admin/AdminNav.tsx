@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
   { label: "Invitaciones",  segment: "invitaciones" },
-  { label: "Medios", segment: "medios" },
+  { label: "Recursos", segment: "medios" },
   { label: "Configuración", segment: "configuracion" },
 ];
 

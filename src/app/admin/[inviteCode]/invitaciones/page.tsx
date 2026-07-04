@@ -34,7 +34,23 @@ async function getData() {
     `)
     .neq("tipo_invitacion", "admin")
     .order("nombre_visible");
-  return data ?? [];
+
+  const { data: unreadRows } = await supabase
+    .from("invitaciones_mensajes")
+    .select("invitation_id")
+    .eq("author_role", "guest")
+    .is("read_at_admin", null);
+
+  const unreadByInvitationId: Record<string, number> = {};
+  for (const row of unreadRows ?? []) {
+    const id = row.invitation_id;
+    unreadByInvitationId[id] = (unreadByInvitationId[id] ?? 0) + 1;
+  }
+
+  return {
+    invitaciones: data ?? [],
+    unreadByInvitationId,
+  };
 }
 
 export default async function InvitacionesPage({
@@ -43,6 +59,6 @@ export default async function InvitacionesPage({
   params: Promise<{ inviteCode: string }>;
 }) {
   const { inviteCode } = await params;
-  const invitaciones = await getData();
-  return <InvitacionesView inviteCode={inviteCode} invitaciones={invitaciones} />;
+  const data = await getData();
+  return <InvitacionesView inviteCode={inviteCode} invitaciones={data.invitaciones} unreadByInvitationId={data.unreadByInvitationId} />;
 }

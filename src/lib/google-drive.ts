@@ -25,6 +25,10 @@ type DriveFile = {
   size?: string;
 };
 
+type DriveListResponse = {
+  files?: DriveFile[];
+};
+
 type DriveUploadInput = {
   folderId: string;
   filename: string;
@@ -125,6 +129,72 @@ export async function uploadFileToDrive(input: DriveUploadInput): Promise<DriveF
 
   const file = (await response.json()) as DriveFile;
   return file;
+}
+
+export async function ensureDriveSubfolder(input: {
+  parentFolderId: string;
+  folderName: string;
+  sharedDriveId?: string;
+}): Promise<string> {
+  const token = await getAccessToken();
+  const searchUrl = new URL(GOOGLE_DRIVE_FILES_URL);
+  searchUrl.searchParams.set(
+    "q",
+    [
+      `mimeType='application/vnd.google-apps.folder'`,
+      `name='${input.folderName.replace(/'/g, "\\'")}'`,
+      `'${input.parentFolderId}' in parents`,
+      "trashed=false",
+    ].join(" and "),
+  );
+  searchUrl.searchParams.set("fields", "files(id,name)");
+  searchUrl.searchParams.set("supportsAllDrives", "true");
+  searchUrl.searchParams.set("includeItemsFromAllDrives", "true");
+  if (input.sharedDriveId) {
+    searchUrl.searchParams.set("driveId", input.sharedDriveId);
+    searchUrl.searchParams.set("corpora", "drive");
+  }
+
+  const searchResponse = await fetch(searchUrl, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!searchResponse.ok) {
+    throw new Error(`No se pudo consultar carpetas en Drive: ${searchResponse.status}`);
+  }
+
+  const listed = (await searchResponse.json()) as DriveListResponse;
+  const existing = listed.files?.[0];
+  if (existing?.id) {
+    return existing.id;
+  }
+
+  const createUrl = new URL(GOOGLE_DRIVE_FILES_URL);
+  createUrl.searchParams.set("supportsAllDrives", "true");
+  const createResponse = await fetch(createUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: input.folderName,
+      mimeType: "application/vnd.google-apps.folder",
+      parents: [input.parentFolderId],
+    }),
+  });
+
+  if (!createResponse.ok) {
+    throw new Error(`No se pudo crear subcarpeta en Drive: ${createResponse.status}`);
+  }
+
+  const created = (await createResponse.json()) as DriveFile;
+  if (!created.id) {
+    throw new Error("Drive no devolvió el id de la subcarpeta creada");
+  }
+
+  return created.id;
 }
 
 export async function deleteFileFromDrive(fileId: string): Promise<void> {

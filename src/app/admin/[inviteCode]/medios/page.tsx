@@ -42,7 +42,7 @@ export default async function MediosPage({
   }
 
   const config = await getWeddingConfig();
-  const data = await getData();
+  await getData();
 
-  return <MediaView inviteCode={inviteCode} drive={config.drive} media={data.media} invitaciones={data.invitaciones} mensajes={data.mensajes} />;
+  return <MediaView inviteCode={inviteCode} drive={config.drive} />;
 }

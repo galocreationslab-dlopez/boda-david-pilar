@@ -141,7 +141,7 @@ function NuevoAsistente({ adminCode, invitacionId, onCreated, onCancel }: { admi
 }
 
 // ── Fila de invitacion ─────────────────────────────────────────────────────────
-function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted }: { inv: Invitacion; adminCode: string; selected: boolean; onSelect: (id: string) => void; onDeleted: (id: string) => void }) {
+function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted, unreadMessages }: { inv: Invitacion; adminCode: string; selected: boolean; onSelect: (id: string) => void; onDeleted: (id: string) => void; unreadMessages: number }) {
   const [inv, setInv] = useState(initInv);
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -182,6 +182,7 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted 
         <div className="flex items-center gap-3 text-xs text-stone-500 flex-shrink-0">
           <span title="Estimados">📋 {total}</span>
           <span title="Confirmados" className={confirmados>0?"text-emerald-600 font-semibold":""}>✓ {confirmados}</span>
+          <span title="Chats sin leer" className={unreadMessages > 0 ? "text-amber-700 font-semibold" : "text-stone-300"}>💡 {unreadMessages}</span>
         </div>
         <div className="flex gap-2 flex-shrink-0">
           <button onClick={() => setEditing((e) => !e)} className="text-xs text-amber-600 hover:text-amber-800">Editar</button>
@@ -310,10 +311,10 @@ function exportExcel(invitaciones: Invitacion[]) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function InvitacionesView({ inviteCode, invitaciones: init }: { inviteCode: string; invitaciones: Invitacion[] }) {
+export default function InvitacionesView({ inviteCode, invitaciones: init, unreadByInvitationId }: { inviteCode: string; invitaciones: Invitacion[]; unreadByInvitationId: Record<string, number> }) {
   const [invitaciones, setInvitaciones] = useState(init);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [filtro, setFiltro] = useState<"todos"|"confirmada"|"pendiente"|"rechazada"|"sin_respuesta">("todos");
+  const [filtro, setFiltro] = useState<"todos"|"confirmada"|"pendiente"|"rechazada"|"sin_respuesta"|"chat_no_leido">("todos");
   const [busqueda, setBusqueda] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -321,6 +322,7 @@ export default function InvitacionesView({ inviteCode, invitaciones: init }: { i
   const filtradas = invitaciones
     .filter((i) => {
       if (filtro==="sin_respuesta") return i.asistentes.length===0;
+      if (filtro==="chat_no_leido") return (unreadByInvitationId[i.id] ?? 0) > 0;
       if (filtro==="pendiente") return i.estado==="pendiente"||i.estado==="pendiente_respondida";
       if (filtro!=="todos") return i.estado===filtro;
       return true;
@@ -340,6 +342,7 @@ export default function InvitacionesView({ inviteCode, invitaciones: init }: { i
   const handleDeleted = (id: string) => setInvitaciones((p) => p.filter((i) => i.id!==id));
 
   const totales = { total: invitaciones.length, confirmadas: invitaciones.filter((i) => i.estado==="confirmada").length, pendientes: invitaciones.filter((i) => i.estado.startsWith("pendiente")).length, rechazadas: invitaciones.filter((i) => i.estado==="rechazada").length, sin_respuesta: invitaciones.filter((i) => i.asistentes.length===0).length };
+  const totalUnreadChats = invitaciones.reduce((acc, inv) => acc + (unreadByInvitationId[inv.id] ?? 0), 0);
   const totalConf = invitaciones.flatMap((i) => i.asistentes).filter((a) => a.estado_asistencia==="si").length;
 
   return (
@@ -349,7 +352,7 @@ export default function InvitacionesView({ inviteCode, invitaciones: init }: { i
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold text-stone-800">Invitaciones</h1>
-          <p className="mt-1 text-sm text-stone-500">{invitaciones.length} invitaciones · {totalConf} confirmados</p>
+          <p className="mt-1 text-sm text-stone-500">{invitaciones.length} invitaciones · {totalConf} confirmados · 💡 {totalUnreadChats} chats sin leer</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setShowImport(true)} className="rounded-xl bg-stone-800 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-700">Importar CSV</button>
@@ -393,11 +396,10 @@ export default function InvitacionesView({ inviteCode, invitaciones: init }: { i
           {selected.size > 0 && <span className="text-amber-700 font-medium">{selected.size} seleccionadas</span>}
         </div>
       )}
-
       {/* Lista */}
       <div className="space-y-2">
         {filtradas.map((inv) => (
-          <InvitacionRow key={inv.id} inv={inv} adminCode={inviteCode} selected={selected.has(inv.invite_code)} onSelect={toggleSelect} onDeleted={handleDeleted} />
+          <InvitacionRow key={inv.id} inv={inv} adminCode={inviteCode} selected={selected.has(inv.invite_code)} onSelect={toggleSelect} onDeleted={handleDeleted} unreadMessages={unreadByInvitationId[inv.id] ?? 0} />
         ))}
         {filtradas.length===0 && <p className="py-12 text-center text-sm text-stone-400">No hay invitaciones con estos criterios.</p>}
       </div>

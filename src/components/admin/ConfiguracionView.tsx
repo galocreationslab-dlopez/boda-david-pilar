@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { WeddingConfig, EventoHistoria, EventoTimeline } from "@/config/wedding.config";
 
 type Tab = "diseno" | "historia" | "timeline";
@@ -16,6 +16,15 @@ const COLOR_LABELS: Record<string, { label: string; desc: string }> = {
 };
 function uid() { return Math.random().toString(36).slice(2); }
 
+type ResourceItem = {
+  id: string;
+  nombre: string;
+  url_publica: string | null;
+  mime_type: string | null;
+  subido_por: string | null;
+  created_at: string;
+};
+
 export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCode: string; config: WeddingConfig }) {
   const [tab, setTab] = useState<Tab>("diseno");
   const [saving, setSaving] = useState(false);
@@ -26,6 +35,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [logoUrl, setLogoUrl] = useState(ic.logo ?? "");
   const [historia, setHistoria] = useState<EventoHistoria[]>(structuredClone(ic.historia));
   const [editandoH, setEditandoH] = useState<string | null>(null);
+  const [resources, setResources] = useState<ResourceItem[]>([]);
+  const [loadingResources, setLoadingResources] = useState(false);
+  const [uploadingHistoriaId, setUploadingHistoriaId] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<Array<EventoTimeline & { enlaceMaps?: string }>>(
     structuredClone(ic.timeline).map((e) => ({ ...e, enlaceMaps: "" }))
   );
@@ -65,6 +77,56 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   };
   const updateT = (id: string, f: keyof (EventoTimeline & { enlaceMaps?: string }), v: string) =>
     setTimeline((p) => p.map((e) => (e.id === id ? { ...e, [f]: v } : e)));
+
+  const resourcesForHistoria = useMemo(
+    () => resources.filter((item) => item.mime_type?.startsWith("image/") || item.mime_type === null),
+    [resources],
+  );
+
+  useEffect(() => {
+    const loadResources = async () => {
+      setLoadingResources(true);
+      try {
+        const res = await fetch(`/api/admin/${inviteCode}/resources`);
+        const data: unknown = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((data as { error?: string }).error ?? "No se pudieron cargar los recursos");
+        setResources(Array.isArray((data as { resources?: unknown[] }).resources) ? ((data as { resources: ResourceItem[] }).resources) : []);
+      } catch (error) {
+        showMsg("error", error instanceof Error ? error.message : "Error cargando recursos");
+      } finally {
+        setLoadingResources(false);
+      }
+    };
+    void loadResources();
+  }, [inviteCode]);
+
+  const uploadHistoriaImage = async (historiaId: string, file: File) => {
+    setUploadingHistoriaId(historiaId);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("section", "historia");
+      const res = await fetch(`/api/admin/${inviteCode}/resources`, {
+        method: "POST",
+        body: fd,
+      });
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error ?? "No se pudo subir la imagen");
+      }
+      const resource = (data as { resource?: ResourceItem }).resource;
+      if (!resource?.url_publica) {
+        throw new Error("La subida no devolvió una URL pública");
+      }
+      updateH(historiaId, "imagen", resource.url_publica);
+      setResources((prev) => [resource, ...prev]);
+      showMsg("ok", "Imagen subida a Drive y enlazada en historia");
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error al subir imagen");
+    } finally {
+      setUploadingHistoriaId(null);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -168,7 +230,49 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   <div><label className="label-field">Titulo</label><input className="input-field" value={e.titulo} onChange={(ev) => updateH(e.id,"titulo",ev.target.value)} /></div>
                   <div><label className="label-field">Fecha / periodo</label><input className="input-field" value={e.fecha} onChange={(ev) => updateH(e.id,"fecha",ev.target.value)} placeholder="Verano 2022" /></div>
                   <div className="sm:col-span-2"><label className="label-field">Descripcion</label><textarea rows={3} className="input-field" value={e.descripcion} onChange={(ev) => updateH(e.id,"descripcion",ev.target.value)} /></div>
-                  <div><label className="label-field">Imagen (URL)</label><input className="input-field" value={e.imagen??""} onChange={(ev) => updateH(e.id,"imagen",ev.target.value||undefined)} placeholder="https://..." /></div>
+                  <div className="sm:col-span-2 space-y-2">
+                    <label className="label-field">Imagen</label>
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <select
+                        className="input-field"
+                        value={e.imagen ?? ""}
+                        onChange={(ev) => updateH(e.id, "imagen", ev.target.value || undefined)}
+                      >
+                        <option value="">Sin imagen</option>
+                        {resourcesForHistoria.map((resource) => (
+                          <option key={resource.id} value={resource.url_publica ?? ""}>
+                            {resource.nombre}
+                          </option>
+                        ))}
+                      </select>
+                      <label className="inline-flex cursor-pointer items-center rounded-xl border border-stone-300 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+                        {uploadingHistoriaId === e.id ? "Subiendo..." : "Subir archivo"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingHistoriaId === e.id}
+                          onChange={(ev) => {
+                            const file = ev.target.files?.[0];
+                            if (file) {
+                              void uploadHistoriaImage(e.id, file);
+                            }
+                            ev.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <input
+                      className="input-field"
+                      value={e.imagen ?? ""}
+                      onChange={(ev) => updateH(e.id, "imagen", ev.target.value || undefined)}
+                      placeholder="Tambien puedes pegar URL manual"
+                    />
+                    {loadingResources && <p className="text-xs text-stone-400">Cargando recursos de Drive...</p>}
+                    {e.imagen && (
+                      <img src={e.imagen} alt="Preview historia" className="h-24 w-24 rounded-lg border border-stone-200 object-cover" />
+                    )}
+                  </div>
                   <div><label className="label-field">Lado</label>
                     <select className="input-field" value={e.lado} onChange={(ev) => updateH(e.id,"lado",ev.target.value as "izquierda"|"derecha")}>
                       <option value="derecha">Derecha</option><option value="izquierda">Izquierda</option>
