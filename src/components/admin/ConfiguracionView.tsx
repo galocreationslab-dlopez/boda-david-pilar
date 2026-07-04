@@ -223,7 +223,15 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   {e.titulo || "(sin titulo)"} <span className="font-normal text-stone-400">{e.fecha}</span>
                   <span className="ml-2 text-stone-400">{editandoH===e.id ? "▲" : "▼"}</span>
                 </button>
-                <button onClick={() => setHistoria((p) => p.filter((h) => h.id!==e.id))} className="ml-4 text-xs text-red-400 hover:text-red-600">Eliminar</button>
+                <button
+                  onClick={() => {
+                    if (!confirm("¿Eliminar esta entrada de la historia?")) return;
+                    setHistoria((p) => p.filter((h) => h.id!==e.id));
+                  }}
+                  className="ml-4 text-xs text-red-400 hover:text-red-600"
+                >
+                  Eliminar
+                </button>
               </div>
               {editandoH===e.id && (
                 <div className="border-t border-stone-100 px-5 pb-5 pt-4 grid gap-4 sm:grid-cols-2">
@@ -294,7 +302,15 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             <div key={e.id} className="rounded-2xl border border-stone-200 bg-white p-5">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-semibold text-stone-700">{e.hora} {e.titulo || "(sin titulo)"}</p>
-                <button onClick={() => setTimeline((p) => p.filter((t) => t.id!==e.id))} className="text-xs text-red-400 hover:text-red-600">Eliminar</button>
+                <button
+                  onClick={() => {
+                    if (!confirm("¿Eliminar este evento del timeline?")) return;
+                    setTimeline((p) => p.filter((t) => t.id!==e.id));
+                  }}
+                  className="text-xs text-red-400 hover:text-red-600"
+                >
+                  Eliminar
+                </button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div><label className="label-field">Hora</label><input className="input-field" value={e.hora} placeholder="12:00" onChange={(ev) => updateT(e.id,"hora",ev.target.value)} /></div>

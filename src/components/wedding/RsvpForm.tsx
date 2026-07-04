@@ -347,7 +347,10 @@ export function RsvpForm({ config }: Props) {
                     type="button"
                     className="text-sm underline"
                     style={{ color: "var(--bronze)" }}
-                    onClick={() => removeChild(index)}
+                    onClick={() => {
+                      if (!confirm("¿Eliminar este niño del formulario?")) return;
+                      removeChild(index);
+                    }}
                   >
                     Eliminar
                   </button>

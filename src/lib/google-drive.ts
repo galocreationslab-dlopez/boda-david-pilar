@@ -52,7 +52,51 @@ function getServiceAccountCredentials() {
   return { clientEmail, privateKey };
 }
 
+function getOAuthRefreshCredentials() {
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+
+  if (!clientId || !clientSecret || !refreshToken) {
+    return null;
+  }
+
+  return { clientId, clientSecret, refreshToken };
+}
+
+async function getAccessTokenFromOAuthRefreshToken(): Promise<string> {
+  const creds = getOAuthRefreshCredentials();
+  if (!creds) {
+    throw new Error("Faltan credenciales OAuth de Google Drive (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REFRESH_TOKEN)");
+  }
+
+  const response = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: creds.clientId,
+      client_secret: creds.clientSecret,
+      refresh_token: creds.refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo obtener token OAuth de Google: ${response.status}${detail ? ` - ${detail}` : ""}`);
+  }
+
+  const data = (await response.json()) as DriveAccessToken;
+  return data.access_token;
+}
+
 async function getAccessToken(): Promise<string> {
+  // Si hay credenciales OAuth de usuario, las priorizamos para evitar problemas
+  // de cuota al subir a carpetas en "Mi unidad".
+  if (getOAuthRefreshCredentials()) {
+    return getAccessTokenFromOAuthRefreshToken();
+  }
+
   const { clientEmail, privateKey } = getServiceAccountCredentials();
   const now = Math.floor(Date.now() / 1000);
   const header = base64UrlEncode(JSON.stringify({ alg: "RS256", typ: "JWT" }));
@@ -81,6 +125,12 @@ async function getAccessToken(): Promise<string> {
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    if (detail.includes("storageQuotaExceeded") || detail.includes("Service Accounts do not have storage quota")) {
+      throw new Error(
+        "La cuenta de servicio no tiene cuota de almacenamiento para subir en 'Mi unidad'. " +
+        "Opciones: usar Shared Drive real o configurar OAuth de usuario (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REFRESH_TOKEN).",
+      );
+    }
     throw new Error(`No se pudo obtener token de Google: ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
 
