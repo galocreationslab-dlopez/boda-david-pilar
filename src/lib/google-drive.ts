@@ -80,7 +80,8 @@ async function getAccessToken(): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(`No se pudo obtener token de Google: ${response.status}`);
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo obtener token de Google: ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
 
   const data = (await response.json()) as DriveAccessToken;
@@ -124,7 +125,8 @@ export async function uploadFileToDrive(input: DriveUploadInput): Promise<DriveF
   });
 
   if (!response.ok) {
-    throw new Error(`No se pudo subir a Drive: ${response.status}`);
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo subir a Drive: ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
 
   const file = (await response.json()) as DriveFile;
@@ -161,7 +163,8 @@ export async function ensureDriveSubfolder(input: {
   });
 
   if (!searchResponse.ok) {
-    throw new Error(`No se pudo consultar carpetas en Drive: ${searchResponse.status}`);
+    const detail = await searchResponse.text().catch(() => "");
+    throw new Error(`No se pudo consultar carpetas en Drive: ${searchResponse.status}${detail ? ` - ${detail}` : ""}`);
   }
 
   const listed = (await searchResponse.json()) as DriveListResponse;
@@ -186,7 +189,8 @@ export async function ensureDriveSubfolder(input: {
   });
 
   if (!createResponse.ok) {
-    throw new Error(`No se pudo crear subcarpeta en Drive: ${createResponse.status}`);
+    const detail = await createResponse.text().catch(() => "");
+    throw new Error(`No se pudo crear subcarpeta en Drive: ${createResponse.status}${detail ? ` - ${detail}` : ""}`);
   }
 
   const created = (await createResponse.json()) as DriveFile;

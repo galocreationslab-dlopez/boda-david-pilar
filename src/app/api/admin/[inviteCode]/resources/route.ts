@@ -69,16 +69,32 @@ export async function POST(
     }
 
     const sectionFolderName = section === "historia" ? "historia" : section === "timeline" ? "timeline" : "general";
-    const targetFolderId = await ensureDriveSubfolder({
-      parentFolderId,
-      folderName: sectionFolderName,
-      sharedDriveId: config.drive.recursosWeb.sharedDriveId,
-    });
+    let effectiveSharedDriveId = config.drive.recursosWeb.sharedDriveId;
+    let targetFolderId: string;
+    try {
+      targetFolderId = await ensureDriveSubfolder({
+        parentFolderId,
+        folderName: sectionFolderName,
+        sharedDriveId: effectiveSharedDriveId,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (effectiveSharedDriveId && message.includes("Shared drive not found")) {
+        // Si la carpeta pertenece a Mi unidad, ignoramos sharedDriveId y reintentamos.
+        effectiveSharedDriveId = undefined;
+        targetFolderId = await ensureDriveSubfolder({
+          parentFolderId,
+          folderName: sectionFolderName,
+        });
+      } else {
+        throw error;
+      }
+    }
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const uploaded = await uploadFileToDrive({
       folderId: targetFolderId,
-      sharedDriveId: config.drive.recursosWeb.sharedDriveId,
+      sharedDriveId: effectiveSharedDriveId,
       filename: file.name,
       mimeType: file.type,
       buffer,
