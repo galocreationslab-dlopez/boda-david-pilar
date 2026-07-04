@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { validateAdminCode } from "@/lib/admin-auth";
-import { ensureDriveSubfolder, uploadFileToDrive, driveFilePublicUrl, deleteFileFromDrive } from "@/lib/google-drive";
+import { ensureDriveSubfolder, uploadFileToDrive, driveFilePublicUrl, deleteFileFromDrive, makeDriveFilePublic } from "@/lib/google-drive";
 import { getWeddingConfig } from "@/lib/wedding-config-server";
 
 type ResourceSection = "historia" | "timeline" | "general";
@@ -99,6 +99,8 @@ export async function POST(
       mimeType: file.type,
       buffer,
     });
+
+    await makeDriveFilePublic(uploaded.id);
 
     const supabase = createServerClient();
     const { data: boda } = await supabase

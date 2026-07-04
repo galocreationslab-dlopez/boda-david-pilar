@@ -263,6 +263,27 @@ export async function deleteFileFromDrive(fileId: string): Promise<void> {
   }
 }
 
+export async function makeDriveFilePublic(fileId: string): Promise<void> {
+  const token = await getAccessToken();
+  const response = await fetch(`${GOOGLE_DRIVE_FILES_URL}/${encodeURIComponent(fileId)}/permissions?supportsAllDrives=true`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      role: "reader",
+      type: "anyone",
+      allowFileDiscovery: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo hacer público el archivo en Drive: ${response.status}${detail ? ` - ${detail}` : ""}`);
+  }
+}
+
 export function driveFilePublicUrl(fileId: string): string {
   return buildDriveUrl(fileId);
 }
