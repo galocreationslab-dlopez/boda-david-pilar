@@ -9,7 +9,7 @@ import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { WeddingConfig } from "@/config/wedding.config";
 
 type Props = {
-  config: Pick<WeddingConfig, "novia" | "novio" | "iniciales" | "fecha" | "fechaFormateada" | "textos">;
+  config: Pick<WeddingConfig, "novia" | "novio" | "nombreConjunto" | "iniciales" | "fecha" | "fechaFormateada" | "textos">;
   mostrarBotonConfirmar?: boolean;
   labelBotonConfirmar?: string;
   onConfirmarClick?: () => void;
@@ -44,20 +44,26 @@ export function HeroPortada({ config, mostrarBotonConfirmar = false, labelBotonC
               letterSpacing: "-0.01em",
             }}
           >
-            {config.novia.nombre}
-            <span
-              style={{
-                display: "block",
-                color: "var(--bronze-light)",
-                fontSize: "0.38em",
-                letterSpacing: "0.4em",
-                margin: "0.2em 0",
-                fontWeight: 300,
-              }}
-            >
-              &amp;
-            </span>
-            {config.novio.nombre}
+            {config.nombreConjunto?.trim() ? (
+              config.nombreConjunto
+            ) : (
+              <>
+                {config.novia.nombre}
+                <span
+                  style={{
+                    display: "block",
+                    color: "var(--bronze-light)",
+                    fontSize: "0.38em",
+                    letterSpacing: "0.4em",
+                    margin: "0.2em 0",
+                    fontWeight: 300,
+                  }}
+                >
+                  &amp;
+                </span>
+                {config.novio.nombre}
+              </>
+            )}
           </h1>
         </div>
 

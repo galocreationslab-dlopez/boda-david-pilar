@@ -6,5 +6,5 @@ export default async function AdminPage({
   params: Promise<{ inviteCode: string }>;
 }) {
   const { inviteCode } = await params;
-  redirect(`/admin/${inviteCode}/invitaciones`);
+  redirect(`/admin/${inviteCode}/datos`);
 }

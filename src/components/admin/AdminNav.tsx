@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
+  { label: "Datos Boda", segment: "datos" },
   { label: "Invitaciones",  segment: "invitaciones" },
-  { label: "Recursos", segment: "medios" },
-  { label: "Configuración", segment: "configuracion" },
+  { label: "Diseño", segment: "configuracion" },
 ];
 
 export default function AdminNav({ inviteCode }: { inviteCode: string }) {

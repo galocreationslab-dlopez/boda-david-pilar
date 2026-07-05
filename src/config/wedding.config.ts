@@ -65,6 +65,8 @@ export type WeddingConfig = {
 
   novio: { nombre: string; nombreCompleto: string };
   novia: { nombre: string; nombreCompleto: string };
+  nombreConjunto?: string;
+  inicialesConjuntas?: string;
 
   // Logo: si hay imagen propia, se usa en vez del SVG generado
   logo?: string;           // ruta en /public/images/ ej: "sello.png"
@@ -120,6 +122,8 @@ export const weddingConfig: WeddingConfig = {
     nombre: "Pilar",
     nombreCompleto: "Pilar",       // ← añade tu apellido
   },
+  nombreConjunto: "Pilar & David",
+  inicialesConjuntas: "P&D",
 
   // ── Imágenes ──────────────────────────────────────────────
   // Cuando tengas los archivos en public/images/, descomenta y pon el nombre:
