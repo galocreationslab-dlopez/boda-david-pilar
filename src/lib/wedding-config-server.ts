@@ -174,6 +174,7 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
 export function buildCssOverrides(config: WeddingConfig): string {
   const activePalette = config.tema.paletas?.find((p) => p.id === config.tema.paletaActivaId);
   const c = activePalette?.colores ?? config.tema.colores;
+  const extraColors = activePalette?.coloresExtra ?? [];
   const f = config.tema.fuentes;
   const lines: string[] = [":root {"];
   if (c.bronze)       lines.push(`  --bronze: ${c.bronze};`);
@@ -183,6 +184,15 @@ export function buildCssOverrides(config: WeddingConfig): string {
   if (c.cream)        lines.push(`  --cream: ${c.cream};`);
   if (c.brownDark)    lines.push(`  --brown-dark: ${c.brownDark};`);
   if (c.white)        lines.push(`  --white: ${c.white};`);
+  for (const color of extraColors) {
+    const slug = color.nombre
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (!slug) continue;
+    lines.push(`  --custom-${slug}: ${color.valor};`);
+  }
   if (f.display)      lines.push(`  --font-display: ${f.display};`);
   if (f.body)         lines.push(`  --font-body: ${f.body};`);
   lines.push("}");

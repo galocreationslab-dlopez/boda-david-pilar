@@ -74,10 +74,43 @@ export type TemaFuentes = {
   body: string;
 };
 
+export type TemaColorExtra = {
+  id: string;
+  nombre: string;
+  valor: string;
+};
+
 export type TemaPaleta = {
   id: string;
   nombre: string;
   colores: TemaColores;
+  etiquetasColores?: Partial<Record<keyof TemaColores, string>>;
+  coloresExtra?: TemaColorExtra[];
+};
+
+export type TipoSeccionDiseno = "portada" | "historia" | "timeline" | "galeria";
+
+export type ItemSeccionDiseno = {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  hora?: string;
+};
+
+export type SeccionDiseno = {
+  id: string;
+  nombre: string;
+  titulo: string;
+  tipo: TipoSeccionDiseno;
+  paletaId: string;
+  visible: boolean;
+  perfiles: string[];
+  items: ItemSeccionDiseno[];
+};
+
+export type SeparadorDiseno = {
+  modo: "sin_transicion" | "suave" | "onda" | "corte";
+  grafico: "ornamento" | "linea_doble" | "onda_fina" | "puntos";
 };
 
 export type WeddingConfig = {
@@ -110,6 +143,11 @@ export type WeddingConfig = {
     fuentes: TemaFuentes;
     paletas?: TemaPaleta[];
     paletaActivaId?: string;
+  };
+
+  diseno?: {
+    separador?: SeparadorDiseno;
+    secciones?: SeccionDiseno[];
   };
 
   historia: EventoHistoria[];
@@ -181,9 +219,68 @@ export const weddingConfig: WeddingConfig = {
           brownDark: "#2E1F0E",
           white: "#FDFAF5",
         },
+        etiquetasColores: {
+          bronze: "Bronce principal",
+          bronzeLight: "Bronce claro",
+          olive: "Oliva",
+          oliveMuted: "Oliva suave",
+          cream: "Fondo crema",
+          brownDark: "Marrón oscuro",
+          white: "Blanco base",
+        },
+        coloresExtra: [],
       },
     ],
     paletaActivaId: "paleta-clasica",
+  },
+
+  diseno: {
+    separador: {
+      modo: "suave",
+      grafico: "ornamento",
+    },
+    secciones: [
+      {
+        id: "sec-portada",
+        nombre: "Portada",
+        titulo: "Invitación",
+        tipo: "portada",
+        paletaId: "paleta-clasica",
+        visible: true,
+        perfiles: ["publico"],
+        items: [],
+      },
+      {
+        id: "sec-historia",
+        nombre: "Historia",
+        titulo: "Nuestra historia",
+        tipo: "historia",
+        paletaId: "paleta-clasica",
+        visible: true,
+        perfiles: ["publico"],
+        items: [],
+      },
+      {
+        id: "sec-galeria",
+        nombre: "Galería",
+        titulo: "Momentos",
+        tipo: "galeria",
+        paletaId: "paleta-clasica",
+        visible: true,
+        perfiles: ["publico"],
+        items: [],
+      },
+      {
+        id: "sec-timeline",
+        nombre: "Timeline",
+        titulo: "El gran día",
+        tipo: "timeline",
+        paletaId: "paleta-clasica",
+        visible: true,
+        perfiles: ["publico"],
+        items: [],
+      },
+    ],
   },
 
   // ── Historia — timeline de vuestra relación ───────────────
