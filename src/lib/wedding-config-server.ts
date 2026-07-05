@@ -172,7 +172,8 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
 
 /** CSS variables a inyectar en :root a partir de tema.colores y tema.fuentes */
 export function buildCssOverrides(config: WeddingConfig): string {
-  const c = config.tema.colores;
+  const activePalette = config.tema.paletas?.find((p) => p.id === config.tema.paletaActivaId);
+  const c = activePalette?.colores ?? config.tema.colores;
   const f = config.tema.fuentes;
   const lines: string[] = [":root {"];
   if (c.bronze)       lines.push(`  --bronze: ${c.bronze};`);

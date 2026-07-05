@@ -59,6 +59,27 @@ export type DriveConfig = {
   invitados: DriveFolderConfig;
 };
 
+export type TemaColores = {
+  bronze: string;
+  bronzeLight: string;
+  olive: string;
+  oliveMuted: string;
+  cream: string;
+  brownDark: string;
+  white: string;
+};
+
+export type TemaFuentes = {
+  display: string;
+  body: string;
+};
+
+export type TemaPaleta = {
+  id: string;
+  nombre: string;
+  colores: TemaColores;
+};
+
 export type WeddingConfig = {
   weddingId: string;
   slug: string;
@@ -85,19 +106,10 @@ export type WeddingConfig = {
   };
 
   tema: {
-    colores: {
-      bronze: string;
-      bronzeLight: string;
-      olive: string;
-      oliveMuted: string;
-      cream: string;
-      brownDark: string;
-      white: string;
-    };
-    fuentes: {
-      display: string;
-      body: string;
-    };
+    colores: TemaColores;
+    fuentes: TemaFuentes;
+    paletas?: TemaPaleta[];
+    paletaActivaId?: string;
   };
 
   historia: EventoHistoria[];
@@ -156,6 +168,22 @@ export const weddingConfig: WeddingConfig = {
       display: "'Cormorant Garamond', Georgia, serif",
       body: "'Lato', system-ui, sans-serif",
     },
+    paletas: [
+      {
+        id: "paleta-clasica",
+        nombre: "Clasica",
+        colores: {
+          bronze: "#8C6A3F",
+          bronzeLight: "#C4964A",
+          olive: "#5C6B3A",
+          oliveMuted: "#8A9468",
+          cream: "#F7F3EC",
+          brownDark: "#2E1F0E",
+          white: "#FDFAF5",
+        },
+      },
+    ],
+    paletaActivaId: "paleta-clasica",
   },
 
   // ── Historia — timeline de vuestra relación ───────────────

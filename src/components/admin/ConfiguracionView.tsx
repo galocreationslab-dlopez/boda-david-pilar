@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { WeddingConfig, EventoHistoria, EventoTimeline } from "@/config/wedding.config";
+import type { WeddingConfig, EventoHistoria, EventoTimeline, TemaColores, TemaPaleta } from "@/config/wedding.config";
 
 type Tab = "diseno" | "historia" | "timeline";
 const ICONO_OPTIONS = ["rings","cocktail","fork","cake","music","car","iglesia","finca"];
@@ -15,6 +15,43 @@ const COLOR_LABELS: Record<string, { label: string; desc: string }> = {
   white:       { label: "Blanco base",            desc: "Superficies de tarjetas y formularios" },
 };
 function uid() { return Math.random().toString(36).slice(2); }
+
+function normalizeTemaColores(colores: TemaColores): TemaColores {
+  return {
+    bronze: colores.bronze,
+    bronzeLight: colores.bronzeLight,
+    olive: colores.olive,
+    oliveMuted: colores.oliveMuted,
+    cream: colores.cream,
+    brownDark: colores.brownDark,
+    white: colores.white,
+  };
+}
+
+function buildInitialPaletas(ic: WeddingConfig): TemaPaleta[] {
+  const configured = (ic.tema.paletas ?? []).map((p) => ({
+    id: p.id,
+    nombre: p.nombre,
+    colores: normalizeTemaColores(p.colores),
+  }));
+
+  if (configured.length > 0) return configured;
+
+  return [
+    {
+      id: "paleta-principal",
+      nombre: "Principal",
+      colores: normalizeTemaColores(ic.tema.colores),
+    },
+  ];
+}
+
+function resolveActivePaletaId(ic: WeddingConfig, paletas: TemaPaleta[]): string {
+  if (ic.tema.paletaActivaId && paletas.some((p) => p.id === ic.tema.paletaActivaId)) {
+    return ic.tema.paletaActivaId;
+  }
+  return paletas[0]?.id ?? "";
+}
 
 function isDriveUrl(value: string): boolean {
   return value.includes("drive.google.com") || value.includes("drive.usercontent.google.com");
@@ -42,7 +79,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok"|"error"; text: string } | null>(null);
-  const [colores, setColores] = useState({ ...ic.tema.colores });
+  const initialPaletas = useMemo(() => buildInitialPaletas(ic), [ic]);
+  const [paletas, setPaletas] = useState<TemaPaleta[]>(initialPaletas);
+  const [paletaActivaId, setPaletaActivaId] = useState<string>(() => resolveActivePaletaId(ic, initialPaletas));
+  const [paletaEditandoId, setPaletaEditandoId] = useState<string>(() => resolveActivePaletaId(ic, initialPaletas));
   const [fuentes, setFuentes] = useState({ ...ic.tema.fuentes });
   const [logoUrl, setLogoUrl] = useState(ic.logo ?? "");
   const [historia, setHistoria] = useState<EventoHistoria[]>(structuredClone(ic.historia));
@@ -56,10 +96,89 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
   const showMsg = (type: "ok"|"error", text: string) => { setMsg({ type, text }); setTimeout(() => setMsg(null), 5000); };
 
+  const paletaActiva = useMemo(
+    () => paletas.find((p) => p.id === paletaActivaId) ?? paletas[0],
+    [paletaActivaId, paletas],
+  );
+
+  const paletaEditando = useMemo(
+    () => paletas.find((p) => p.id === paletaEditandoId) ?? paletaActiva,
+    [paletaActiva, paletaEditandoId, paletas],
+  );
+
+  const updatePaletaEditandoColor = (key: keyof TemaColores, value: string) => {
+    if (!paletaEditando) return;
+    setPaletas((prev) =>
+      prev.map((item) =>
+        item.id === paletaEditando.id
+          ? { ...item, colores: { ...item.colores, [key]: value } }
+          : item,
+      ),
+    );
+  };
+
+  const createPaleta = () => {
+    const base = paletaActiva?.colores ?? ic.tema.colores;
+    const nueva: TemaPaleta = {
+      id: `paleta-${uid()}`,
+      nombre: `Paleta ${paletas.length + 1}`,
+      colores: normalizeTemaColores(base),
+    };
+    setPaletas((prev) => [...prev, nueva]);
+    setPaletaEditandoId(nueva.id);
+    showMsg("ok", "Paleta creada");
+  };
+
+  const duplicatePaleta = () => {
+    if (!paletaEditando) return;
+    const copia: TemaPaleta = {
+      id: `paleta-${uid()}`,
+      nombre: `${paletaEditando.nombre} copia`,
+      colores: normalizeTemaColores(paletaEditando.colores),
+    };
+    setPaletas((prev) => [...prev, copia]);
+    setPaletaEditandoId(copia.id);
+    showMsg("ok", "Paleta duplicada");
+  };
+
+  const deletePaleta = () => {
+    if (!paletaEditando) return;
+    if (paletas.length <= 1) {
+      showMsg("error", "Debe existir al menos una paleta");
+      return;
+    }
+    if (!confirm("¿Eliminar esta paleta?")) return;
+
+    const next = paletas.filter((p) => p.id !== paletaEditando.id);
+    const fallbackId = next[0]?.id ?? "";
+    setPaletas(next);
+    setPaletaEditandoId(fallbackId);
+    if (paletaActivaId === paletaEditando.id) {
+      setPaletaActivaId(fallbackId);
+    }
+    showMsg("ok", "Paleta eliminada");
+  };
+
+  const activatePaleta = () => {
+    if (!paletaEditando) return;
+    setPaletaActivaId(paletaEditando.id);
+    showMsg("ok", "Paleta activa cambiada. Guarda para publicarla en la web.");
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = { tema: { colores, fuentes }, historia, timeline };
+      const coloresActivos = paletaActiva?.colores ?? ic.tema.colores;
+      const payload: Record<string, unknown> = {
+        tema: {
+          colores: coloresActivos,
+          fuentes,
+          paletas,
+          paletaActivaId,
+        },
+        historia,
+        timeline,
+      };
       if (logoUrl) payload.logo = logoUrl;
       const res = await fetch(`/api/admin/${inviteCode}/config`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
@@ -177,13 +296,47 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       {tab === "diseno" && (
         <div className="space-y-8">
           <section className="rounded-2xl border border-stone-200 bg-white p-6">
-            <h2 className="mb-5 text-base font-semibold text-stone-700">Colores de la web</h2>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-stone-700">Paletas de color</h2>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={createPaleta} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:bg-stone-50">Crear</button>
+                <button onClick={duplicatePaleta} disabled={!paletaEditando} className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs text-stone-600 hover:bg-stone-50 disabled:opacity-50">Duplicar</button>
+                <button onClick={deletePaleta} disabled={!paletaEditando} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50">Eliminar</button>
+                <button onClick={activatePaleta} disabled={!paletaEditando || paletaEditando.id === paletaActivaId} className="rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-800 disabled:opacity-50">Activar</button>
+              </div>
+            </div>
+
+            <div className="mb-4 grid gap-4 md:grid-cols-[220px_1fr]">
+              <div>
+                <label className="label-field">Paleta seleccionada</label>
+                <select className="input-field" value={paletaEditando?.id ?? ""} onChange={(e) => setPaletaEditandoId(e.target.value)}>
+                  {paletas.map((paleta) => (
+                    <option key={paleta.id} value={paleta.id}>
+                      {paleta.nombre}{paleta.id === paletaActivaId ? " (activa)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label-field">Nombre de paleta</label>
+                <input
+                  className="input-field"
+                  value={paletaEditando?.nombre ?? ""}
+                  onChange={(e) => {
+                    if (!paletaEditando) return;
+                    setPaletas((prev) => prev.map((p) => (p.id === paletaEditando.id ? { ...p, nombre: e.target.value } : p)));
+                  }}
+                  placeholder="Ej. Tierra cálida"
+                />
+              </div>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
-              {(Object.entries(colores) as [string,string][]).map(([key,val]) => {
+              {(Object.entries(paletaEditando?.colores ?? {}) as [keyof TemaColores,string][]).map(([key,val]) => {
                 const info = COLOR_LABELS[key] ?? { label: key, desc: "" };
                 return (
                   <label key={key} className="flex items-center gap-4 rounded-xl border border-stone-100 bg-stone-50 p-3 cursor-pointer hover:border-stone-200">
-                    <input type="color" value={val} onChange={(e) => setColores((c) => ({ ...c, [key]: e.target.value }))}
+                    <input type="color" value={val} onChange={(e) => updatePaletaEditandoColor(key, e.target.value)}
                       className="h-12 w-12 cursor-pointer rounded-xl border-0 p-0.5 bg-transparent flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-stone-800">{info.label}</p>
@@ -194,6 +347,37 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 );
               })}
             </div>
+
+            {paletaActiva && (
+              <div
+                className="mt-6 rounded-2xl border p-4"
+                style={{
+                  backgroundColor: paletaActiva.colores.cream,
+                  borderColor: paletaActiva.colores.bronzeLight,
+                  color: paletaActiva.colores.brownDark,
+                }}
+              >
+                <p className="mb-3 text-xs font-semibold uppercase tracking-widest" style={{ color: paletaActiva.colores.oliveMuted }}>
+                  Preview de paleta activa
+                </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border p-4" style={{ backgroundColor: paletaActiva.colores.white, borderColor: paletaActiva.colores.bronze }}>
+                    <p className="text-sm" style={{ color: paletaActiva.colores.olive }}>
+                      Esta vista cambia al instante al activar una paleta.
+                    </p>
+                    <p className="mt-2 text-xl" style={{ fontFamily: fuentes.display }}>Pilar &amp; David</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className="rounded-lg px-4 py-2 text-sm font-semibold" style={{ backgroundColor: paletaActiva.colores.bronze, color: paletaActiva.colores.white }}>
+                      Botón primario
+                    </button>
+                    <button className="rounded-lg border px-4 py-2 text-sm" style={{ borderColor: paletaActiva.colores.bronze, color: paletaActiva.colores.bronze, backgroundColor: paletaActiva.colores.white }}>
+                      Botón secundario
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="rounded-2xl border border-stone-200 bg-white p-6">
