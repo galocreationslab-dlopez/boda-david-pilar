@@ -1,13 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import MainWithInvite from "@/components/wedding/MainWithInvite";
+import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
+import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
+import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
+import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
+import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
+import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
 import type {
   WeddingConfig,
   EventoHistoria,
   EventoTimeline,
   TemaColores,
   TemaPaleta,
-  TemaColorExtra,
   SeparadorDiseno,
   SeccionDiseno,
   TipoSeccionDiseno,
@@ -139,6 +145,35 @@ function previewSrcForAdmin(inviteCode: string, src: string): string {
   return src;
 }
 
+function buildPreviewSeparator(separador: SeparadorDiseno) {
+  if (separador.modo === "sin_transicion") return null;
+
+  if (separador.grafico === "ornamento") {
+    return <OrnamentoDivisor className="my-2" />;
+  }
+
+  if (separador.grafico === "linea_doble") {
+    return (
+      <div className="px-4 py-2">
+        <div className="h-px" style={{ backgroundColor: "var(--bronze-pale)" }} />
+        <div className="mt-1 h-px" style={{ backgroundColor: "var(--bronze-light)" }} />
+      </div>
+    );
+  }
+
+  if (separador.grafico === "onda_fina") {
+    return <SeparadorSeccion colorHacia="var(--cream)" />;
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-2 py-3" aria-hidden="true">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze-light)" }} />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze)" }} />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze-light)" }} />
+    </div>
+  );
+}
+
 type ResourceItem = {
   id: string;
   nombre: string;
@@ -204,6 +239,36 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       }),
     [previewRole, secciones],
   );
+
+  const previewGalleryMedia = useMemo<PublicGalleryMedia[]>(() => {
+    const fromResources = resources
+      .filter((r) => r.mime_type?.startsWith("image/") && r.url_publica)
+      .slice(0, 6)
+      .map((r) => ({
+        id: r.id,
+        nombre: r.nombre,
+        tipo: "foto" as const,
+        google_drive_id: "",
+        url_publica: r.url_publica,
+        subido_por: r.subido_por,
+        created_at: r.created_at,
+      }));
+
+    if (fromResources.length > 0) return fromResources;
+
+    return historia
+      .filter((h) => !!h.imagen)
+      .slice(0, 6)
+      .map((h) => ({
+        id: h.id,
+        nombre: h.titulo || "Historia",
+        tipo: "foto" as const,
+        google_drive_id: "",
+        url_publica: h.imagen ?? null,
+        subido_por: "Historia",
+        created_at: new Date().toISOString(),
+      }));
+  }, [historia, resources]);
 
   const resourcesForHistoria = useMemo(
     () => resources.filter((item) => item.mime_type?.startsWith("image/") || item.mime_type === null),
@@ -542,28 +607,35 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       </div>
 
       {tab === "diseno" && (
-        <div className="grid gap-6 lg:grid-cols-[370px_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
           <aside className="space-y-4 max-h-[78vh] overflow-auto pr-1">
-            <section className="rounded-2xl border border-stone-200 bg-white p-4 space-y-3">
+            <section className="rounded-xl border border-stone-200 bg-white p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-stone-700">Panel de paletas</h2>
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-700">Paletas</h2>
                 <div className="flex gap-1">
-                  <button onClick={addPalette} className="rounded-md border border-stone-300 px-2 py-1 text-xs text-stone-600">+ Anadir</button>
-                  <button onClick={clonePalette} disabled={!paletaEditando} className="rounded-md border border-stone-300 px-2 py-1 text-xs text-stone-600 disabled:opacity-50">Clonar</button>
-                  <button onClick={removePalette} disabled={!paletaEditando} className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 disabled:opacity-50">Eliminar</button>
+                  <button onClick={addPalette} className="rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-700">+</button>
+                  <button onClick={clonePalette} disabled={!paletaEditando} className="rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-700 disabled:opacity-50">Clonar</button>
+                  <button onClick={removePalette} disabled={!paletaEditando} className="rounded border border-red-200 px-2 py-1 text-[11px] text-red-600 disabled:opacity-50">-</button>
                 </div>
               </div>
 
-              <label className="label-field">Paleta</label>
-              <select className="input-field" value={paletaEditando?.id ?? ""} onChange={(e) => setPaletaEditandoId(e.target.value)}>
-                {paletas.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre}{p.id === paletaActivaId ? " (activa)" : ""}
-                  </option>
-                ))}
-              </select>
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <select className="input-field" value={paletaEditando?.id ?? ""} onChange={(e) => setPaletaEditandoId(e.target.value)}>
+                  {paletas.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}{p.id === paletaActivaId ? " (activa)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => paletaEditando && setPaletaActivaId(paletaEditando.id)}
+                  disabled={!paletaEditando || paletaEditando.id === paletaActivaId}
+                  className="rounded border border-amber-600 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 disabled:opacity-50"
+                >
+                  Activar
+                </button>
+              </div>
 
-              <label className="label-field">Nombre de paleta</label>
               <input
                 className="input-field"
                 value={paletaEditando?.nombre ?? ""}
@@ -571,148 +643,109 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   if (!paletaEditando) return;
                   updatePaleta(paletaEditando.id, (p) => ({ ...p, nombre: e.target.value }));
                 }}
+                placeholder="Nombre de paleta"
               />
 
-              <button
-                onClick={() => paletaEditando && setPaletaActivaId(paletaEditando.id)}
-                disabled={!paletaEditando || paletaEditando.id === paletaActivaId}
-                className="w-full rounded-lg bg-amber-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-              >
-                Activar esta paleta
-              </button>
-
-              <div className="space-y-3">
-                {CORE_COLOR_KEYS.map((key) => (
-                  <div key={key} className="rounded-xl border border-stone-100 p-3 bg-stone-50">
-                    <label className="label-field">Nombre del color</label>
+              <div className="space-y-1">
+                {[...CORE_COLOR_KEYS.map((key) => ({
+                  id: key,
+                  fixed: true,
+                  nombre: paletaEditando?.etiquetasColores?.[key] ?? DEFAULT_COLOR_LABELS[key],
+                  valor: paletaEditando?.colores[key] ?? "#000000",
+                })), ...(paletaEditando?.coloresExtra ?? []).map((extra) => ({
+                  id: extra.id,
+                  fixed: false,
+                  nombre: extra.nombre,
+                  valor: extra.valor,
+                }))].map((row) => (
+                  <div key={row.id} className="grid grid-cols-[28px_1fr_26px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
                     <input
-                      className="input-field"
-                      value={paletaEditando?.etiquetasColores?.[key] ?? DEFAULT_COLOR_LABELS[key]}
+                      type="color"
+                      value={row.valor}
                       onChange={(e) => {
                         if (!paletaEditando) return;
+                        if (row.fixed) {
+                          const key = row.id as keyof TemaColores;
+                          updatePaleta(paletaEditando.id, (p) => ({ ...p, colores: { ...p.colores, [key]: e.target.value } }));
+                          return;
+                        }
                         updatePaleta(paletaEditando.id, (p) => ({
                           ...p,
-                          etiquetasColores: {
-                            ...DEFAULT_COLOR_LABELS,
-                            ...(p.etiquetasColores ?? {}),
-                            [key]: e.target.value,
-                          },
+                          coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, valor: e.target.value } : c)),
+                        }));
+                      }}
+                      className="h-6 w-7 rounded border border-stone-300 bg-transparent"
+                    />
+                    <input
+                      className="w-full border-none bg-transparent text-xs text-stone-700 outline-none"
+                      value={row.nombre}
+                      onChange={(e) => {
+                        if (!paletaEditando) return;
+                        if (row.fixed) {
+                          const key = row.id as keyof TemaColores;
+                          updatePaleta(paletaEditando.id, (p) => ({
+                            ...p,
+                            etiquetasColores: {
+                              ...DEFAULT_COLOR_LABELS,
+                              ...(p.etiquetasColores ?? {}),
+                              [key]: e.target.value,
+                            },
+                          }));
+                          return;
+                        }
+                        updatePaleta(paletaEditando.id, (p) => ({
+                          ...p,
+                          coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, nombre: e.target.value } : c)),
                         }));
                       }}
                     />
-                    <label className="label-field mt-2">Valor</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={paletaEditando?.colores[key] ?? "#000000"}
-                        onChange={(e) => {
-                          if (!paletaEditando) return;
-                          updatePaleta(paletaEditando.id, (p) => ({
-                            ...p,
-                            colores: { ...p.colores, [key]: e.target.value },
-                          }));
-                        }}
-                        className="h-10 w-12 rounded-md border border-stone-200"
-                      />
-                      <input
-                        className="input-field"
-                        value={paletaEditando?.colores[key] ?? ""}
-                        onChange={(e) => {
-                          if (!paletaEditando) return;
-                          updatePaleta(paletaEditando.id, (p) => ({
-                            ...p,
-                            colores: { ...p.colores, [key]: e.target.value },
-                          }));
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-stone-600">Colores extra</p>
-                  <button onClick={addExtraColor} className="rounded-md border border-stone-300 px-2 py-1 text-xs text-stone-600">+ Color</button>
-                </div>
-
-                {(paletaEditando?.coloresExtra ?? []).map((extra: TemaColorExtra) => (
-                  <div key={extra.id} className="rounded-xl border border-stone-100 p-3 bg-stone-50">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-semibold text-stone-600">Color extra</p>
-                      <button onClick={() => removeExtraColor(extra.id)} className="text-xs text-red-500">Eliminar</button>
-                    </div>
-                    <label className="label-field">Nombre</label>
-                    <input
-                      className="input-field"
-                      value={extra.nombre}
-                      onChange={(e) => {
-                        if (!paletaEditando) return;
-                        updatePaleta(paletaEditando.id, (p) => ({
-                          ...p,
-                          coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === extra.id ? { ...c, nombre: e.target.value } : c)),
-                        }));
+                    <button
+                      onClick={() => {
+                        if (row.fixed) return;
+                        if (!confirm("Eliminar color?")) return;
+                        removeExtraColor(row.id);
                       }}
-                    />
-                    <label className="label-field mt-2">Valor</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={extra.valor}
-                        onChange={(e) => {
-                          if (!paletaEditando) return;
-                          updatePaleta(paletaEditando.id, (p) => ({
-                            ...p,
-                            coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === extra.id ? { ...c, valor: e.target.value } : c)),
-                          }));
-                        }}
-                        className="h-10 w-12 rounded-md border border-stone-200"
-                      />
-                      <input
-                        className="input-field"
-                        value={extra.valor}
-                        onChange={(e) => {
-                          if (!paletaEditando) return;
-                          updatePaleta(paletaEditando.id, (p) => ({
-                            ...p,
-                            coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === extra.id ? { ...c, valor: e.target.value } : c)),
-                          }));
-                        }}
-                      />
-                    </div>
+                      className="h-6 rounded border border-red-200 text-xs text-red-600 disabled:opacity-40"
+                      disabled={row.fixed}
+                      title={row.fixed ? "Color base" : "Eliminar"}
+                    >
+                      -
+                    </button>
                   </div>
                 ))}
+                <button onClick={addExtraColor} className="w-full rounded border border-dashed border-stone-300 py-1 text-xs text-stone-600">+ Anadir color</button>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-stone-200 bg-white p-4 space-y-3">
-              <h2 className="text-sm font-semibold text-stone-700">Panel de separador/transicion</h2>
+            <section className="rounded-xl border border-stone-200 bg-white p-3 space-y-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-700">Separador / Transicion</h2>
               <div>
-                <label className="label-field">Modo de transicion</label>
-                <select
-                  className="input-field"
-                  value={separador.modo}
-                  onChange={(e) => setSeparador((prev) => ({ ...prev, modo: e.target.value as SeparadorDiseno["modo"] }))}
-                >
-                  <option value="sin_transicion">Sin transicion</option>
-                  <option value="suave">Suave</option>
-                  <option value="onda">Onda</option>
-                  <option value="corte">Corte marcado</option>
-                </select>
+                <p className="mb-1 text-[11px] text-stone-500">Modo</p>
+                <div className="grid grid-cols-2 gap-1">
+                  {(["sin_transicion", "suave", "onda", "corte"] as const).map((modo) => (
+                    <button
+                      key={modo}
+                      onClick={() => setSeparador((prev) => ({ ...prev, modo }))}
+                      className={`rounded px-2 py-1 text-[11px] border ${separador.modo === modo ? "border-amber-600 bg-amber-50 text-amber-700" : "border-stone-200 text-stone-600"}`}
+                    >
+                      {modo.replace("_", " ")}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div>
-                <label className="label-field">Grafico separador</label>
-                <select
-                  className="input-field"
-                  value={separador.grafico}
-                  onChange={(e) => setSeparador((prev) => ({ ...prev, grafico: e.target.value as SeparadorDiseno["grafico"] }))}
-                >
-                  <option value="ornamento">Ornamento</option>
-                  <option value="linea_doble">Linea doble</option>
-                  <option value="onda_fina">Onda fina</option>
-                  <option value="puntos">Puntos</option>
-                </select>
-              </div>
-              <div className="rounded-xl border border-stone-200 p-3 text-xs text-stone-500">
-                Vista previa: {separador.modo.replace("_", " ")} + {separador.grafico.replace("_", " ")}
+                <p className="mb-1 text-[11px] text-stone-500">Grafico</p>
+                <div className="grid grid-cols-2 gap-1">
+                  {(["ornamento", "linea_doble", "onda_fina", "puntos"] as const).map((grafico) => (
+                    <button
+                      key={grafico}
+                      onClick={() => setSeparador((prev) => ({ ...prev, grafico }))}
+                      className={`rounded px-2 py-1 text-[11px] border ${separador.grafico === grafico ? "border-amber-600 bg-amber-50 text-amber-700" : "border-stone-200 text-stone-600"}`}
+                    >
+                      {grafico.replace("_", " ")}
+                    </button>
+                  ))}
+                </div>
               </div>
             </section>
 
@@ -850,57 +883,68 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             </div>
 
             <div
-              className="min-h-[560px] rounded-xl border p-4"
+              className="min-h-[560px] overflow-auto rounded-xl border"
               style={{
                 backgroundColor: paletaActiva?.colores.cream ?? "#F7F3EC",
                 borderColor: paletaActiva?.colores.bronzeLight ?? "#C4964A",
                 color: paletaActiva?.colores.brownDark ?? "#2E1F0E",
               }}
             >
-              <header className="mb-4 rounded-xl border p-4" style={{ backgroundColor: paletaActiva?.colores.white, borderColor: paletaActiva?.colores.bronze }}>
-                <p className="text-xs uppercase tracking-widest" style={{ color: paletaActiva?.colores.oliveMuted }}>
-                  Preview rol: {previewRole}
-                </p>
-                <h3 className="text-3xl" style={{ fontFamily: fuentes.display }}>
-                  {ic.nombreConjunto ?? `${ic.novia.nombre} & ${ic.novio.nombre}`}
-                </h3>
-                <p className="text-sm" style={{ color: paletaActiva?.colores.olive }}>
-                  {ic.fechaFormateada}
-                </p>
-              </header>
+              <div
+                style={{
+                  // Variables CSS del preview para que renderice igual que la web real.
+                  ["--bronze" as string]: paletaActiva?.colores.bronze ?? "#8C6A3F",
+                  ["--bronze-light" as string]: paletaActiva?.colores.bronzeLight ?? "#C4964A",
+                  ["--olive" as string]: paletaActiva?.colores.olive ?? "#5C6B3A",
+                  ["--olive-muted" as string]: paletaActiva?.colores.oliveMuted ?? "#8A9468",
+                  ["--cream" as string]: paletaActiva?.colores.cream ?? "#F7F3EC",
+                  ["--cream-dark" as string]: "#EDE7DB",
+                  ["--brown-dark" as string]: paletaActiva?.colores.brownDark ?? "#2E1F0E",
+                  ["--white" as string]: paletaActiva?.colores.white ?? "#FDFAF5",
+                  ["--font-display" as string]: fuentes.display,
+                  ["--font-body" as string]: fuentes.body,
+                }}
+              >
+                <main>
+                  {visiblePreviewSections.map((sec, idx) => {
+                    const isLast = idx === visiblePreviewSections.length - 1;
+                    return (
+                      <div key={sec.id}>
+                        {sec.tipo === "portada" && (
+                          <SeccionColapsable id={`preview-${sec.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
+                            <MainWithInvite config={ic} />
+                          </SeccionColapsable>
+                        )}
 
-              <div className="space-y-3">
-                {visiblePreviewSections.map((sec) => {
-                  const secPaleta = paletas.find((p) => p.id === sec.paletaId) ?? paletaActiva;
-                  return (
-                    <article key={sec.id} className="rounded-xl border p-4" style={{ backgroundColor: secPaleta?.colores.white, borderColor: secPaleta?.colores.bronze }}>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs uppercase tracking-widest" style={{ color: secPaleta?.colores.oliveMuted }}>{sec.tipo}</p>
-                        {!sec.visible && <span className="text-xs text-red-500">Oculta</span>}
+                        {sec.tipo === "historia" && (
+                          <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "Nuestra historia"} abiertaPorDefecto={false} bgColor="var(--cream)">
+                            <SeccionHistoria eventos={historia} />
+                          </SeccionColapsable>
+                        )}
+
+                        {sec.tipo === "galeria" && (
+                          <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "Galería"} abiertaPorDefecto={false} bgColor="var(--cream)">
+                            <SeccionGaleria media={previewGalleryMedia} />
+                          </SeccionColapsable>
+                        )}
+
+                        {sec.tipo === "timeline" && (
+                          <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "El gran día"} abiertaPorDefecto={false} bgColor="var(--cream-dark)">
+                            <SeccionTimeline localizaciones={ic.localizaciones} timeline={timeline} />
+                          </SeccionColapsable>
+                        )}
+
+                        {!isLast && buildPreviewSeparator(separador)}
                       </div>
-                      <h4 className="text-xl" style={{ fontFamily: fuentes.display }}>{sec.titulo || sec.nombre}</h4>
-                      <p className="text-sm" style={{ color: secPaleta?.colores.olive }}>
-                        Perfiles: {(sec.perfiles ?? []).join(", ") || "todos"}
-                      </p>
-                      {(sec.tipo === "historia" || sec.tipo === "timeline") && sec.items.length > 0 && (
-                        <ul className="mt-2 space-y-1 text-sm">
-                          {sec.items.slice(0, 3).map((item) => (
-                            <li key={item.id} className="rounded-md px-2 py-1" style={{ backgroundColor: secPaleta?.colores.cream }}>
-                              {sec.tipo === "timeline" && item.hora ? `${item.hora} - ` : ""}
-                              {item.titulo}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </article>
-                  );
-                })}
+                    );
+                  })}
 
-                {visiblePreviewSections.length === 0 && (
-                  <div className="rounded-xl border border-dashed border-stone-300 p-8 text-center text-sm text-stone-500">
-                    No hay secciones visibles para este perfil.
-                  </div>
-                )}
+                  {visiblePreviewSections.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-stone-300 p-8 text-center text-sm text-stone-500">
+                      No hay secciones visibles para este perfil.
+                    </div>
+                  )}
+                </main>
               </div>
             </div>
           </section>
