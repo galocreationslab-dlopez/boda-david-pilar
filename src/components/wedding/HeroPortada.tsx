@@ -12,6 +12,7 @@ import type { WeddingConfig } from "@/config/wedding.config";
 
 type Props = {
   config: Pick<WeddingConfig, "novia" | "novio" | "nombreConjunto" | "iniciales" | "fecha" | "fechaFormateada" | "textos">;
+  viewport?: "desktop" | "movil";
   mostrarBotonConfirmar?: boolean;
   labelBotonConfirmar?: string;
   onConfirmarClick?: () => void;
@@ -22,6 +23,7 @@ type Props = {
 
 export function HeroPortada({
   config,
+  viewport = "desktop",
   mostrarBotonConfirmar = false,
   labelBotonConfirmar,
   onConfirmarClick,
@@ -29,9 +31,11 @@ export function HeroPortada({
   onEditNombreConjunto,
   onEditBienvenida,
 }: Props) {
+  const forceMobile = viewport === "movil";
+
   return (
     <div
-      className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-4 text-center"
+      className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-3 text-center sm:px-4"
       style={{
         backgroundColor: "var(--brown-dark)",
         backgroundImage:
@@ -39,11 +43,11 @@ export function HeroPortada({
       }}
     >
       {/* Contenido principal */}
-      <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-5 py-16 sm:gap-7 sm:py-20">
+      <div className={`relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center gap-5 py-16 sm:gap-7 sm:py-20 ${forceMobile ? "max-w-[21rem] gap-4 py-12" : ""}`}>
 
         {/* Sello */}
         <div className="animate-fade-up">
-          <SelloNupcial size={128} color="#C4964A" />
+          <SelloNupcial size={forceMobile ? 100 : 128} color="#C4964A" />
         </div>
 
         {/* Nombres */}
@@ -51,7 +55,7 @@ export function HeroPortada({
           <h1
             className="font-display font-light"
             style={{
-              fontSize: "clamp(3.5rem, 11vw, 6rem)",
+              fontSize: forceMobile ? "clamp(2.8rem, 14vw, 4.2rem)" : "clamp(3.5rem, 11vw, 6rem)",
               color: "var(--white)",
               lineHeight: 1.05,
               letterSpacing: "-0.01em",
@@ -99,7 +103,7 @@ export function HeroPortada({
 
         {/* Texto de bienvenida */}
         <p
-          className="font-display text-xl sm:text-2xl font-light italic max-w-md leading-relaxed animate-fade-up delay-400"
+          className={`font-display font-light italic leading-relaxed animate-fade-up delay-400 ${forceMobile ? "max-w-[18rem] text-lg" : "max-w-md text-xl sm:text-2xl"}`}
           style={{ color: "var(--cream)", opacity: 0.85 }}
           contentEditable={editable}
           suppressContentEditableWarning={true}

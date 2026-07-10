@@ -50,12 +50,13 @@ function parseSpanishDate(input?: string): Date | null {
 
 type Props = {
   config: WeddingConfig;
+  viewport?: "desktop" | "movil";
   editable?: boolean;
   onEditNombreConjunto?: (value: string) => void;
   onEditBienvenida?: (value: string) => void;
 };
 
-export default function MainWithInvite({ config, editable = false, onEditNombreConjunto, onEditBienvenida }: Props) {
+export default function MainWithInvite({ config, viewport = "desktop", editable = false, onEditNombreConjunto, onEditBienvenida }: Props) {
   const router = useRouter();
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const hasInviteCode = Boolean(inviteCode && inviteCode.trim().length > 0);
@@ -134,6 +135,7 @@ export default function MainWithInvite({ config, editable = false, onEditNombreC
     <div>
       <HeroPortada
         config={config}
+        viewport={viewport}
         mostrarBotonConfirmar={mostrarBoton}
         labelBotonConfirmar={esAdmin ? "Panel de administración" : undefined}
         onConfirmarClick={handleConfirmarClick}

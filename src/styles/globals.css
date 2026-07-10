@@ -196,8 +196,10 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 0.75rem;
   border: 1px solid #d4cfc9;
   background: #fafaf9;
-  padding: 0.5rem 0.875rem;
-  font-size: 0.875rem;
+  padding: 0.625rem 0.875rem;
+  min-height: 2.75rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
   color: var(--brown-dark);
   outline: none;
   transition: border-color 150ms ease;

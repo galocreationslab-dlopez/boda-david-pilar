@@ -260,6 +260,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const previewSectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const inlineImageFileInputRef = useRef<HTMLInputElement | null>(null);
   const [inlineImageTargetItemId, setInlineImageTargetItemId] = useState<string | null>(null);
+  const [showRoleOverlay, setShowRoleOverlay] = useState(false);
 
   const [fuentes, setFuentes] = useState({ ...ic.tema.fuentes });
   const [logoUrl, setLogoUrl] = useState(ic.logo ?? "");
@@ -632,6 +633,33 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     if (perfiles.length <= 2) return perfiles.join(", ");
     return `${perfiles.slice(0, 2).join(", ")} +${perfiles.length - 2}`;
   };
+
+  const getSectionRoleLabels = (section: SeccionDiseno): Array<keyof typeof ROLE_LABELS> => {
+    switch (section.tipo) {
+      case "portada":
+        return ["fondoPrincipal", "titulos", "textoPrincipal", "textoSecundario", "botonFondo", "botonTexto", "bordesDivisores", "highlightAcento"];
+      case "historia":
+      case "timeline":
+        return ["fondoAlterno", "titulos", "textoPrincipal", "textoSecundario", "bordesDivisores", "highlightAcento"];
+      case "galeria":
+        return ["fondoPrincipal", "titulos", "textoPrincipal", "textoSecundario", "bordesDivisores"];
+      default:
+        return [];
+    }
+  };
+
+  const renderRoleOverlay = (section: SeccionDiseno) => (
+    <div className="pointer-events-none absolute left-2 top-2 z-30 max-w-[90%] rounded-lg border border-amber-300 bg-white/95 px-2 py-1 shadow-sm">
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Roles</div>
+      <div className="flex flex-wrap gap-1">
+        {getSectionRoleLabels(section).map((role) => (
+          <span key={role} className="rounded-full border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] text-stone-600">
+            {ROLE_LABELS[role]}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 
   const getPaletteBySection = (section: SeccionDiseno): TemaPaleta => {
     const shouldUseGlobal = section.usarPaletaGlobal ?? true;
@@ -1070,11 +1098,15 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         >
           {section.tipo === "portada" && (
             <SeccionColapsable id={`canvas-${section.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
-              <MainWithInvite
-                config={getPortadaConfig(section)}
-                editable={editable}
-                onEditBienvenida={setPortadaWelcomeText}
-              />
+              <div className="relative">
+                {showRoleOverlay && renderRoleOverlay(section)}
+                <MainWithInvite
+                  config={getPortadaConfig(section)}
+                  viewport={editorViewport}
+                  editable={editable}
+                  onEditBienvenida={setPortadaWelcomeText}
+                />
+              </div>
             </SeccionColapsable>
           )}
           {section.tipo === "historia" && (
@@ -1087,18 +1119,21 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
             >
-              <SeccionHistoria
-                eventos={historyEventsForSection(section)}
-                viewport={editorViewport}
-                editable={editable}
-                onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
-                onEditTexto={(itemId, field, value) => {
-                  if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });
-                  if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
-                  if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
-                }}
-                onRequestEditImagen={requestInlineImageEdit}
-              />
+              <div className="relative">
+                {showRoleOverlay && renderRoleOverlay(section)}
+                <SeccionHistoria
+                  eventos={historyEventsForSection(section)}
+                  viewport={editorViewport}
+                  editable={editable}
+                  onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                  onEditTexto={(itemId, field, value) => {
+                    if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });
+                    if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
+                    if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
+                  }}
+                  onRequestEditImagen={requestInlineImageEdit}
+                />
+              </div>
             </SeccionColapsable>
           )}
           {section.tipo === "timeline" && (
@@ -1111,18 +1146,21 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
             >
-              <SeccionTimeline
-                localizaciones={ic.localizaciones}
-                timeline={timelineEventsForSection(section)}
-                viewport={editorViewport}
-                editable={editable}
-                onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
-                onEditTexto={(itemId, field, value) => {
-                  if (field === "hora") patchEditingSectionItem(itemId, { hora: value });
-                  if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
-                  if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
-                }}
-              />
+              <div className="relative">
+                {showRoleOverlay && renderRoleOverlay(section)}
+                <SeccionTimeline
+                  localizaciones={ic.localizaciones}
+                  timeline={timelineEventsForSection(section)}
+                  viewport={editorViewport}
+                  editable={editable}
+                  onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                  onEditTexto={(itemId, field, value) => {
+                    if (field === "hora") patchEditingSectionItem(itemId, { hora: value });
+                    if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
+                    if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
+                  }}
+                />
+              </div>
             </SeccionColapsable>
           )}
           {section.tipo === "galeria" && (
@@ -1135,14 +1173,17 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
             >
-              <SeccionGaleria
-                media={galleryMediaForSection(section)}
-                viewport={editorViewport}
-                editable={editable}
-                onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
-                onEditTexto={(itemId, value) => patchEditingSectionItem(itemId, { titulo: value })}
-                onRequestEditImagen={requestInlineImageEdit}
-              />
+              <div className="relative">
+                {showRoleOverlay && renderRoleOverlay(section)}
+                <SeccionGaleria
+                  media={galleryMediaForSection(section)}
+                  viewport={editorViewport}
+                  editable={editable}
+                  onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                  onEditTexto={(itemId, value) => patchEditingSectionItem(itemId, { titulo: value })}
+                  onRequestEditImagen={requestInlineImageEdit}
+                />
+              </div>
             </SeccionColapsable>
           )}
         </div>
@@ -1732,6 +1773,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   <option value="desktop">Vista PC</option>
                   <option value="movil">Vista móvil</option>
                 </select>
+                <label className="inline-flex items-center gap-2 rounded border border-stone-300 bg-white px-2 py-1 text-xs text-stone-600">
+                  <input
+                    type="checkbox"
+                    checked={showRoleOverlay}
+                    onChange={(e) => setShowRoleOverlay(e.target.checked)}
+                  />
+                  Mostrar roles
+                </label>
               </div>
 
               <div className="border-t border-stone-200" />
