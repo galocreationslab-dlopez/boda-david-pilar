@@ -80,12 +80,24 @@ export type TemaColorExtra = {
   valor: string;
 };
 
+export type TemaColorRole =
+  | "fondoPrincipal"
+  | "fondoAlterno"
+  | "textoPrincipal"
+  | "textoSecundario"
+  | "titulos"
+  | "botonFondo"
+  | "botonTexto"
+  | "bordesDivisores"
+  | "highlightAcento";
+
 export type TemaPaleta = {
   id: string;
   nombre: string;
   colores: TemaColores;
   etiquetasColores?: Partial<Record<keyof TemaColores, string>>;
   coloresExtra?: TemaColorExtra[];
+  rolesColor?: Partial<Record<TemaColorRole, string>>;
 };
 
 export type TipoSeccionDiseno = "portada" | "historia" | "timeline" | "galeria";
@@ -235,6 +247,17 @@ export const weddingConfig: WeddingConfig = {
           white: "Blanco base",
         },
         coloresExtra: [],
+        rolesColor: {
+          fondoPrincipal: "cream",
+          fondoAlterno: "white",
+          textoPrincipal: "brownDark",
+          textoSecundario: "oliveMuted",
+          titulos: "brownDark",
+          botonFondo: "bronze",
+          botonTexto: "white",
+          bordesDivisores: "bronzeLight",
+          highlightAcento: "bronze",
+        },
       },
     ],
     paletaActivaId: "paleta-clasica",

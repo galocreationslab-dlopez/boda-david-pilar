@@ -7,6 +7,7 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { weddingConfig, type WeddingConfig } from "@/config/wedding.config";
+import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
 import { unstable_noStore as noStore } from "next/cache";
 
 type SectionRow = {
@@ -173,10 +174,22 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
 /** CSS variables a inyectar en :root a partir de tema.colores y tema.fuentes */
 export function buildCssOverrides(config: WeddingConfig): string {
   const activePalette = config.tema.paletas?.find((p) => p.id === config.tema.paletaActivaId);
-  const c = activePalette?.colores ?? config.tema.colores;
+  const c = activePalette ? resolvePaletteToThemeColors(activePalette) : config.tema.colores;
+  const roles = activePalette ? resolvePaletteRoleColors(activePalette) : null;
   const extraColors = activePalette?.coloresExtra ?? [];
   const f = config.tema.fuentes;
   const lines: string[] = [":root {"];
+  if (roles) {
+    lines.push(`  --role-fondo-principal: ${roles.fondoPrincipal};`);
+    lines.push(`  --role-fondo-alterno: ${roles.fondoAlterno};`);
+    lines.push(`  --role-texto-principal: ${roles.textoPrincipal};`);
+    lines.push(`  --role-texto-secundario: ${roles.textoSecundario};`);
+    lines.push(`  --role-titulos: ${roles.titulos};`);
+    lines.push(`  --role-boton-fondo: ${roles.botonFondo};`);
+    lines.push(`  --role-boton-texto: ${roles.botonTexto};`);
+    lines.push(`  --role-bordes-divisores: ${roles.bordesDivisores};`);
+    lines.push(`  --role-highlight-acento: ${roles.highlightAcento};`);
+  }
   if (c.bronze)       lines.push(`  --bronze: ${c.bronze};`);
   if (c.bronzeLight)  lines.push(`  --bronze-light: ${c.bronzeLight};`);
   if (c.olive)        lines.push(`  --olive: ${c.olive};`);

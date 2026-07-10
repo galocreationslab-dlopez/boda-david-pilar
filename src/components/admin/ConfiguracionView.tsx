@@ -7,6 +7,14 @@ import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
 import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
+import {
+  ROLE_KEYS,
+  ROLE_LABELS,
+  buildPaletteSwatches,
+  buildRoleContrastWarnings,
+  resolvePaletteRoleMap,
+  resolvePaletteToThemeColors,
+} from "@/lib/theme-roles";
 import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
 import type {
   WeddingConfig,
@@ -61,36 +69,6 @@ function normalizeTemaColores(colores: TemaColores): TemaColores {
   };
 }
 
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const cleaned = hex.trim().replace("#", "");
-  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(cleaned)) return null;
-  const normalized = cleaned.length === 3
-    ? cleaned.split("").map((char) => `${char}${char}`).join("")
-    : cleaned;
-  const value = Number.parseInt(normalized, 16);
-  return {
-    r: (value >> 16) & 255,
-    g: (value >> 8) & 255,
-    b: value & 255,
-  };
-}
-
-function toLuminance(channel: number): number {
-  const s = channel / 255;
-  return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-}
-
-function contrastRatio(foregroundHex: string, backgroundHex: string): number | null {
-  const fg = hexToRgb(foregroundHex);
-  const bg = hexToRgb(backgroundHex);
-  if (!fg || !bg) return null;
-  const fgLum = 0.2126 * toLuminance(fg.r) + 0.7152 * toLuminance(fg.g) + 0.0722 * toLuminance(fg.b);
-  const bgLum = 0.2126 * toLuminance(bg.r) + 0.7152 * toLuminance(bg.g) + 0.0722 * toLuminance(bg.b);
-  const light = Math.max(fgLum, bgLum);
-  const dark = Math.min(fgLum, bgLum);
-  return Number(((light + 0.05) / (dark + 0.05)).toFixed(2));
-}
-
 function ensurePalette(paleta: TemaPaleta, fallback: TemaColores): TemaPaleta {
   const safe = {
     ...fallback,
@@ -105,6 +83,11 @@ function ensurePalette(paleta: TemaPaleta, fallback: TemaColores): TemaPaleta {
       ...(paleta.etiquetasColores ?? {}),
     },
     coloresExtra: paleta.coloresExtra ?? [],
+    rolesColor: resolvePaletteRoleMap({
+      ...paleta,
+      colores: normalizeTemaColores(safe),
+      coloresExtra: paleta.coloresExtra ?? [],
+    }),
   };
 }
 
@@ -120,6 +103,13 @@ function buildInitialPaletas(config: WeddingConfig): TemaPaleta[] {
       colores: fallback,
       etiquetasColores: { ...DEFAULT_COLOR_LABELS },
       coloresExtra: [],
+      rolesColor: resolvePaletteRoleMap({
+        id: "paleta-principal",
+        nombre: "Principal",
+        colores: fallback,
+        etiquetasColores: { ...DEFAULT_COLOR_LABELS },
+        coloresExtra: [],
+      }),
     },
   ];
 }
@@ -292,31 +282,24 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     [paletaActiva, paletaEditandoId, paletas],
   );
 
+  const paletaActivaResolvedColors = useMemo(
+    () => (paletaActiva ? resolvePaletteToThemeColors(paletaActiva) : ic.tema.colores),
+    [ic.tema.colores, paletaActiva],
+  );
+
+  const paletaSwatches = useMemo(
+    () => (paletaEditando ? buildPaletteSwatches(paletaEditando) : []),
+    [paletaEditando],
+  );
+
+  const paletaRoleMap = useMemo(
+    () => (paletaEditando ? resolvePaletteRoleMap(paletaEditando) : null),
+    [paletaEditando],
+  );
+
   const contrastWarnings = useMemo(() => {
     if (!paletaEditando) return [] as string[];
-    const c = paletaEditando.colores;
-    const checks = [
-      {
-        label: "Texto principal sobre fondo principal",
-        ratio: contrastRatio(c.brownDark, c.cream),
-      },
-      {
-        label: "Texto secundario sobre fondo principal",
-        ratio: contrastRatio(c.oliveMuted, c.cream),
-      },
-      {
-        label: "Texto de botón sobre fondo de botón",
-        ratio: contrastRatio(c.white, c.bronze),
-      },
-      {
-        label: "Acento sobre fondo principal",
-        ratio: contrastRatio(c.bronzeLight, c.cream),
-      },
-    ];
-
-    return checks
-      .filter((item) => item.ratio !== null && item.ratio < 4.5)
-      .map((item) => `${item.label}: ${item.ratio?.toFixed(2)} (mínimo recomendado 4.5)`);
+    return buildRoleContrastWarnings(paletaEditando);
   }, [paletaEditando]);
 
   const seccionesEfectivas = useMemo(
@@ -653,15 +636,16 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
   const getSectionThemeVars = (section: SeccionDiseno): CSSProperties => {
     const palette = getPaletteBySection(section);
+    const resolved = palette ? resolvePaletteToThemeColors(palette) : ic.tema.colores;
     return {
-      ["--bronze" as string]: palette?.colores.bronze ?? "#8C6A3F",
-      ["--bronze-light" as string]: palette?.colores.bronzeLight ?? "#C4964A",
-      ["--olive" as string]: palette?.colores.olive ?? "#5C6B3A",
-      ["--olive-muted" as string]: palette?.colores.oliveMuted ?? "#8A9468",
-      ["--cream" as string]: palette?.colores.cream ?? "#F7F3EC",
+      ["--bronze" as string]: resolved.bronze,
+      ["--bronze-light" as string]: resolved.bronzeLight,
+      ["--olive" as string]: resolved.olive,
+      ["--olive-muted" as string]: resolved.oliveMuted,
+      ["--cream" as string]: resolved.cream,
       ["--cream-dark" as string]: "#EDE7DB",
-      ["--brown-dark" as string]: palette?.colores.brownDark ?? "#2E1F0E",
-      ["--white" as string]: palette?.colores.white ?? "#FDFAF5",
+      ["--brown-dark" as string]: resolved.brownDark,
+      ["--white" as string]: resolved.white,
       ["--font-display" as string]: fuentes.display,
       ["--font-body" as string]: fuentes.body,
     };
@@ -882,7 +866,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       const seccionesConPendientes = secciones.map((sec) => sectionDrafts[sec.id] ?? sec);
       const seccionPortada = seccionesConPendientes.find((sec) => sec.tipo === "portada");
       const bienvenidaPortada = seccionPortada?.items?.[0]?.descripcion;
-      const colors = paletaActiva?.colores ?? ic.tema.colores;
+      const colors = paletaActivaResolvedColors;
       const payload: Record<string, unknown> = {
         tema: {
           colores: colors,
@@ -1327,6 +1311,35 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       </div>
                     ))}
                     <button onClick={addExtraColor} className="w-full rounded border border-dashed border-stone-300 py-1 text-xs text-stone-600">+ Anadir color</button>
+                  </div>
+
+                  <div className="rounded border border-stone-200 bg-stone-50 p-2">
+                    <p className="mb-2 text-xs font-semibold text-stone-700">Asignación de roles</p>
+                    <div className="space-y-1">
+                      {ROLE_KEYS.map((role) => (
+                        <div key={role} className="grid grid-cols-[1fr_140px] items-center gap-2">
+                          <label className="text-[11px] text-stone-600">{ROLE_LABELS[role]}</label>
+                          <select
+                            className="input-field h-7 text-xs"
+                            value={paletaRoleMap?.[role] ?? ""}
+                            onChange={(event) => {
+                              if (!paletaEditando) return;
+                              updatePaleta(paletaEditando.id, (palette) => ({
+                                ...palette,
+                                rolesColor: {
+                                  ...resolvePaletteRoleMap(palette),
+                                  [role]: event.target.value,
+                                },
+                              }));
+                            }}
+                          >
+                            {paletaSwatches.map((swatch) => (
+                              <option key={swatch.id} value={swatch.id}>{swatch.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   <div className={`rounded border p-2 text-[11px] ${contrastWarnings.length > 0 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
@@ -1788,21 +1801,21 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             <div
               className="min-h-[560px] overflow-auto rounded-xl border"
               style={{
-                backgroundColor: paletaActiva?.colores.cream ?? "#F7F3EC",
-                borderColor: paletaActiva?.colores.bronzeLight ?? "#C4964A",
-                color: paletaActiva?.colores.brownDark ?? "#2E1F0E",
+                backgroundColor: paletaActivaResolvedColors.cream ?? "#F7F3EC",
+                borderColor: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
+                color: paletaActivaResolvedColors.brownDark ?? "#2E1F0E",
               }}
             >
               <div
                 style={{
-                  ["--bronze" as string]: paletaActiva?.colores.bronze ?? "#8C6A3F",
-                  ["--bronze-light" as string]: paletaActiva?.colores.bronzeLight ?? "#C4964A",
-                  ["--olive" as string]: paletaActiva?.colores.olive ?? "#5C6B3A",
-                  ["--olive-muted" as string]: paletaActiva?.colores.oliveMuted ?? "#8A9468",
-                  ["--cream" as string]: paletaActiva?.colores.cream ?? "#F7F3EC",
+                  ["--bronze" as string]: paletaActivaResolvedColors.bronze ?? "#8C6A3F",
+                  ["--bronze-light" as string]: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
+                  ["--olive" as string]: paletaActivaResolvedColors.olive ?? "#5C6B3A",
+                  ["--olive-muted" as string]: paletaActivaResolvedColors.oliveMuted ?? "#8A9468",
+                  ["--cream" as string]: paletaActivaResolvedColors.cream ?? "#F7F3EC",
                   ["--cream-dark" as string]: "#EDE7DB",
-                  ["--brown-dark" as string]: paletaActiva?.colores.brownDark ?? "#2E1F0E",
-                  ["--white" as string]: paletaActiva?.colores.white ?? "#FDFAF5",
+                  ["--brown-dark" as string]: paletaActivaResolvedColors.brownDark ?? "#2E1F0E",
+                  ["--white" as string]: paletaActivaResolvedColors.white ?? "#FDFAF5",
                   ["--font-display" as string]: fuentes.display,
                   ["--font-body" as string]: fuentes.body,
                 }}

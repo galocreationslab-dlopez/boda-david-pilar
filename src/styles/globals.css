@@ -3,6 +3,15 @@
 
 /* ── Tokens de diseño ── */
 :root {
+  --role-fondo-principal: #F7F3EC;
+  --role-fondo-alterno: #FDFAF5;
+  --role-texto-principal: #2E1F0E;
+  --role-texto-secundario: #8A9468;
+  --role-titulos: #2E1F0E;
+  --role-boton-fondo: #8C6A3F;
+  --role-boton-texto: #FDFAF5;
+  --role-bordes-divisores: #C4964A;
+  --role-highlight-acento: #8C6A3F;
   --bronze:        #8C6A3F;
   --bronze-light:  #C4964A;
   --bronze-pale:   #E8D5B7;
@@ -42,8 +51,8 @@
 html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
 body {
   font-family: var(--font-body);
-  background-color: var(--cream);
-  color: var(--brown-dark);
+  background-color: var(--role-fondo-principal);
+  color: var(--role-texto-principal);
   font-size: 1rem;
   line-height: 1.7;
   font-weight: 300;
@@ -52,7 +61,7 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   font-weight: 400;
   line-height: 1.2;
-  color: var(--brown-dark);
+  color: var(--role-titulos);
 }
 .font-display { font-family: var(--font-display); }
 .smallcaps {
@@ -93,8 +102,8 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background-color: var(--bronze);
-  color: var(--white);
+  background-color: var(--role-boton-fondo);
+  color: var(--role-boton-texto);
   font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 400;
@@ -106,26 +115,26 @@ h1, h2, h3, h4, h5, h6 {
   transition: background-color var(--transition-base), transform var(--transition-base);
   text-decoration: none;
 }
-.btn-primary:hover { background-color: var(--bronze-light); transform: translateY(-1px); }
+.btn-primary:hover { background-color: var(--role-bordes-divisores); transform: translateY(-1px); }
 .btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   background-color: transparent;
-  color: var(--bronze);
+  color: var(--role-highlight-acento);
   font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 0.8125rem 1.875rem;
-  border: 1px solid var(--bronze);
+  border: 1px solid var(--role-highlight-acento);
   cursor: pointer;
   transition: all var(--transition-base);
   text-decoration: none;
 }
-.btn-secondary:hover { background-color: var(--bronze); color: var(--white); }
+.btn-secondary:hover { background-color: var(--role-highlight-acento); color: var(--role-boton-texto); }
 .card-wedding {
   background-color: var(--white);
   border: 1px solid var(--cream-dark);

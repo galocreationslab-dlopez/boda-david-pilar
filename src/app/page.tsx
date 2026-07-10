@@ -13,6 +13,7 @@ import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
 import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
+import { resolvePaletteToThemeColors } from "@/lib/theme-roles";
 import type { SeparadorDiseno, TipoSeccionDiseno, SeccionDiseno, TemaPaleta } from "@/config/wedding.config";
 import type { CSSProperties } from "react";
 
@@ -52,14 +53,15 @@ export default async function PaginaPrincipal() {
 
   const getSectionThemeVars = (section?: SeccionDiseno): CSSProperties => {
     const palette = getPaletteBySection(section);
+    const resolved = palette ? resolvePaletteToThemeColors(palette) : config.tema.colores;
     return {
-      ["--bronze" as string]: palette?.colores.bronze,
-      ["--bronze-light" as string]: palette?.colores.bronzeLight,
-      ["--olive" as string]: palette?.colores.olive,
-      ["--olive-muted" as string]: palette?.colores.oliveMuted,
-      ["--cream" as string]: palette?.colores.cream,
-      ["--brown-dark" as string]: palette?.colores.brownDark,
-      ["--white" as string]: palette?.colores.white,
+      ["--bronze" as string]: resolved.bronze,
+      ["--bronze-light" as string]: resolved.bronzeLight,
+      ["--olive" as string]: resolved.olive,
+      ["--olive-muted" as string]: resolved.oliveMuted,
+      ["--cream" as string]: resolved.cream,
+      ["--brown-dark" as string]: resolved.brownDark,
+      ["--white" as string]: resolved.white,
       ["--font-display" as string]: config.tema.fuentes.display,
       ["--font-body" as string]: config.tema.fuentes.body,
     };
