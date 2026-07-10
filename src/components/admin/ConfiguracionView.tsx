@@ -8,11 +8,7 @@ import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
 import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
 import {
-  ROLE_KEYS,
-  ROLE_LABELS,
   buildPaletteSwatches,
-  buildRoleContrastWarnings,
-  resolvePaletteRoleColors,
   resolvePaletteRoleMap,
   resolvePaletteToThemeColors,
 } from "@/lib/theme-roles";
@@ -252,15 +248,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
   const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
 
-  const [paletasCollapsed, setPaletasCollapsed] = useState(false);
-  const [separadorCollapsed, setSeparadorCollapsed] = useState(false);
+  const [paletasCollapsed, setPaletasCollapsed] = useState(true);
+  const [separadorCollapsed, setSeparadorCollapsed] = useState(true);
 
   const [editorViewport, setEditorViewport] = useState<"desktop" | "movil">("desktop");
   const sectionCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const previewSectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const inlineImageFileInputRef = useRef<HTMLInputElement | null>(null);
   const [inlineImageTargetItemId, setInlineImageTargetItemId] = useState<string | null>(null);
-  const [showRoleOverlay, setShowRoleOverlay] = useState(false);
 
   const [fuentes, setFuentes] = useState({ ...ic.tema.fuentes });
   const [logoUrl, setLogoUrl] = useState(ic.logo ?? "");
@@ -272,6 +267,12 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [timeline, setTimeline] = useState<Array<EventoTimeline & { enlaceMaps?: string }>>(
     structuredClone(ic.timeline).map((e) => ({ ...e, enlaceMaps: "" })),
   );
+
+  useEffect(() => {
+    if (tab === "diseno") {
+      window.scrollTo(0, 0);
+    }
+  }, [tab]);
 
   const paletaActiva = useMemo(
     () => paletas.find((p) => p.id === paletaActivaId) ?? paletas[0],
@@ -288,25 +289,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     [ic.tema.colores, paletaActiva],
   );
 
-  const paletaActivaRoleColors = useMemo(
-    () => (paletaActiva ? resolvePaletteRoleColors(paletaActiva) : null),
-    [paletaActiva],
-  );
-
   const paletaSwatches = useMemo(
     () => (paletaEditando ? buildPaletteSwatches(paletaEditando) : []),
     [paletaEditando],
   );
-
-  const paletaRoleMap = useMemo(
-    () => (paletaEditando ? resolvePaletteRoleMap(paletaEditando) : null),
-    [paletaEditando],
-  );
-
-  const contrastWarnings = useMemo(() => {
-    if (!paletaEditando) return [] as string[];
-    return buildRoleContrastWarnings(paletaEditando);
-  }, [paletaEditando]);
 
   const seccionesEfectivas = useMemo(
     () => secciones.map((sec) => sectionDrafts[sec.id] ?? sec),
@@ -634,33 +620,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     return `${perfiles.slice(0, 2).join(", ")} +${perfiles.length - 2}`;
   };
 
-  const getSectionRoleLabels = (section: SeccionDiseno): Array<keyof typeof ROLE_LABELS> => {
-    switch (section.tipo) {
-      case "portada":
-        return ["fondoPrincipal", "titulos", "textoPrincipal", "textoSecundario", "botonFondo", "botonTexto", "bordesDivisores", "highlightAcento"];
-      case "historia":
-      case "timeline":
-        return ["fondoAlterno", "titulos", "textoPrincipal", "textoSecundario", "bordesDivisores", "highlightAcento"];
-      case "galeria":
-        return ["fondoPrincipal", "titulos", "textoPrincipal", "textoSecundario", "bordesDivisores"];
-      default:
-        return [];
-    }
-  };
-
-  const renderRoleOverlay = (section: SeccionDiseno) => (
-    <div className="pointer-events-none absolute left-2 top-2 z-30 max-w-[90%] rounded-lg border border-amber-300 bg-white/95 px-2 py-1 shadow-sm">
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Roles</div>
-      <div className="flex flex-wrap gap-1">
-        {getSectionRoleLabels(section).map((role) => (
-          <span key={role} className="rounded-full border border-stone-200 bg-stone-50 px-1.5 py-0.5 text-[10px] text-stone-600">
-            {ROLE_LABELS[role]}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-
   const getPaletteBySection = (section: SeccionDiseno): TemaPaleta => {
     const shouldUseGlobal = section.usarPaletaGlobal ?? true;
     if (shouldUseGlobal) {
@@ -672,26 +631,16 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const getSectionThemeVars = (section: SeccionDiseno): CSSProperties => {
     const palette = getPaletteBySection(section);
     const resolved = palette ? resolvePaletteToThemeColors(palette) : ic.tema.colores;
-    const roles = palette ? resolvePaletteRoleColors(palette) : null;
     return {
-      ["--role-fondo-principal" as string]: roles?.fondoPrincipal,
-      ["--role-fondo-alterno" as string]: roles?.fondoAlterno,
-      ["--role-texto-principal" as string]: roles?.textoPrincipal,
-      ["--role-texto-secundario" as string]: roles?.textoSecundario,
-      ["--role-titulos" as string]: roles?.titulos,
-      ["--role-boton-fondo" as string]: roles?.botonFondo,
-      ["--role-boton-texto" as string]: roles?.botonTexto,
-      ["--role-bordes-divisores" as string]: roles?.bordesDivisores,
-      ["--role-highlight-acento" as string]: roles?.highlightAcento,
       ["--bronze" as string]: resolved.bronze,
       ["--bronze-light" as string]: resolved.bronzeLight,
-      ["--bronze-pale" as string]: roles?.bordesDivisores ?? resolved.bronzeLight,
+      ["--bronze-pale" as string]: resolved.bronzeLight,
       ["--olive" as string]: resolved.olive,
       ["--olive-muted" as string]: resolved.oliveMuted,
       ["--cream" as string]: resolved.cream,
-      ["--cream-dark" as string]: roles?.fondoAlterno ?? "#EDE7DB",
+      ["--cream-dark" as string]: resolved.white,
       ["--brown-dark" as string]: resolved.brownDark,
-      ["--brown-mid" as string]: roles?.textoSecundario ?? resolved.oliveMuted,
+      ["--brown-mid" as string]: resolved.oliveMuted,
       ["--white" as string]: resolved.white,
       ["--font-display" as string]: fuentes.display,
       ["--font-body" as string]: fuentes.body,
@@ -1098,15 +1047,12 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         >
           {section.tipo === "portada" && (
             <SeccionColapsable id={`canvas-${section.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
-              <div className="relative">
-                {showRoleOverlay && renderRoleOverlay(section)}
-                <MainWithInvite
-                  config={getPortadaConfig(section)}
-                  viewport={editorViewport}
-                  editable={editable}
-                  onEditBienvenida={setPortadaWelcomeText}
-                />
-              </div>
+              <MainWithInvite
+                config={getPortadaConfig(section)}
+                viewport={editorViewport}
+                editable={editable}
+                onEditBienvenida={setPortadaWelcomeText}
+              />
             </SeccionColapsable>
           )}
           {section.tipo === "historia" && (
@@ -1119,21 +1065,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
             >
-              <div className="relative">
-                {showRoleOverlay && renderRoleOverlay(section)}
-                <SeccionHistoria
-                  eventos={historyEventsForSection(section)}
-                  viewport={editorViewport}
-                  editable={editable}
-                  onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
-                  onEditTexto={(itemId, field, value) => {
-                    if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });
-                    if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
-                    if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
-                  }}
-                  onRequestEditImagen={requestInlineImageEdit}
-                />
-              </div>
+              <SeccionHistoria
+                eventos={historyEventsForSection(section)}
+                viewport={editorViewport}
+                editable={editable}
+                onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                onEditTexto={(itemId, field, value) => {
+                  if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });
+                  if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
+                  if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
+                }}
+                onRequestEditImagen={requestInlineImageEdit}
+              />
             </SeccionColapsable>
           )}
           {section.tipo === "timeline" && (
@@ -1146,21 +1089,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
             >
-              <div className="relative">
-                {showRoleOverlay && renderRoleOverlay(section)}
-                <SeccionTimeline
-                  localizaciones={ic.localizaciones}
-                  timeline={timelineEventsForSection(section)}
-                  viewport={editorViewport}
-                  editable={editable}
-                  onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
-                  onEditTexto={(itemId, field, value) => {
-                    if (field === "hora") patchEditingSectionItem(itemId, { hora: value });
-                    if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
-                    if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
-                  }}
-                />
-              </div>
+              <SeccionTimeline
+                localizaciones={ic.localizaciones}
+                timeline={timelineEventsForSection(section)}
+                viewport={editorViewport}
+                editable={editable}
+                onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                onEditTexto={(itemId, field, value) => {
+                  if (field === "hora") patchEditingSectionItem(itemId, { hora: value });
+                  if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
+                  if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
+                }}
+              />
             </SeccionColapsable>
           )}
           {section.tipo === "galeria" && (
@@ -1173,17 +1113,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
             >
-              <div className="relative">
-                {showRoleOverlay && renderRoleOverlay(section)}
-                <SeccionGaleria
-                  media={galleryMediaForSection(section)}
-                  viewport={editorViewport}
-                  editable={editable}
-                  onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
-                  onEditTexto={(itemId, value) => patchEditingSectionItem(itemId, { titulo: value })}
-                  onRequestEditImagen={requestInlineImageEdit}
-                />
-              </div>
+              <SeccionGaleria
+                media={galleryMediaForSection(section)}
+                viewport={editorViewport}
+                editable={editable}
+                onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                onEditTexto={(itemId, value) => patchEditingSectionItem(itemId, { titulo: value })}
+                onRequestEditImagen={requestInlineImageEdit}
+              />
             </SeccionColapsable>
           )}
         </div>
@@ -1244,7 +1181,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
       {tab === "diseno" && (
         <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
-          <aside className="space-y-4 max-h-[78vh] overflow-auto pr-1">
+          <aside className="space-y-4 self-start lg:sticky lg:top-4">
             <section className="rounded-xl border border-stone-200 bg-white p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <button
@@ -1376,47 +1313,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     <button onClick={addExtraColor} className="w-full rounded border border-dashed border-stone-300 py-1 text-xs text-stone-600">+ Anadir color</button>
                   </div>
 
-                  <div className="rounded border border-stone-200 bg-stone-50 p-2">
-                    <p className="mb-2 text-xs font-semibold text-stone-700">Asignación de roles</p>
-                    <div className="space-y-1">
-                      {ROLE_KEYS.map((role) => (
-                        <div key={role} className="grid grid-cols-[1fr_140px] items-center gap-2">
-                          <label className="text-[11px] text-stone-600">{ROLE_LABELS[role]}</label>
-                          <select
-                            className="input-field h-7 text-xs"
-                            value={paletaRoleMap?.[role] ?? ""}
-                            onChange={(event) => {
-                              if (!paletaEditando) return;
-                              updatePaleta(paletaEditando.id, (palette) => ({
-                                ...palette,
-                                rolesColor: {
-                                  ...resolvePaletteRoleMap(palette),
-                                  [role]: event.target.value,
-                                },
-                              }));
-                            }}
-                          >
-                            {paletaSwatches.map((swatch) => (
-                              <option key={swatch.id} value={swatch.id}>{swatch.label}</option>
-                            ))}
-                          </select>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className={`rounded border p-2 text-[11px] ${contrastWarnings.length > 0 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
-                    <p className="font-semibold">Contraste (WCAG)</p>
-                    {contrastWarnings.length > 0 ? (
-                      <ul className="mt-1 list-disc pl-4">
-                        {contrastWarnings.map((warning) => (
-                          <li key={warning}>{warning}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-1">Sin advertencias en las combinaciones principales.</p>
-                    )}
-                  </div>
                 </>
               )}
             </section>
@@ -1705,9 +1601,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           ? `Global (${paletaActiva?.nombre ?? "sin nombre"})`
                           : `Sección (${paletas.find((p) => p.id === editingSectionDraft.paletaId)?.nombre ?? "sin nombre"})`}
                       </span>
-                      <button onClick={handleSave} disabled={saving} className="ml-auto rounded-lg bg-amber-700 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
-                        {saving ? "Aplicando..." : "Aplicar y guardar"}
-                      </button>
                     </div>
                   )}
 
@@ -1715,9 +1608,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <button onClick={addEditingSectionItem} className="rounded border border-stone-300 px-2 py-1 text-xs text-stone-600">
                         Añadir entrada
-                      </button>
-                      <button onClick={handleSave} disabled={saving} className="rounded-lg bg-amber-700 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
-                        {saving ? "Aplicando..." : "Aplicar y guardar"}
                       </button>
                     </div>
                   )}
@@ -1727,39 +1617,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       <button onClick={addEditingSectionItem} className="rounded border border-stone-300 px-2 py-1 text-xs text-stone-600">
                         Añadir imagen
                       </button>
-                      <button onClick={handleSave} disabled={saving} className="rounded-lg bg-amber-700 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
-                        {saving ? "Aplicando..." : "Aplicar y guardar"}
-                      </button>
-                    </div>
-                  )}
-
-                  {sectionEditMode === "contenido" && editingSectionDraft.tipo === "portada" && (
-                    <div className="space-y-2">
-                      <div>
-                        <label className="label-field">Texto de bienvenida (Portada)</label>
-                        <textarea
-                          className="input-field w-full text-sm"
-                          rows={3}
-                          value={editingSectionDraft.items?.[0]?.descripcion ?? ic.textos.bienvenida}
-                          onChange={(e) => setPortadaWelcomeText(e.target.value)}
-                          placeholder="Escribe el mensaje de bienvenida"
-                        />
-                      </div>
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <button onClick={handleSave} disabled={saving} className="rounded-lg bg-amber-700 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
-                          {saving ? "Aplicando..." : "Aplicar y guardar"}
-                        </button>
-                      </div>
                     </div>
                   )}
                 </>
-              ) : (
-                <div className="flex items-center justify-end">
-                  <button onClick={handleSave} disabled={saving} className="rounded-lg bg-amber-700 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
-                    {saving ? "Aplicando..." : "Aplicar y guardar"}
-                  </button>
-                </div>
-              )}
+              ) : null}
 
               <div className="border-t border-stone-200" />
 
@@ -1773,100 +1634,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   <option value="desktop">Vista PC</option>
                   <option value="movil">Vista móvil</option>
                 </select>
-                <label className="inline-flex items-center gap-2 rounded border border-stone-300 bg-white px-2 py-1 text-xs text-stone-600">
-                  <input
-                    type="checkbox"
-                    checked={showRoleOverlay}
-                    onChange={(e) => setShowRoleOverlay(e.target.checked)}
-                  />
-                  Mostrar roles
-                </label>
               </div>
 
               <div className="border-t border-stone-200" />
-
-              {sectionEditMode === "contenido" && editingSectionDraft && editingSectionDraft.tipo !== "portada" && selectedDraftItem && selectedDraftItemId && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    className="input-field h-8 w-[180px] text-xs"
-                    value={selectedDraftItemId}
-                    onChange={(e) => setSelectedDraftItemId(e.target.value || null)}
-                  >
-                    {(editingSectionDraft.items ?? []).map((item, index) => (
-                      <option key={item.id} value={item.id}>{item.titulo || `Item ${index + 1}`}</option>
-                    ))}
-                  </select>
-                  <input
-                    className="input-field h-8 w-[180px] text-xs"
-                    value={selectedDraftItem.titulo ?? ""}
-                    onChange={(e) => patchEditingSectionItem(selectedDraftItemId, { titulo: e.target.value })}
-                    placeholder="Título objeto"
-                  />
-                  <input
-                    className="input-field h-8 min-w-[220px] flex-1 text-xs"
-                    value={selectedDraftItem.descripcion ?? ""}
-                    onChange={(e) => patchEditingSectionItem(selectedDraftItemId, { descripcion: e.target.value })}
-                    placeholder="Descripción"
-                  />
-
-                  {editingSectionDraft.tipo === "timeline" && (
-                    <>
-                      <input
-                        className="input-field h-8 w-[90px] text-xs"
-                        value={selectedDraftItem.hora ?? ""}
-                        onChange={(e) => patchEditingSectionItem(selectedDraftItemId, { hora: e.target.value })}
-                        placeholder="Hora"
-                      />
-                      <select
-                        className="input-field h-8 w-[120px] text-xs"
-                        value={selectedDraftItem.icono ?? "rings"}
-                        onChange={(e) => patchEditingSectionItem(selectedDraftItemId, { icono: e.target.value })}
-                      >
-                        {ICONO_OPTIONS.map((icon) => (
-                          <option key={icon} value={icon}>{icon}</option>
-                        ))}
-                      </select>
-                      <input
-                        className="input-field h-8 w-[220px] text-xs"
-                        value={selectedDraftItem.enlaceMaps ?? ""}
-                        onChange={(e) => patchEditingSectionItem(selectedDraftItemId, { enlaceMaps: e.target.value })}
-                        placeholder="Enlace Maps"
-                      />
-                    </>
-                  )}
-
-                  {(editingSectionDraft.tipo === "historia" || editingSectionDraft.tipo === "galeria") && (
-                    <>
-                      <input
-                        className="input-field h-8 w-[230px] text-xs"
-                        value={selectedDraftItem.imagen ?? ""}
-                        onChange={(e) => patchEditingSectionItem(selectedDraftItemId, { imagen: e.target.value })}
-                        placeholder="URL imagen"
-                      />
-                      <label className="rounded border border-stone-300 px-2 py-1 text-xs text-stone-600 cursor-pointer">
-                        Subir
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) void uploadEditingSectionItemImage(selectedDraftItemId, file);
-                            e.currentTarget.value = "";
-                          }}
-                        />
-                      </label>
-                    </>
-                  )}
-
-                  <button
-                    onClick={() => removeEditingSectionItem(selectedDraftItemId)}
-                    className="rounded border border-red-200 px-2 py-1 text-xs text-red-600"
-                  >
-                    Eliminar objeto
-                  </button>
-                </div>
-              )}
             </div>
 
             <div
@@ -1879,24 +1649,15 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             >
               <div
                 style={{
-                  ["--role-fondo-principal" as string]: paletaActivaRoleColors?.fondoPrincipal,
-                  ["--role-fondo-alterno" as string]: paletaActivaRoleColors?.fondoAlterno,
-                  ["--role-texto-principal" as string]: paletaActivaRoleColors?.textoPrincipal,
-                  ["--role-texto-secundario" as string]: paletaActivaRoleColors?.textoSecundario,
-                  ["--role-titulos" as string]: paletaActivaRoleColors?.titulos,
-                  ["--role-boton-fondo" as string]: paletaActivaRoleColors?.botonFondo,
-                  ["--role-boton-texto" as string]: paletaActivaRoleColors?.botonTexto,
-                  ["--role-bordes-divisores" as string]: paletaActivaRoleColors?.bordesDivisores,
-                  ["--role-highlight-acento" as string]: paletaActivaRoleColors?.highlightAcento,
                   ["--bronze" as string]: paletaActivaResolvedColors.bronze ?? "#8C6A3F",
                   ["--bronze-light" as string]: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
-                  ["--bronze-pale" as string]: paletaActivaRoleColors?.bordesDivisores ?? paletaActivaResolvedColors.bronzeLight,
+                  ["--bronze-pale" as string]: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
                   ["--olive" as string]: paletaActivaResolvedColors.olive ?? "#5C6B3A",
                   ["--olive-muted" as string]: paletaActivaResolvedColors.oliveMuted ?? "#8A9468",
                   ["--cream" as string]: paletaActivaResolvedColors.cream ?? "#F7F3EC",
-                  ["--cream-dark" as string]: paletaActivaRoleColors?.fondoAlterno ?? "#EDE7DB",
+                  ["--cream-dark" as string]: paletaActivaResolvedColors.white ?? "#FDFAF5",
                   ["--brown-dark" as string]: paletaActivaResolvedColors.brownDark ?? "#2E1F0E",
-                  ["--brown-mid" as string]: paletaActivaRoleColors?.textoSecundario ?? paletaActivaResolvedColors.oliveMuted,
+                  ["--brown-mid" as string]: paletaActivaResolvedColors.oliveMuted ?? "#8A9468",
                   ["--white" as string]: paletaActivaResolvedColors.white ?? "#FDFAF5",
                   ["--font-display" as string]: fuentes.display,
                   ["--font-body" as string]: fuentes.body,
