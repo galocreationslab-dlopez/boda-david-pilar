@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
 import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
 import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
@@ -206,8 +206,21 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [secciones, setSecciones] = useState<SeccionDiseno[]>(
     buildInitialSecciones(ic, initialPaletas[0]?.id ?? ""),
   );
-  const [dragSectionId, setDragSectionId] = useState<string | null>(null);
   const [previewRole, setPreviewRole] = useState<string>("publico");
+  const [previewOnlySelected, setPreviewOnlySelected] = useState(false);
+  const [selectedSectionId, setSelectedSectionId] = useState<string>(
+    buildInitialSecciones(ic, initialPaletas[0]?.id ?? "")[0]?.id ?? "",
+  );
+
+  const [paletasCollapsed, setPaletasCollapsed] = useState(false);
+  const [separadorCollapsed, setSeparadorCollapsed] = useState(false);
+
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorViewport, setEditorViewport] = useState<"desktop" | "movil">("desktop");
+  const [sectionDraft, setSectionDraft] = useState<SeccionDiseno | null>(null);
+  const [draftSavedSnapshot, setDraftSavedSnapshot] = useState<string>("");
+  const [editorToast, setEditorToast] = useState<{ type: "ok" | "info"; text: string } | null>(null);
+  const sectionCardRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const [fuentes, setFuentes] = useState({ ...ic.tema.fuentes });
   const [logoUrl, setLogoUrl] = useState(ic.logo ?? "");
@@ -239,6 +252,52 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       }),
     [previewRole, secciones],
   );
+
+  const visibleSectionsForPreview = useMemo(() => {
+    if (!previewOnlySelected) return visiblePreviewSections;
+    return visiblePreviewSections.filter((section) => section.id === selectedSectionId);
+  }, [previewOnlySelected, selectedSectionId, visiblePreviewSections]);
+
+  const editorIsDirty = useMemo(() => {
+    if (!sectionDraft) return false;
+    return JSON.stringify(sectionDraft) !== draftSavedSnapshot;
+  }, [draftSavedSnapshot, sectionDraft]);
+
+  useEffect(() => {
+    const node = sectionCardRefs.current[selectedSectionId];
+    if (node) {
+      node.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [selectedSectionId]);
+
+  useEffect(() => {
+    if (!editorToast) return;
+    const timer = setTimeout(() => setEditorToast(null), 2200);
+    return () => clearTimeout(timer);
+  }, [editorToast]);
+
+  useEffect(() => {
+    if (!editorOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
+      if (isSaveShortcut) {
+        event.preventDefault();
+        if (sectionDraft) {
+          saveCurrentSectionDraft();
+        }
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSectionEditor();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [editorOpen, sectionDraft, secciones, draftSavedSnapshot]);
 
   const previewGalleryMedia = useMemo<PublicGalleryMedia[]>(() => {
     const fromResources = resources
@@ -361,7 +420,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
   const addSection = () => {
     const paletaId = paletaActiva?.id ?? paletas[0]?.id ?? "";
-    setSecciones((prev) => [...prev, defaultSection(paletaId, "portada")]);
+    const next = defaultSection(paletaId, "portada");
+    setSecciones((prev) => [...prev, next]);
+    setSelectedSectionId(next.id);
   };
 
   const cloneSection = (sectionId: string) => {
@@ -374,11 +435,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       items: [...(base.items ?? [])].map((item) => ({ ...item, id: `item-${uid()}` })),
     };
     setSecciones((prev) => [...prev, clone]);
+    setSelectedSectionId(clone.id);
   };
 
   const removeSection = (sectionId: string) => {
     if (!confirm("Eliminar esta seccion?")) return;
-    setSecciones((prev) => prev.filter((s) => s.id !== sectionId));
+    setSecciones((prev) => {
+      const next = prev.filter((s) => s.id !== sectionId);
+      if (selectedSectionId === sectionId) {
+        setSelectedSectionId(next[0]?.id ?? "");
+      }
+      return next;
+    });
   };
 
   const moveSection = (sectionId: string, direction: -1 | 1) => {
@@ -392,6 +460,54 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       clone.splice(next, 0, item);
       return clone;
     });
+  };
+
+  const openSectionEditor = (sectionId: string) => {
+    const section = secciones.find((s) => s.id === sectionId);
+    if (!section) return;
+    setSelectedSectionId(section.id);
+    setSectionDraft(structuredClone(section));
+    setDraftSavedSnapshot(JSON.stringify(section));
+    setEditorOpen(true);
+  };
+
+  const saveCurrentSectionDraft = () => {
+    if (!sectionDraft) return;
+    setSecciones((prev) => prev.map((s) => (s.id === sectionDraft.id ? sectionDraft : s)));
+    setDraftSavedSnapshot(JSON.stringify(sectionDraft));
+    setEditorToast({ type: "ok", text: "Sección guardada" });
+    showMsg("ok", `Seccion \"${sectionDraft.nombre || sectionDraft.titulo}\" guardada.`);
+  };
+
+  const resolveUnsavedBeforeLeave = (): boolean => {
+    if (!editorIsDirty) return true;
+    const guardar = confirm("Hay cambios sin guardar. Aceptar = Guardar cambios. Cancelar = Descartar.");
+    if (guardar) {
+      saveCurrentSectionDraft();
+      return true;
+    }
+    return confirm("Confirmar descarte de cambios de esta seccion?");
+  };
+
+  const closeSectionEditor = () => {
+    if (!resolveUnsavedBeforeLeave()) return;
+    setEditorOpen(false);
+    setSectionDraft(null);
+  };
+
+  const navigateEditorSection = (direction: -1 | 1) => {
+    if (!sectionDraft) return;
+    const idx = secciones.findIndex((s) => s.id === sectionDraft.id);
+    if (idx < 0) return;
+    const nextIdx = idx + direction;
+    if (nextIdx < 0 || nextIdx >= secciones.length) return;
+
+    if (!resolveUnsavedBeforeLeave()) return;
+
+    const nextSection = secciones[nextIdx];
+    setSelectedSectionId(nextSection.id);
+    setSectionDraft(structuredClone(nextSection));
+    setDraftSavedSnapshot(JSON.stringify(nextSection));
   };
 
   const reorderSections = (sourceId: string, targetId: string) => {
@@ -555,6 +671,126 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     }
   };
 
+  const uploadSectionItemImage = async (itemId: string, file: File) => {
+    if (!sectionDraft) return;
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("section", sectionDraft.tipo === "timeline" ? "timeline" : "historia");
+      const res = await fetch(`/api/admin/${inviteCode}/resources`, {
+        method: "POST",
+        body: fd,
+      });
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error ?? "No se pudo subir la imagen");
+      }
+      const resource = (data as { resource?: ResourceItem }).resource;
+      if (!resource?.url_publica) {
+        throw new Error("La subida no devolvio una URL publica");
+      }
+
+      setSectionDraft((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((item) =>
+            item.id === itemId ? { ...item, imagen: resource.url_publica ?? undefined } : item,
+          ),
+        };
+      });
+
+      setResources((prev) => [resource, ...prev]);
+      showMsg("ok", "Imagen subida correctamente");
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error al subir imagen");
+    }
+  };
+
+  const getItemFilterCss = (filters: Array<"sepia" | "grayscale" | "blur"> | undefined): string => {
+    if (!filters || filters.length === 0) return "none";
+    return filters
+      .map((filter) => {
+        if (filter === "sepia") return "sepia(0.75)";
+        if (filter === "grayscale") return "grayscale(1)";
+        return "blur(2px)";
+      })
+      .join(" ");
+  };
+
+  const historyEventsForSection = (section: SeccionDiseno): EventoHistoria[] => {
+    if (!section.items || section.items.length === 0) return historia;
+    return section.items.map((item, index) => ({
+      id: item.id,
+      fecha: item.hora || `Momento ${index + 1}`,
+      titulo: item.titulo,
+      descripcion: item.descripcion,
+      imagen: item.imagen,
+      lado: index % 2 === 0 ? "derecha" : "izquierda",
+    }));
+  };
+
+  const timelineEventsForSection = (section: SeccionDiseno): Array<EventoTimeline & { enlaceMaps?: string }> => {
+    if (!section.items || section.items.length === 0) return timeline;
+    return section.items.map((item) => ({
+      id: item.id,
+      hora: item.hora || "12:00",
+      titulo: item.titulo,
+      descripcion: item.descripcion,
+      icono: (item.icono as EventoTimeline["icono"]) || "rings",
+      enlaceMaps: item.enlaceMaps || "",
+    }));
+  };
+
+  const galleryMediaForSection = (section: SeccionDiseno): PublicGalleryMedia[] => {
+    const fromSectionItems = (section.items ?? [])
+      .filter((item) => !!item.imagen)
+      .map((item, index) => ({
+        id: item.id,
+        nombre: item.titulo || `Imagen ${index + 1}`,
+        tipo: "foto" as const,
+        google_drive_id: "",
+        url_publica: item.imagen ?? null,
+        subido_por: "Galería",
+        created_at: new Date().toISOString(),
+      }));
+
+    if (fromSectionItems.length > 0) return fromSectionItems;
+    return previewGalleryMedia;
+  };
+
+  const renderSectionCanvas = (section: SeccionDiseno, compact = false) => {
+    const scale = compact ? 0.26 : editorViewport === "movil" ? 0.45 : 0.62;
+    const width = compact ? "384%" : editorViewport === "movil" ? "222%" : "161%";
+
+    return (
+      <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-100">
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "top left", width }} className="pointer-events-none">
+          {section.tipo === "portada" && (
+            <SeccionColapsable id={`canvas-${section.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
+              <MainWithInvite config={ic} />
+            </SeccionColapsable>
+          )}
+          {section.tipo === "historia" && (
+            <SeccionColapsable id={`canvas-${section.id}`} titulo={section.titulo || "Nuestra historia"} abiertaPorDefecto={false} bgColor="var(--cream)">
+              <SeccionHistoria eventos={historyEventsForSection(section)} />
+            </SeccionColapsable>
+          )}
+          {section.tipo === "timeline" && (
+            <SeccionColapsable id={`canvas-${section.id}`} titulo={section.titulo || "El gran día"} abiertaPorDefecto={false} bgColor="var(--cream-dark)">
+              <SeccionTimeline localizaciones={ic.localizaciones} timeline={timelineEventsForSection(section)} />
+            </SeccionColapsable>
+          )}
+          {section.tipo === "galeria" && (
+            <SeccionColapsable id={`canvas-${section.id}`} titulo={section.titulo || "Galería"} abiertaPorDefecto={false} bgColor="var(--cream)">
+              <SeccionGaleria media={galleryMediaForSection(section)} />
+            </SeccionColapsable>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 max-w-[1400px]">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -611,7 +847,12 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
           <aside className="space-y-4 max-h-[78vh] overflow-auto pr-1">
             <section className="rounded-xl border border-stone-200 bg-white p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-700">Paletas</h2>
+                <button
+                  onClick={() => setPaletasCollapsed((p) => !p)}
+                  className="text-xs font-semibold uppercase tracking-wide text-stone-700"
+                >
+                  Paletas {paletasCollapsed ? "▸" : "▾"}
+                </button>
                 <div className="flex gap-1">
                   <button onClick={addPalette} className="rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-700">+</button>
                   <button onClick={clonePalette} disabled={!paletaEditando} className="rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-700 disabled:opacity-50">Clonar</button>
@@ -619,134 +860,167 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 </div>
               </div>
 
-              <div className="grid grid-cols-[1fr_auto] gap-2">
-                <select className="input-field" value={paletaEditando?.id ?? ""} onChange={(e) => setPaletaEditandoId(e.target.value)}>
-                  {paletas.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}{p.id === paletaActivaId ? " (activa)" : ""}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => paletaEditando && setPaletaActivaId(paletaEditando.id)}
-                  disabled={!paletaEditando || paletaEditando.id === paletaActivaId}
-                  className="rounded border border-amber-600 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 disabled:opacity-50"
-                >
-                  Activar
-                </button>
-              </div>
-
-              <input
-                className="input-field"
-                value={paletaEditando?.nombre ?? ""}
-                onChange={(e) => {
-                  if (!paletaEditando) return;
-                  updatePaleta(paletaEditando.id, (p) => ({ ...p, nombre: e.target.value }));
-                }}
-                placeholder="Nombre de paleta"
-              />
-
-              <div className="space-y-1">
-                {[...CORE_COLOR_KEYS.map((key) => ({
-                  id: key,
-                  fixed: true,
-                  nombre: paletaEditando?.etiquetasColores?.[key] ?? DEFAULT_COLOR_LABELS[key],
-                  valor: paletaEditando?.colores[key] ?? "#000000",
-                })), ...(paletaEditando?.coloresExtra ?? []).map((extra) => ({
-                  id: extra.id,
-                  fixed: false,
-                  nombre: extra.nombre,
-                  valor: extra.valor,
-                }))].map((row) => (
-                  <div key={row.id} className="grid grid-cols-[28px_1fr_26px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
-                    <input
-                      type="color"
-                      value={row.valor}
-                      onChange={(e) => {
-                        if (!paletaEditando) return;
-                        if (row.fixed) {
-                          const key = row.id as keyof TemaColores;
-                          updatePaleta(paletaEditando.id, (p) => ({ ...p, colores: { ...p.colores, [key]: e.target.value } }));
-                          return;
-                        }
-                        updatePaleta(paletaEditando.id, (p) => ({
-                          ...p,
-                          coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, valor: e.target.value } : c)),
-                        }));
-                      }}
-                      className="h-6 w-7 rounded border border-stone-300 bg-transparent"
-                    />
-                    <input
-                      className="w-full border-none bg-transparent text-xs text-stone-700 outline-none"
-                      value={row.nombre}
-                      onChange={(e) => {
-                        if (!paletaEditando) return;
-                        if (row.fixed) {
-                          const key = row.id as keyof TemaColores;
-                          updatePaleta(paletaEditando.id, (p) => ({
-                            ...p,
-                            etiquetasColores: {
-                              ...DEFAULT_COLOR_LABELS,
-                              ...(p.etiquetasColores ?? {}),
-                              [key]: e.target.value,
-                            },
-                          }));
-                          return;
-                        }
-                        updatePaleta(paletaEditando.id, (p) => ({
-                          ...p,
-                          coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, nombre: e.target.value } : c)),
-                        }));
-                      }}
-                    />
+              {paletasCollapsed ? (
+                <div className="rounded border border-stone-200 bg-stone-50 p-2">
+                  <p className="text-xs font-medium text-stone-700">{paletaEditando?.nombre ?? "Sin paleta"}</p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {CORE_COLOR_KEYS.map((key) => (
+                      <span
+                        key={key}
+                        className="h-4 w-4 rounded border border-stone-300"
+                        style={{ backgroundColor: paletaEditando?.colores[key] ?? "#ffffff" }}
+                        title={paletaEditando?.etiquetasColores?.[key] ?? DEFAULT_COLOR_LABELS[key]}
+                      />
+                    ))}
+                    {(paletaEditando?.coloresExtra ?? []).map((extra) => (
+                      <span key={extra.id} className="h-4 w-4 rounded border border-stone-300" style={{ backgroundColor: extra.valor }} title={extra.nombre} />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <select className="input-field" value={paletaEditando?.id ?? ""} onChange={(e) => setPaletaEditandoId(e.target.value)}>
+                      {paletas.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre}{p.id === paletaActivaId ? " (activa)" : ""}
+                        </option>
+                      ))}
+                    </select>
                     <button
-                      onClick={() => {
-                        if (row.fixed) return;
-                        if (!confirm("Eliminar color?")) return;
-                        removeExtraColor(row.id);
-                      }}
-                      className="h-6 rounded border border-red-200 text-xs text-red-600 disabled:opacity-40"
-                      disabled={row.fixed}
-                      title={row.fixed ? "Color base" : "Eliminar"}
+                      onClick={() => paletaEditando && setPaletaActivaId(paletaEditando.id)}
+                      disabled={!paletaEditando || paletaEditando.id === paletaActivaId}
+                      className="rounded border border-amber-600 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 disabled:opacity-50"
                     >
-                      -
+                      Activar
                     </button>
                   </div>
-                ))}
-                <button onClick={addExtraColor} className="w-full rounded border border-dashed border-stone-300 py-1 text-xs text-stone-600">+ Anadir color</button>
-              </div>
+
+                  <input
+                    className="input-field"
+                    value={paletaEditando?.nombre ?? ""}
+                    onChange={(e) => {
+                      if (!paletaEditando) return;
+                      updatePaleta(paletaEditando.id, (p) => ({ ...p, nombre: e.target.value }));
+                    }}
+                    placeholder="Nombre de paleta"
+                  />
+
+                  <div className="space-y-1">
+                    {[...CORE_COLOR_KEYS.map((key) => ({
+                      id: key,
+                      fixed: true,
+                      nombre: paletaEditando?.etiquetasColores?.[key] ?? DEFAULT_COLOR_LABELS[key],
+                      valor: paletaEditando?.colores[key] ?? "#000000",
+                    })), ...(paletaEditando?.coloresExtra ?? []).map((extra) => ({
+                      id: extra.id,
+                      fixed: false,
+                      nombre: extra.nombre,
+                      valor: extra.valor,
+                    }))].map((row) => (
+                      <div key={row.id} className="grid grid-cols-[28px_1fr_26px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
+                        <input
+                          type="color"
+                          value={row.valor}
+                          onChange={(e) => {
+                            if (!paletaEditando) return;
+                            if (row.fixed) {
+                              const key = row.id as keyof TemaColores;
+                              updatePaleta(paletaEditando.id, (p) => ({ ...p, colores: { ...p.colores, [key]: e.target.value } }));
+                              return;
+                            }
+                            updatePaleta(paletaEditando.id, (p) => ({
+                              ...p,
+                              coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, valor: e.target.value } : c)),
+                            }));
+                          }}
+                          className="h-6 w-7 rounded border border-stone-300 bg-transparent"
+                        />
+                        <input
+                          className="w-full border-none bg-transparent text-xs text-stone-700 outline-none"
+                          value={row.nombre}
+                          onChange={(e) => {
+                            if (!paletaEditando) return;
+                            if (row.fixed) {
+                              const key = row.id as keyof TemaColores;
+                              updatePaleta(paletaEditando.id, (p) => ({
+                                ...p,
+                                etiquetasColores: {
+                                  ...DEFAULT_COLOR_LABELS,
+                                  ...(p.etiquetasColores ?? {}),
+                                  [key]: e.target.value,
+                                },
+                              }));
+                              return;
+                            }
+                            updatePaleta(paletaEditando.id, (p) => ({
+                              ...p,
+                              coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, nombre: e.target.value } : c)),
+                            }));
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (row.fixed) return;
+                            if (!confirm("Eliminar color?")) return;
+                            removeExtraColor(row.id);
+                          }}
+                          className="h-6 rounded border border-red-200 text-xs text-red-600 disabled:opacity-40"
+                          disabled={row.fixed}
+                          title={row.fixed ? "Color base" : "Eliminar"}
+                        >
+                          -
+                        </button>
+                      </div>
+                    ))}
+                    <button onClick={addExtraColor} className="w-full rounded border border-dashed border-stone-300 py-1 text-xs text-stone-600">+ Anadir color</button>
+                  </div>
+                </>
+              )}
             </section>
 
             <section className="rounded-xl border border-stone-200 bg-white p-3 space-y-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-700">Separador / Transicion</h2>
-              <div>
-                <p className="mb-1 text-[11px] text-stone-500">Modo</p>
-                <div className="grid grid-cols-2 gap-1">
-                  {(["sin_transicion", "suave", "onda", "corte"] as const).map((modo) => (
-                    <button
-                      key={modo}
-                      onClick={() => setSeparador((prev) => ({ ...prev, modo }))}
-                      className={`rounded px-2 py-1 text-[11px] border ${separador.modo === modo ? "border-amber-600 bg-amber-50 text-amber-700" : "border-stone-200 text-stone-600"}`}
-                    >
-                      {modo.replace("_", " ")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="mb-1 text-[11px] text-stone-500">Grafico</p>
-                <div className="grid grid-cols-2 gap-1">
-                  {(["ornamento", "linea_doble", "onda_fina", "puntos"] as const).map((grafico) => (
-                    <button
-                      key={grafico}
-                      onClick={() => setSeparador((prev) => ({ ...prev, grafico }))}
-                      className={`rounded px-2 py-1 text-[11px] border ${separador.grafico === grafico ? "border-amber-600 bg-amber-50 text-amber-700" : "border-stone-200 text-stone-600"}`}
-                    >
-                      {grafico.replace("_", " ")}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <button
+                onClick={() => setSeparadorCollapsed((p) => !p)}
+                className="text-left text-xs font-semibold uppercase tracking-wide text-stone-700"
+              >
+                Separador / Transicion {separadorCollapsed ? "▸" : "▾"}
+              </button>
+
+              {separadorCollapsed ? (
+                <p className="text-xs text-stone-600">{separador.modo.replace("_", " ")} · {separador.grafico.replace("_", " ")}</p>
+              ) : (
+                <>
+                  <div>
+                    <p className="mb-1 text-[11px] text-stone-500">Modo</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {(["sin_transicion", "suave", "onda", "corte"] as const).map((modo) => (
+                        <button
+                          key={modo}
+                          onClick={() => setSeparador((prev) => ({ ...prev, modo }))}
+                          className={`rounded px-2 py-1 text-[11px] border ${separador.modo === modo ? "border-amber-600 bg-amber-50 text-amber-700" : "border-stone-200 text-stone-600"}`}
+                        >
+                          {modo.replace("_", " ")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-1 text-[11px] text-stone-500">Grafico</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {(["ornamento", "linea_doble", "onda_fina", "puntos"] as const).map((grafico) => (
+                        <button
+                          key={grafico}
+                          onClick={() => setSeparador((prev) => ({ ...prev, grafico }))}
+                          className={`rounded px-2 py-1 text-[11px] border ${separador.grafico === grafico ? "border-amber-600 bg-amber-50 text-amber-700" : "border-stone-200 text-stone-600"}`}
+                        >
+                          {grafico.replace("_", " ")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </section>
 
             <section className="rounded-2xl border border-stone-200 bg-white p-4 space-y-3">
@@ -755,108 +1029,41 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 <button onClick={addSection} className="rounded-md border border-stone-300 px-2 py-1 text-xs text-stone-600">+ Anadir</button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {secciones.map((sec, idx) => (
                   <article
                     key={sec.id}
-                    draggable
-                    onDragStart={() => setDragSectionId(sec.id)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => {
-                      if (dragSectionId) reorderSections(dragSectionId, sec.id);
-                      setDragSectionId(null);
+                    ref={(node) => {
+                      sectionCardRefs.current[sec.id] = node;
                     }}
-                    className="rounded-xl border border-stone-200 p-3 bg-stone-50"
+                    className={`rounded-xl border p-2 ${selectedSectionId === sec.id ? "border-amber-400 bg-amber-50/40" : "border-stone-200 bg-stone-50"}`}
+                    onClick={() => setSelectedSectionId(sec.id)}
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-stone-700">#{idx + 1} · {sec.nombre || "Seccion"}</p>
-                      <div className="flex gap-1">
-                        <button onClick={() => moveSection(sec.id, -1)} className="rounded border border-stone-300 px-2 py-0.5 text-xs">↑</button>
-                        <button onClick={() => moveSection(sec.id, 1)} className="rounded border border-stone-300 px-2 py-0.5 text-xs">↓</button>
-                        <button onClick={() => cloneSection(sec.id)} className="rounded border border-stone-300 px-2 py-0.5 text-xs">Clonar</button>
-                        <button onClick={() => removeSection(sec.id)} className="rounded border border-red-200 px-2 py-0.5 text-xs text-red-600">Eliminar</button>
+                      <p className="text-xs font-semibold text-stone-700">{sec.nombre || "Seccion"}</p>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => moveSection(sec.id, -1)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↑</button>
+                        <button onClick={() => moveSection(sec.id, 1)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↓</button>
                       </div>
                     </div>
 
-                    <div className="grid gap-2">
-                      <div>
-                        <label className="label-field">Nombre de seccion</label>
-                        <input className="input-field" value={sec.nombre} onChange={(e) => updateSection(sec.id, { nombre: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="label-field">Titulo</label>
-                        <input className="input-field" value={sec.titulo} onChange={(e) => updateSection(sec.id, { titulo: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="label-field">Paleta</label>
-                        <select className="input-field" value={sec.paletaId} onChange={(e) => updateSection(sec.id, { paletaId: e.target.value })}>
-                          {paletas.map((p) => (
-                            <option key={p.id} value={p.id}>{p.nombre}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label-field">Tipo de seccion</label>
-                        <select
-                          className="input-field"
-                          value={sec.tipo}
-                          onChange={(e) => updateSection(sec.id, { tipo: e.target.value as TipoSeccionDiseno })}
-                        >
-                          {SECTION_TYPES.map((type) => (
-                            <option key={type} value={type}>{type}</option>
-                          ))}
-                        </select>
-                      </div>
+                    <div className="relative">
+                      {renderSectionCanvas(sec, true)}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openSectionEditor(sec.id);
+                        }}
+                        className="absolute right-1 top-1 rounded border border-stone-300 bg-white px-1.5 py-0.5 text-[11px]"
+                        title="Editar sección"
+                      >
+                        ✎
+                      </button>
+                    </div>
 
-                      <label className="inline-flex items-center gap-2 text-xs text-stone-600">
-                        <input
-                          type="checkbox"
-                          checked={sec.visible}
-                          onChange={(e) => updateSection(sec.id, { visible: e.target.checked })}
-                        />
-                        Visible en general
-                      </label>
-
-                      <div>
-                        <label className="label-field">Visible para perfiles</label>
-                        <div className="grid grid-cols-2 gap-1">
-                          {PROFILE_OPTIONS.map((role) => (
-                            <label key={role} className="inline-flex items-center gap-2 text-xs text-stone-600">
-                              <input
-                                type="checkbox"
-                                checked={(sec.perfiles ?? []).includes(role)}
-                                onChange={(e) => {
-                                  const current = sec.perfiles ?? [];
-                                  const next = e.target.checked
-                                    ? [...current, role]
-                                    : current.filter((r) => r !== role);
-                                  updateSection(sec.id, { perfiles: next });
-                                }}
-                              />
-                              {role}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      {(sec.tipo === "historia" || sec.tipo === "timeline") && (
-                        <div className="space-y-2 rounded-lg border border-stone-200 bg-white p-2">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold text-stone-600">Entradas</p>
-                            <button onClick={() => addSectionItem(sec.id, sec.tipo)} className="rounded border border-stone-300 px-2 py-0.5 text-xs">+ Entrada</button>
-                          </div>
-                          {(sec.items ?? []).map((item) => (
-                            <div key={item.id} className="rounded border border-stone-200 p-2 space-y-1">
-                              <input className="input-field" value={item.titulo} onChange={(e) => updateSectionItem(sec.id, item.id, { titulo: e.target.value })} placeholder="Titulo" />
-                              <input className="input-field" value={item.descripcion} onChange={(e) => updateSectionItem(sec.id, item.id, { descripcion: e.target.value })} placeholder="Descripcion" />
-                              {sec.tipo === "timeline" && (
-                                <input className="input-field" value={item.hora ?? ""} onChange={(e) => updateSectionItem(sec.id, item.id, { hora: e.target.value })} placeholder="Hora" />
-                              )}
-                              <button onClick={() => removeSectionItem(sec.id, item.id)} className="text-xs text-red-500">Eliminar entrada</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    <div className="mt-2 flex justify-end gap-1">
+                      <button onClick={() => cloneSection(sec.id)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">Clonar</button>
+                      <button onClick={() => removeSection(sec.id)} className="rounded border border-red-200 px-1.5 py-0.5 text-[11px] text-red-600">Eliminar</button>
                     </div>
                   </article>
                 ))}
@@ -876,6 +1083,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     <option key={role} value={role}>{role}</option>
                   ))}
                 </select>
+                <label className="inline-flex items-center gap-1 text-xs text-stone-600">
+                  <input
+                    type="checkbox"
+                    checked={previewOnlySelected}
+                    onChange={(e) => setPreviewOnlySelected(e.target.checked)}
+                  />
+                  Solo seccion
+                </label>
                 <button onClick={handleSave} disabled={saving} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
                   {saving ? "Aplicando..." : "Aplicar y guardar"}
                 </button>
@@ -906,8 +1121,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 }}
               >
                 <main>
-                  {visiblePreviewSections.map((sec, idx) => {
-                    const isLast = idx === visiblePreviewSections.length - 1;
+                  {visibleSectionsForPreview.map((sec, idx) => {
+                    const isLast = idx === visibleSectionsForPreview.length - 1;
                     return (
                       <div key={sec.id}>
                         {sec.tipo === "portada" && (
@@ -918,19 +1133,19 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
                         {sec.tipo === "historia" && (
                           <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "Nuestra historia"} abiertaPorDefecto={false} bgColor="var(--cream)">
-                            <SeccionHistoria eventos={historia} />
+                            <SeccionHistoria eventos={historyEventsForSection(sec)} />
                           </SeccionColapsable>
                         )}
 
                         {sec.tipo === "galeria" && (
                           <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "Galería"} abiertaPorDefecto={false} bgColor="var(--cream)">
-                            <SeccionGaleria media={previewGalleryMedia} />
+                            <SeccionGaleria media={galleryMediaForSection(sec)} />
                           </SeccionColapsable>
                         )}
 
                         {sec.tipo === "timeline" && (
                           <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "El gran día"} abiertaPorDefecto={false} bgColor="var(--cream-dark)">
-                            <SeccionTimeline localizaciones={ic.localizaciones} timeline={timeline} />
+                            <SeccionTimeline localizaciones={ic.localizaciones} timeline={timelineEventsForSection(sec)} />
                           </SeccionColapsable>
                         )}
 
@@ -939,7 +1154,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     );
                   })}
 
-                  {visiblePreviewSections.length === 0 && (
+                  {visibleSectionsForPreview.length === 0 && (
                     <div className="rounded-xl border border-dashed border-stone-300 p-8 text-center text-sm text-stone-500">
                       No hay secciones visibles para este perfil.
                     </div>
@@ -948,6 +1163,411 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               </div>
             </div>
           </section>
+        </div>
+      )}
+
+      {editorOpen && sectionDraft && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[92vh] w-full max-w-[1300px] overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-stone-200 p-4">
+              <div className="flex items-center gap-2">
+                <button onClick={() => navigateEditorSection(-1)} className="rounded border border-stone-300 px-2 py-1 text-xs">←</button>
+                <input
+                  className="rounded border border-stone-300 px-3 py-1.5 text-sm font-semibold text-stone-800"
+                  value={sectionDraft.titulo}
+                  onChange={(e) => setSectionDraft((prev) => (prev ? { ...prev, titulo: e.target.value } : prev))}
+                />
+                <button onClick={() => navigateEditorSection(1)} className="rounded border border-stone-300 px-2 py-1 text-xs">→</button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-500">Ctrl/Cmd+S</span>
+                <span className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-500">Esc</span>
+                <span
+                  className={`rounded-full px-2 py-1 text-[11px] font-semibold ${editorIsDirty ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}
+                >
+                  {editorIsDirty ? "Sin guardar" : "Guardado"}
+                </span>
+                <button onClick={saveCurrentSectionDraft} className="rounded bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white">Guardar sección</button>
+                <button onClick={closeSectionEditor} className="rounded border border-stone-300 px-3 py-1.5 text-xs">Cerrar</button>
+              </div>
+            </div>
+
+            <div className="grid max-h-[calc(92vh-70px)] gap-0 lg:grid-cols-[380px_1fr]">
+              <div className="overflow-auto border-r border-stone-200 p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="label-field">Tipo de sección</label>
+                  {sectionDraft.tipo === "galeria" && (
+                    <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-stone-700">Imágenes de galería</p>
+                        <button
+                          onClick={() =>
+                            setSectionDraft((prev) => {
+                              if (!prev) return prev;
+                              return {
+                                ...prev,
+                                items: [
+                                  ...(prev.items ?? []),
+                                  {
+                                    id: `item-${uid()}`,
+                                    titulo: "Nueva imagen",
+                                    descripcion: "",
+                                    imagen: "",
+                                    filtrosImagen: [],
+                                  },
+                                ],
+                              };
+                            })
+                          }
+                          className="rounded border border-stone-300 px-2 py-1 text-xs"
+                        >
+                          + Imagen
+                        </button>
+                      </div>
+
+                      {(sectionDraft.items ?? []).map((item) => (
+                        <div key={item.id} className="space-y-1 rounded-lg border border-stone-200 bg-white p-2">
+                          <input
+                            className="input-field"
+                            value={item.titulo}
+                            onChange={(e) =>
+                              setSectionDraft((prev) => {
+                                if (!prev) return prev;
+                                return {
+                                  ...prev,
+                                  items: prev.items.map((it) => (it.id === item.id ? { ...it, titulo: e.target.value } : it)),
+                                };
+                              })
+                            }
+                            placeholder="Título"
+                          />
+
+                          <select
+                            className="input-field"
+                            value={item.imagen ?? ""}
+                            onChange={(e) =>
+                              setSectionDraft((prev) => {
+                                if (!prev) return prev;
+                                return {
+                                  ...prev,
+                                  items: prev.items.map((it) =>
+                                    it.id === item.id ? { ...it, imagen: e.target.value || undefined } : it,
+                                  ),
+                                };
+                              })
+                            }
+                          >
+                            <option value="">Selecciona de biblioteca</option>
+                            {resourcesForHistoria.map((resource) => (
+                              <option key={resource.id} value={resource.url_publica ?? ""}>
+                                {resource.nombre}
+                              </option>
+                            ))}
+                          </select>
+
+                          <div className="grid grid-cols-[1fr_auto] gap-1">
+                            <input
+                              className="input-field"
+                              value={item.imagen ?? ""}
+                              onChange={(e) =>
+                                setSectionDraft((prev) => {
+                                  if (!prev) return prev;
+                                  return {
+                                    ...prev,
+                                    items: prev.items.map((it) =>
+                                      it.id === item.id ? { ...it, imagen: e.target.value || undefined } : it,
+                                    ),
+                                  };
+                                })
+                              }
+                              placeholder="URL imagen"
+                            />
+                            <label className="inline-flex cursor-pointer items-center rounded border border-stone-300 px-2 text-xs">
+                              Subir
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) void uploadSectionItemImage(item.id, file);
+                                  e.currentTarget.value = "";
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          {item.imagen && (
+                            <img
+                              src={previewSrcForAdmin(inviteCode, item.imagen)}
+                              alt={item.titulo || "item"}
+                              className="h-24 w-full rounded object-cover"
+                            />
+                          )}
+
+                          <button
+                            onClick={() =>
+                              setSectionDraft((prev) => {
+                                if (!prev) return prev;
+                                return { ...prev, items: prev.items.filter((it) => it.id !== item.id) };
+                              })
+                            }
+                            className="text-xs text-red-500"
+                          >
+                            Eliminar imagen
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                    <select
+                      className="input-field"
+                      value={sectionDraft.tipo}
+                      onChange={(e) => setSectionDraft((prev) => (prev ? { ...prev, tipo: e.target.value as TipoSeccionDiseno } : prev))}
+                    >
+                      {SECTION_TYPES.map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label-field">Paleta</label>
+                    <select
+                      className="input-field"
+                      value={sectionDraft.paletaId}
+                      onChange={(e) => setSectionDraft((prev) => (prev ? { ...prev, paletaId: e.target.value } : prev))}
+                    >
+                      {paletas.map((p) => (
+                        <option key={p.id} value={p.id}>{p.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label-field">Vista</label>
+                    <select className="input-field" value={editorViewport} onChange={(e) => setEditorViewport(e.target.value as "desktop" | "movil")}>
+                      <option value="desktop">PC</option>
+                      <option value="movil">Móvil</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label-field">Visible</label>
+                    <label className="inline-flex h-[38px] items-center gap-2 rounded-xl border border-stone-300 px-3 text-sm text-stone-600">
+                      <input
+                        type="checkbox"
+                        checked={sectionDraft.visible}
+                        onChange={(e) => setSectionDraft((prev) => (prev ? { ...prev, visible: e.target.checked } : prev))}
+                      />
+                      Mostrar
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label-field">Perfiles visibles</label>
+                  <div className="grid grid-cols-2 gap-1">
+                    {PROFILE_OPTIONS.map((role) => (
+                      <label key={role} className="inline-flex items-center gap-2 text-xs text-stone-600">
+                        <input
+                          type="checkbox"
+                          checked={(sectionDraft.perfiles ?? []).includes(role)}
+                          onChange={(e) => {
+                            const current = sectionDraft.perfiles ?? [];
+                            const next = e.target.checked ? [...current, role] : current.filter((r) => r !== role);
+                            setSectionDraft((prev) => (prev ? { ...prev, perfiles: next } : prev));
+                          }}
+                        />
+                        {role}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {(sectionDraft.tipo === "historia" || sectionDraft.tipo === "timeline") && (
+                  <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-stone-700">Entradas</p>
+                      <button onClick={() => setSectionDraft((prev) => {
+                        if (!prev) return prev;
+                        const nextItem = {
+                          id: `item-${uid()}`,
+                          titulo: prev.tipo === "timeline" ? "Nuevo hito" : "Nueva historia",
+                          descripcion: "",
+                          hora: prev.tipo === "timeline" ? "12:00" : undefined,
+                          filtrosImagen: [],
+                        };
+                        return { ...prev, items: [...(prev.items ?? []), nextItem] };
+                      })} className="rounded border border-stone-300 px-2 py-1 text-xs">+ Entrada</button>
+                    </div>
+
+                    {(sectionDraft.items ?? []).map((item) => (
+                      <div key={item.id} className="space-y-1 rounded-lg border border-stone-200 bg-white p-2">
+                        <input
+                          className="input-field"
+                          value={item.titulo}
+                          onChange={(e) => setSectionDraft((prev) => {
+                            if (!prev) return prev;
+                            return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, titulo: e.target.value } : it)) };
+                          })}
+                          placeholder="Título"
+                        />
+                        <textarea
+                          className="input-field"
+                          rows={2}
+                          value={item.descripcion}
+                          onChange={(e) => setSectionDraft((prev) => {
+                            if (!prev) return prev;
+                            return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, descripcion: e.target.value } : it)) };
+                          })}
+                          placeholder="Descripción"
+                        />
+                        {sectionDraft.tipo === "timeline" && (
+                          <div className="grid grid-cols-2 gap-1">
+                            <input
+                              className="input-field"
+                              value={item.hora ?? ""}
+                              onChange={(e) => setSectionDraft((prev) => {
+                                if (!prev) return prev;
+                                return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, hora: e.target.value } : it)) };
+                              })}
+                              placeholder="Hora"
+                            />
+                            <select
+                              className="input-field"
+                              value={item.icono ?? "rings"}
+                              onChange={(e) => setSectionDraft((prev) => {
+                                if (!prev) return prev;
+                                return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, icono: e.target.value } : it)) };
+                              })}
+                            >
+                              {ICONO_OPTIONS.map((icon) => <option key={icon} value={icon}>{icon}</option>)}
+                            </select>
+                          </div>
+                        )}
+                        <input
+                          className="input-field"
+                          value={item.enlaceMaps ?? ""}
+                          onChange={(e) => setSectionDraft((prev) => {
+                            if (!prev) return prev;
+                            return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, enlaceMaps: e.target.value } : it)) };
+                          })}
+                          placeholder="Enlace maps"
+                        />
+
+                        <div className="grid grid-cols-[1fr_auto] gap-1">
+                          <input
+                            className="input-field"
+                            value={item.imagen ?? ""}
+                            onChange={(e) => setSectionDraft((prev) => {
+                              if (!prev) return prev;
+                              return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, imagen: e.target.value } : it)) };
+                            })}
+                            placeholder="URL imagen"
+                          />
+                          <label className="inline-flex cursor-pointer items-center rounded border border-stone-300 px-2 text-xs">
+                            Subir
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void uploadSectionItemImage(item.id, file);
+                                e.currentTarget.value = "";
+                              }}
+                            />
+                          </label>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs">
+                          {(["sepia", "grayscale", "blur"] as const).map((filterKey) => (
+                            <label key={filterKey} className="inline-flex items-center gap-1">
+                              <input
+                                type="checkbox"
+                                checked={(item.filtrosImagen ?? []).includes(filterKey)}
+                                onChange={(e) => setSectionDraft((prev) => {
+                                  if (!prev) return prev;
+                                  return {
+                                    ...prev,
+                                    items: prev.items.map((it) => {
+                                      if (it.id !== item.id) return it;
+                                      const current = it.filtrosImagen ?? [];
+                                      const next = e.target.checked
+                                        ? [...current, filterKey]
+                                        : current.filter((f) => f !== filterKey);
+                                      return { ...it, filtrosImagen: next };
+                                    }),
+                                  };
+                                })}
+                              />
+                              {filterKey}
+                            </label>
+                          ))}
+                        </div>
+
+                        {item.imagen && (
+                          <img
+                            src={previewSrcForAdmin(inviteCode, item.imagen)}
+                            alt={item.titulo || "item"}
+                            className="h-24 w-full rounded object-cover"
+                            style={{ filter: getItemFilterCss(item.filtrosImagen) }}
+                          />
+                        )}
+
+                        <button
+                          onClick={() => setSectionDraft((prev) => {
+                            if (!prev) return prev;
+                            return { ...prev, items: prev.items.filter((it) => it.id !== item.id) };
+                          })}
+                          className="text-xs text-red-500"
+                        >
+                          Eliminar entrada
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {sectionDraft.tipo === "portada" && (
+                  <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                    <p className="text-xs font-semibold text-stone-700">Edición básica de portada</p>
+                    <input
+                      className="input-field"
+                      value={sectionDraft.nombre}
+                      onChange={(e) => setSectionDraft((prev) => (prev ? { ...prev, nombre: e.target.value } : prev))}
+                      placeholder="Nombre interno"
+                    />
+                    <textarea
+                      className="input-field"
+                      rows={3}
+                      value={sectionDraft.items?.[0]?.descripcion ?? ic.textos.bienvenida}
+                      onChange={(e) => setSectionDraft((prev) => {
+                        if (!prev) return prev;
+                        const first = prev.items[0] ?? { id: `item-${uid()}`, titulo: "Portada", descripcion: "" };
+                        const next = { ...first, descripcion: e.target.value };
+                        return { ...prev, items: [next, ...prev.items.slice(1)] };
+                      })}
+                      placeholder="Texto de bienvenida"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="overflow-auto p-4">
+                {editorToast && (
+                  <div
+                    className={`mb-3 inline-flex rounded-lg px-3 py-1.5 text-xs font-semibold ${editorToast.type === "ok" ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-700"}`}
+                  >
+                    {editorToast.text}
+                  </div>
+                )}
+                <p className="mb-2 text-xs text-stone-500">Canvas de edición ({editorViewport})</p>
+                {renderSectionCanvas(sectionDraft, false)}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

@@ -95,6 +95,11 @@ export type ItemSeccionDiseno = {
   titulo: string;
   descripcion: string;
   hora?: string;
+  imagen?: string;
+  icono?: string;
+  enlaceMaps?: string;
+  filtrosImagen?: Array<"sepia" | "grayscale" | "blur">;
+  botonLabel?: string;
 };
 
 export type SeccionDiseno = {
