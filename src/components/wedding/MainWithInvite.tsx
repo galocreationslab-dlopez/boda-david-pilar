@@ -153,6 +153,7 @@ export default function MainWithInvite({
         viewport={viewport}
         mostrarBotonConfirmar={mostrarBoton}
         labelBotonConfirmar={esAdmin ? "Panel de administración" : undefined}
+        isAdminButton={esAdmin}
         onConfirmarClick={handleConfirmarClick}
         editable={editable}
         designMode={designMode}

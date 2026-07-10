@@ -16,7 +16,8 @@ export type HistoriaComponentKey =
   | "historia.fecha"
   | "historia.titulo"
   | "historia.descripcion"
-  | "historia.imagen";
+  | "historia.imagen"
+  | "historia.navegacion";
 
 type Props = {
   eventos: EventoHistoria[];
@@ -69,15 +70,20 @@ export function SeccionHistoria({
     onSelectComponent?.(key);
   };
 
-  const anterior = () => setActual((p) => Math.max(0, p - 1));
-  const siguiente = () => setActual((p) => Math.min(total - 1, p + 1));
+  const anterior = () => {
+    if (designMode) return;
+    setActual((p) => Math.max(0, p - 1));
+  };
+  const siguiente = () => {
+    if (designMode) return;
+    setActual((p) => Math.min(total - 1, p + 1));
+  };
 
   return (
     <div className="section-wedding" style={{ backgroundColor: "var(--cream)" }}>
       <div className="container-wedding">
         {/* Cabecera */}
         <div className="text-center mb-10">
-          <p className="section-subtitle">nuestra historia</p>
           <h2 className="section-title">El camino hasta aquí</h2>
           <OrnamentoDivisor />
         </div>
@@ -305,13 +311,16 @@ export function SeccionHistoria({
               onClick={anterior}
               disabled={actual === 0}
               className="flex items-center gap-2 transition-opacity"
-              style={{
+              style={styleFor("historia.navegacion", {
                 color: "var(--bronze)",
                 opacity: actual === 0 ? 0.3 : 1,
                 fontFamily: "var(--font-body)",
                 fontSize: "0.8rem",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
+              })}
+              onClickCapture={() => {
+                if (designMode) select("historia.navegacion");
               }}
               aria-label="Momento anterior"
             >
@@ -342,13 +351,16 @@ export function SeccionHistoria({
               onClick={siguiente}
               disabled={actual === total - 1}
               className="flex items-center gap-2 transition-opacity"
-              style={{
+              style={styleFor("historia.navegacion", {
                 color: "var(--bronze)",
                 opacity: actual === total - 1 ? 0.3 : 1,
                 fontFamily: "var(--font-body)",
                 fontSize: "0.8rem",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
+              })}
+              onClickCapture={() => {
+                if (designMode) select("historia.navegacion");
               }}
               aria-label="Momento siguiente"
             >

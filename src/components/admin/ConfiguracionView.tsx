@@ -10,8 +10,9 @@ import { SeccionGaleria, type GaleriaComponentKey } from "@/components/wedding/S
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
 import {
   ROLE_KEYS,
-  ROLE_LABELS,
   buildPaletteSwatches,
+  getPaletteRoleKeys,
+  getRoleLabel,
   resolvePaletteRoleColors,
   resolvePaletteRoleMap,
   resolvePaletteToThemeColors,
@@ -29,39 +30,87 @@ import type {
   TipoSeccionDiseno,
 } from "@/config/wedding.config";
 
-type SectionComponentKey = HeroComponentKey | HistoriaComponentKey | TimelineComponentKey | GaleriaComponentKey;
+type SectionComponentKey =
+  | HeroComponentKey
+  | HistoriaComponentKey
+  | TimelineComponentKey
+  | GaleriaComponentKey
+  | "historia.tituloSeccion"
+  | "historia.fondoSeccion"
+  | "timeline.tituloSeccion"
+  | "timeline.fondoSeccion"
+  | "galeria.tituloSeccion"
+  | "galeria.fondoSeccion";
 
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; label: string; defaultRole: TemaColorRole }>> = {
   portada: [
-    { key: "portada.fondo", label: "Fondo portada", defaultRole: "fondoPrincipal" },
-    { key: "portada.sello", label: "Sello", defaultRole: "highlightAcento" },
-    { key: "portada.nombres", label: "Nombres", defaultRole: "titulos" },
-    { key: "portada.fecha", label: "Fecha", defaultRole: "bordesDivisores" },
-    { key: "portada.bienvenida", label: "Texto bienvenida", defaultRole: "textoSecundario" },
-    { key: "portada.cta", label: "Botón CTA", defaultRole: "botonFondo" },
+    { key: "portada.fondo", label: "Fondo sección", defaultRole: "fondoSeccion" },
+    { key: "portada.logo", label: "Logo", defaultRole: "logo" },
+    { key: "portada.nombres", label: "Nombres novios", defaultRole: "titulo" },
+    { key: "portada.separador", label: "Separadores", defaultRole: "nexosTransicionesBordes" },
+    { key: "portada.fecha", label: "Fecha boda", defaultRole: "textoSecundario" },
+    { key: "portada.bienvenida", label: "Texto invitación", defaultRole: "textoPrincipal" },
+    { key: "portada.faltan", label: "Texto 'Faltan'", defaultRole: "textoSecundario" },
+    { key: "portada.cuentaAtras", label: "Cuenta atrás", defaultRole: "titulo" },
+    { key: "portada.cuentaAtrasLeyendas", label: "Leyendas cuenta atrás", defaultRole: "textoSecundario" },
+    { key: "portada.ctaFondo", label: "Botón CTA - Fondo", defaultRole: "fondoBoton" },
+    { key: "portada.ctaTexto", label: "Botón CTA - Texto", defaultRole: "textoBoton" },
+    { key: "portada.adminCtaFondo", label: "Botón admin - Fondo", defaultRole: "fondoBoton" },
+    { key: "portada.adminCtaTexto", label: "Botón admin - Texto", defaultRole: "textoBoton" },
   ],
   historia: [
-    { key: "historia.card", label: "Tarjeta historia", defaultRole: "fondoAlterno" },
-    { key: "historia.imagen", label: "Imagen historia", defaultRole: "bordesDivisores" },
-    { key: "historia.fecha", label: "Fecha historia", defaultRole: "highlightAcento" },
-    { key: "historia.titulo", label: "Título historia", defaultRole: "titulos" },
+    { key: "historia.tituloSeccion", label: "Título sección (colapsable)", defaultRole: "tituloSeccion" },
+    { key: "historia.fondoSeccion", label: "Fondo sección", defaultRole: "fondoSeccion" },
+    { key: "historia.card", label: "Fondo item", defaultRole: "fondoSubseccion" },
+    { key: "historia.imagen", label: "Borde imagen", defaultRole: "bordes" },
+    { key: "historia.fecha", label: "Fecha item", defaultRole: "textoBoton" },
+    { key: "historia.titulo", label: "Título item", defaultRole: "textoPrincipal" },
     { key: "historia.descripcion", label: "Texto historia", defaultRole: "textoSecundario" },
+    { key: "historia.navegacion", label: "Anterior / Siguiente", defaultRole: "textoBoton" },
   ],
   timeline: [
-    { key: "timeline.card", label: "Tarjeta timeline", defaultRole: "fondoAlterno" },
-    { key: "timeline.icono", label: "Icono timeline", defaultRole: "highlightAcento" },
-    { key: "timeline.hora", label: "Hora timeline", defaultRole: "textoPrincipal" },
-    { key: "timeline.titulo", label: "Título timeline", defaultRole: "titulos" },
+    { key: "timeline.tituloSeccion", label: "Título sección (colapsable)", defaultRole: "tituloSeccion" },
+    { key: "timeline.fondoSeccion", label: "Fondo sección", defaultRole: "fondoSeccion" },
+    { key: "timeline.card", label: "Fondo item", defaultRole: "fondoSubseccion" },
+    { key: "timeline.icono", label: "Icono", defaultRole: "logo" },
+    { key: "timeline.hora", label: "Hora", defaultRole: "textoBoton" },
+    { key: "timeline.titulo", label: "Título item", defaultRole: "textoPrincipal" },
     { key: "timeline.descripcion", label: "Texto timeline", defaultRole: "textoSecundario" },
-    { key: "timeline.mapa", label: "Mapa timeline", defaultRole: "bordesDivisores" },
+    { key: "timeline.mapa", label: "Bordes mapa", defaultRole: "bordes" },
   ],
   galeria: [
-    { key: "galeria.card", label: "Tarjeta galería", defaultRole: "fondoAlterno" },
-    { key: "galeria.imagen", label: "Imagen galería", defaultRole: "bordesDivisores" },
-    { key: "galeria.titulo", label: "Título galería", defaultRole: "titulos" },
+    { key: "galeria.tituloSeccion", label: "Título sección (colapsable)", defaultRole: "tituloSeccion" },
+    { key: "galeria.fondoSeccion", label: "Fondo sección", defaultRole: "fondoSeccion" },
+    { key: "galeria.card", label: "Tarjeta galería", defaultRole: "fondoSubseccion" },
+    { key: "galeria.imagen", label: "Borde imagen", defaultRole: "bordes" },
+    { key: "galeria.titulo", label: "Título galería", defaultRole: "textoPrincipal" },
     { key: "galeria.subtitulo", label: "Subtítulo galería", defaultRole: "textoSecundario" },
   ],
 };
+
+function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<string, TemaColorRole>> {
+  return (SECTION_COMPONENT_OPTIONS[tipo] ?? []).reduce((acc, option) => {
+    acc[option.key] = option.defaultRole;
+    return acc;
+  }, {} as Partial<Record<string, TemaColorRole>>);
+}
+
+function normalizeLegacyRole(role: string): TemaColorRole {
+  if (role === "fondoPrincipal") return "fondoSeccion";
+  if (role === "fondoAlterno") return "fondoSubseccion";
+  if (role === "titulos") return "titulo";
+  if (role === "botonFondo") return "fondoBoton";
+  if (role === "botonTexto") return "textoBoton";
+  if (role === "bordesDivisores") return "nexosTransicionesBordes";
+  if (role === "highlightAcento") return "logo";
+  return role;
+}
+
+function normalizeLegacyComponentKey(key: string): string {
+  if (key === "portada.sello") return "portada.logo";
+  if (key === "portada.cta") return "portada.ctaFondo";
+  return key;
+}
 
 type Tab = "diseno" | "historia" | "timeline";
 
@@ -92,6 +141,16 @@ function uid() {
   return Math.random().toString(36).slice(2);
 }
 
+function slugifyRoleName(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function normalizeTemaColores(colores: TemaColores): TemaColores {
   return {
     bronze: colores.bronze,
@@ -109,6 +168,16 @@ function ensurePalette(paleta: TemaPaleta, fallback: TemaColores): TemaPaleta {
     ...fallback,
     ...paleta.colores,
   };
+  const normalizedRoles = Object.entries(paleta.rolesColor ?? {}).reduce((acc, [rawRole, swatchId]) => {
+    if (!swatchId) return acc;
+    acc[normalizeLegacyRole(rawRole)] = swatchId;
+    return acc;
+  }, {} as Record<string, string>);
+  const normalizedRoleLabels = Object.entries(paleta.roleLabels ?? {}).reduce((acc, [rawRole, label]) => {
+    if (!label) return acc;
+    acc[normalizeLegacyRole(rawRole)] = label;
+    return acc;
+  }, {} as Record<string, string>);
   return {
     id: paleta.id,
     nombre: paleta.nombre,
@@ -118,10 +187,13 @@ function ensurePalette(paleta: TemaPaleta, fallback: TemaColores): TemaPaleta {
       ...(paleta.etiquetasColores ?? {}),
     },
     coloresExtra: paleta.coloresExtra ?? [],
+    roleLabels: normalizedRoleLabels,
     rolesColor: resolvePaletteRoleMap({
       ...paleta,
       colores: normalizeTemaColores(safe),
       coloresExtra: paleta.coloresExtra ?? [],
+      roleLabels: normalizedRoleLabels,
+      rolesColor: normalizedRoles,
     }),
   };
 }
@@ -138,12 +210,14 @@ function buildInitialPaletas(config: WeddingConfig): TemaPaleta[] {
       colores: fallback,
       etiquetasColores: { ...DEFAULT_COLOR_LABELS },
       coloresExtra: [],
+      roleLabels: {},
       rolesColor: resolvePaletteRoleMap({
         id: "paleta-principal",
         nombre: "Principal",
         colores: fallback,
         etiquetasColores: { ...DEFAULT_COLOR_LABELS },
         coloresExtra: [],
+        roleLabels: {},
       }),
     },
   ];
@@ -164,7 +238,7 @@ function defaultSection(paletaId: string, tipo: TipoSeccionDiseno = "portada"): 
     tipo,
     paletaId,
     usarPaletaGlobal: true,
-    componentRoles: {},
+    componentRoles: getDefaultComponentRoles(tipo),
     visible: true,
     perfiles: ["publico"],
     items: [],
@@ -178,7 +252,14 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
       ...sec,
       paletaId: sec.paletaId || paletaId,
       usarPaletaGlobal: sec.usarPaletaGlobal ?? true,
-      componentRoles: sec.componentRoles ?? {},
+      componentRoles: {
+        ...getDefaultComponentRoles(sec.tipo),
+        ...Object.entries(sec.componentRoles ?? {}).reduce((acc, [rawKey, rawRole]) => {
+          if (!rawRole) return acc;
+          acc[normalizeLegacyComponentKey(rawKey)] = normalizeLegacyRole(rawRole);
+          return acc;
+        }, {} as Partial<Record<string, TemaColorRole>>),
+      },
       perfiles: sec.perfiles?.length ? sec.perfiles : ["publico"],
       items:
         sec.tipo === "portada"
@@ -285,6 +366,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [selectedDraftItemId, setSelectedDraftItemId] = useState<string | null>(null);
   const [selectedDesignComponentKey, setSelectedDesignComponentKey] = useState<SectionComponentKey | null>(null);
   const [sectionEditMode, setSectionEditMode] = useState<"contenido" | "diseno">("contenido");
+  const [newCustomRoleName, setNewCustomRoleName] = useState("");
   const [renamingSectionId, setRenamingSectionId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState("");
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
@@ -518,6 +600,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       colores: normalizeTemaColores(base?.colores ?? ic.tema.colores),
       etiquetasColores: { ...DEFAULT_COLOR_LABELS, ...(base?.etiquetasColores ?? {}) },
       coloresExtra: [...(base?.coloresExtra ?? [])],
+      roleLabels: { ...(base?.roleLabels ?? {}) },
       rolesColor: base ? resolvePaletteRoleMap(base) : undefined,
     };
     setPaletas((prev) => [...prev, nueva]);
@@ -533,6 +616,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       colores: normalizeTemaColores(paletaEditando.colores),
       etiquetasColores: { ...(paletaEditando.etiquetasColores ?? {}) },
       coloresExtra: [...(paletaEditando.coloresExtra ?? [])],
+      roleLabels: { ...(paletaEditando.roleLabels ?? {}) },
       rolesColor: resolvePaletteRoleMap(paletaEditando),
     };
     setPaletas((prev) => [...prev, clon]);
@@ -687,7 +771,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const getComponentRoleForSection = (section: SeccionDiseno, componentKey: SectionComponentKey): TemaColorRole => {
     const options = getSectionComponentOptions(section);
     const option = options.find((item) => item.key === componentKey);
-    return section.componentRoles?.[componentKey] ?? option?.defaultRole ?? "textoPrincipal";
+    const direct = section.componentRoles?.[componentKey];
+    if (direct) return normalizeLegacyRole(direct);
+    if (componentKey === "portada.logo") {
+      const legacy = section.componentRoles?.["portada.sello"];
+      if (legacy) return normalizeLegacyRole(legacy);
+    }
+    return option?.defaultRole ?? "textoPrincipal";
   };
 
   const patchEditingSectionComponentRole = (componentKey: SectionComponentKey, role: TemaColorRole) => {
@@ -703,29 +793,46 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const getComponentStyleByKey = (key: SectionComponentKey, color: string): CSSProperties => {
     switch (key) {
       case "portada.fondo":
+      case "historia.fondoSeccion":
+      case "timeline.fondoSeccion":
+      case "galeria.fondoSeccion":
         return { backgroundColor: color };
-      case "portada.sello":
+      case "portada.separador":
+        return { color, borderColor: color };
+      case "portada.logo":
       case "portada.nombres":
       case "portada.fecha":
       case "portada.bienvenida":
-      case "portada.cta":
+      case "portada.faltan":
+      case "portada.cuentaAtras":
+      case "portada.cuentaAtrasLeyendas":
+      case "portada.ctaTexto":
+      case "portada.adminCtaTexto":
+      case "historia.tituloSeccion":
       case "historia.fecha":
       case "historia.titulo":
       case "historia.descripcion":
+      case "historia.navegacion":
+      case "timeline.tituloSeccion":
       case "timeline.hora":
       case "timeline.titulo":
       case "timeline.descripcion":
       case "timeline.icono":
+      case "galeria.tituloSeccion":
       case "galeria.titulo":
       case "galeria.subtitulo":
         return { color };
       case "historia.card":
       case "timeline.card":
       case "galeria.card":
+        return { backgroundColor: color };
       case "historia.imagen":
       case "timeline.mapa":
       case "galeria.imagen":
         return { borderColor: color };
+      case "portada.ctaFondo":
+      case "portada.adminCtaFondo":
+        return { backgroundColor: color, borderColor: color };
       default:
         return {};
     }
@@ -743,7 +850,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     }, {} as Partial<Record<SectionComponentKey, CSSProperties>>);
   };
 
-  const applySwatchToRoleInEditingSection = (role: TemaColorRole, swatchId: string) => {
+  const applySwatchToRoleInEditingSection = (role: string, swatchId: string) => {
     if (!editingSectionDraft) return;
     const paletteId = (editingSectionDraft.usarPaletaGlobal ?? true)
       ? paletaActivaId
@@ -786,6 +893,39 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     if (!editingSectionDraft || !selectedComponentOption) return null;
     return getComponentRoleForSection(editingSectionDraft, selectedComponentOption.key);
   }, [editingSectionDraft, selectedComponentOption]);
+
+  const availableRoleKeys = useMemo(
+    () => (editingPalette ? getPaletteRoleKeys(editingPalette) : [...ROLE_KEYS]),
+    [editingPalette],
+  );
+
+  const addCustomRoleToEditingPalette = () => {
+    if (!editingPalette) return;
+    const trimmed = newCustomRoleName.trim();
+    if (!trimmed) return;
+
+    const roleId = `custom.${slugifyRoleName(trimmed)}`;
+    if (!roleId || roleId === "custom.") return;
+
+    if (availableRoleKeys.includes(roleId)) {
+      showMsg("error", "Ya existe un rol con ese nombre.");
+      return;
+    }
+
+    updatePaleta(editingPalette.id, (palette) => ({
+      ...palette,
+      roleLabels: {
+        ...(palette.roleLabels ?? {}),
+        [roleId]: trimmed,
+      },
+      rolesColor: {
+        ...resolvePaletteRoleMap(palette),
+        [roleId]: "bronze",
+      },
+    }));
+    setNewCustomRoleName("");
+    showMsg("ok", `Rol personalizado creado: ${trimmed}`);
+  };
 
   const getSectionThemeVars = (section: SeccionDiseno): CSSProperties => {
     const palette = getPaletteBySection(section);
@@ -1226,6 +1366,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               titulo={section.titulo || "Nuestra historia"}
               abiertaPorDefecto={openInCanvas}
               bgColor="var(--cream)"
+              designMode={designMode}
+              sectionStyle={componentStyles["historia.fondoSeccion"]}
+              sectionSelected={designMode && selectedDesignComponentKey === "historia.fondoSeccion"}
+              titleStyle={componentStyles["historia.tituloSeccion"]}
+              titleSelected={designMode && selectedDesignComponentKey === "historia.tituloSeccion"}
+              onSelectSectionBackground={() => setSelectedDesignComponentKey("historia.fondoSeccion")}
+              onSelectTitleDesign={() => setSelectedDesignComponentKey("historia.tituloSeccion")}
               editableTitle={contentMode}
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
@@ -1254,6 +1401,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               titulo={section.titulo || "El gran día"}
               abiertaPorDefecto={openInCanvas}
               bgColor="var(--cream-dark)"
+              designMode={designMode}
+              sectionStyle={componentStyles["timeline.fondoSeccion"]}
+              sectionSelected={designMode && selectedDesignComponentKey === "timeline.fondoSeccion"}
+              titleStyle={componentStyles["timeline.tituloSeccion"]}
+              titleSelected={designMode && selectedDesignComponentKey === "timeline.tituloSeccion"}
+              onSelectSectionBackground={() => setSelectedDesignComponentKey("timeline.fondoSeccion")}
+              onSelectTitleDesign={() => setSelectedDesignComponentKey("timeline.tituloSeccion")}
               editableTitle={contentMode}
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
@@ -1282,6 +1436,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               titulo={section.titulo || "Galería"}
               abiertaPorDefecto={openInCanvas}
               bgColor="var(--cream)"
+              designMode={designMode}
+              sectionStyle={componentStyles["galeria.fondoSeccion"]}
+              sectionSelected={designMode && selectedDesignComponentKey === "galeria.fondoSeccion"}
+              titleStyle={componentStyles["galeria.tituloSeccion"]}
+              titleSelected={designMode && selectedDesignComponentKey === "galeria.tituloSeccion"}
+              onSelectSectionBackground={() => setSelectedDesignComponentKey("galeria.fondoSeccion")}
+              onSelectTitleDesign={() => setSelectedDesignComponentKey("galeria.tituloSeccion")}
               editableTitle={contentMode}
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
@@ -1800,6 +1961,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         </div>
                       </div>
 
+                      <div className="rounded border border-blue-200 bg-blue-50 p-2 text-[11px] text-blue-900">
+                        <p className="font-semibold uppercase tracking-wide">Depuración selección</p>
+                        <p>Componente activo: {selectedComponentOption?.label ?? "(ninguno)"}</p>
+                        <p>Clave: {selectedComponentOption?.key ?? "-"}</p>
+                        <p>Rol activo: {selectedComponentRole ? getRoleLabel(selectedComponentRole, editingPalette) : "-"}</p>
+                      </div>
+
                       {selectedComponentRole && editingPalette && (
                         <div className="grid gap-2 sm:grid-cols-[1fr_1fr]">
                           <div className="rounded border border-stone-200 bg-white p-2">
@@ -1812,8 +1980,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                                 patchEditingSectionComponentRole(selectedComponentOption.key, event.target.value as TemaColorRole);
                               }}
                             >
-                              {ROLE_KEYS.map((role) => (
-                                <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+                              {availableRoleKeys.map((role) => (
+                                <option key={role} value={role}>{getRoleLabel(role, editingPalette)}</option>
                               ))}
                             </select>
                             <p className="mt-1 text-[11px] text-stone-500">
@@ -1837,14 +2005,28 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
                       {editingPaletteRoleMap && editingPalette && (
                         <div className="rounded border border-stone-200 bg-white p-2">
-                          <p className="mb-2 text-[11px] font-semibold text-stone-600">Roles de la sección</p>
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <p className="text-[11px] font-semibold text-stone-600">Roles de la sección</p>
+                            <input
+                              className="h-7 min-w-[180px] rounded border border-stone-300 px-2 text-[11px]"
+                              placeholder="Nuevo rol personalizado"
+                              value={newCustomRoleName}
+                              onChange={(event) => setNewCustomRoleName(event.target.value)}
+                            />
+                            <button
+                              onClick={addCustomRoleToEditingPalette}
+                              className="h-7 rounded border border-stone-300 bg-white px-2 text-[11px] text-stone-700"
+                            >
+                              + Añadir rol
+                            </button>
+                          </div>
                           <div className="grid gap-1 sm:grid-cols-2">
-                            {ROLE_KEYS.map((role) => (
+                            {availableRoleKeys.map((role) => (
                               <label key={role} className="grid grid-cols-[1fr_130px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
-                                <span className="text-[11px] text-stone-700">{ROLE_LABELS[role]}</span>
+                                <span className="text-[11px] text-stone-700">{getRoleLabel(role, editingPalette)}</span>
                                 <select
                                   className="h-7 rounded border border-stone-300 bg-white px-1 text-[11px] text-stone-700"
-                                  value={editingPaletteRoleMap[role]}
+                                  value={editingPaletteRoleMap[role] ?? "cream"}
                                   onChange={(event) => applySwatchToRoleInEditingSection(role, event.target.value)}
                                 >
                                   {editingPaletteSwatches.map((swatch) => (
@@ -1956,6 +2138,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             titulo={sec.titulo || "Nuestra historia"}
                             abiertaPorDefecto={sectionIsBeingEdited}
                             bgColor="var(--cream)"
+                            designMode={designMode}
+                            sectionStyle={componentStyles["historia.fondoSeccion"]}
+                            sectionSelected={designMode && selectedDesignComponentKey === "historia.fondoSeccion"}
+                            titleStyle={componentStyles["historia.tituloSeccion"]}
+                            titleSelected={designMode && selectedDesignComponentKey === "historia.tituloSeccion"}
+                            onSelectSectionBackground={() => setSelectedDesignComponentKey("historia.fondoSeccion")}
+                            onSelectTitleDesign={() => setSelectedDesignComponentKey("historia.tituloSeccion")}
                             editableTitle={contentMode}
                             onSelectTitle={() => setSelectedSectionId(sec.id)}
                             onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
@@ -1985,6 +2174,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             titulo={sec.titulo || "Galería"}
                             abiertaPorDefecto={sectionIsBeingEdited}
                             bgColor="var(--cream)"
+                            designMode={designMode}
+                            sectionStyle={componentStyles["galeria.fondoSeccion"]}
+                            sectionSelected={designMode && selectedDesignComponentKey === "galeria.fondoSeccion"}
+                            titleStyle={componentStyles["galeria.tituloSeccion"]}
+                            titleSelected={designMode && selectedDesignComponentKey === "galeria.tituloSeccion"}
+                            onSelectSectionBackground={() => setSelectedDesignComponentKey("galeria.fondoSeccion")}
+                            onSelectTitleDesign={() => setSelectedDesignComponentKey("galeria.tituloSeccion")}
                             editableTitle={contentMode}
                             onSelectTitle={() => setSelectedSectionId(sec.id)}
                             onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
@@ -2010,6 +2206,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             titulo={sec.titulo || "El gran día"}
                             abiertaPorDefecto={sectionIsBeingEdited}
                             bgColor="var(--cream-dark)"
+                            designMode={designMode}
+                            sectionStyle={componentStyles["timeline.fondoSeccion"]}
+                            sectionSelected={designMode && selectedDesignComponentKey === "timeline.fondoSeccion"}
+                            titleStyle={componentStyles["timeline.tituloSeccion"]}
+                            titleSelected={designMode && selectedDesignComponentKey === "timeline.tituloSeccion"}
+                            onSelectSectionBackground={() => setSelectedDesignComponentKey("timeline.fondoSeccion")}
+                            onSelectTitleDesign={() => setSelectedDesignComponentKey("timeline.tituloSeccion")}
                             editableTitle={contentMode}
                             onSelectTitle={() => setSelectedSectionId(sec.id)}
                             onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}

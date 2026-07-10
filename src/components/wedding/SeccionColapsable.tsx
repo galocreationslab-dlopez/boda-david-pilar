@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 
 type Props = {
   id: string;
@@ -13,9 +14,16 @@ type Props = {
   abiertaPorDefecto: boolean;
   ocultarCabecera?: boolean;
   bgColor?: string;
+  designMode?: boolean;
+  sectionStyle?: CSSProperties;
+  sectionSelected?: boolean;
+  titleStyle?: CSSProperties;
+  titleSelected?: boolean;
   editableTitle?: boolean;
   onChangeTitle?: (value: string) => void;
   onSelectTitle?: () => void;
+  onSelectTitleDesign?: () => void;
+  onSelectSectionBackground?: () => void;
   children: React.ReactNode;
 };
 
@@ -25,9 +33,16 @@ export function SeccionColapsable({
   abiertaPorDefecto,
   ocultarCabecera = false,
   bgColor = "var(--cream)",
+  designMode = false,
+  sectionStyle,
+  sectionSelected = false,
+  titleStyle,
+  titleSelected = false,
   editableTitle = false,
   onChangeTitle,
   onSelectTitle,
+  onSelectTitleDesign,
+  onSelectSectionBackground,
   children,
 }: Props) {
   const [abierta, setAbierta] = useState(abiertaPorDefecto);
@@ -37,7 +52,21 @@ export function SeccionColapsable({
   }, [abiertaPorDefecto]);
 
   return (
-    <section id={id} style={{ backgroundColor: bgColor }}>
+    <section
+      id={id}
+      style={{
+        backgroundColor: bgColor,
+        ...(sectionStyle ?? {}),
+        ...(designMode && sectionSelected
+          ? { outline: "2px solid #b45309", outlineOffset: "3px", borderRadius: "8px" }
+          : {}),
+        ...(designMode ? { cursor: "pointer" } : {}),
+      }}
+      onClick={() => {
+        if (!designMode) return;
+        onSelectSectionBackground?.();
+      }}
+    >
       {/* Cabecera colapsable — oculta en la portada */}
       {!ocultarCabecera && (
         <button
@@ -52,10 +81,22 @@ export function SeccionColapsable({
         >
           <span
             className="font-display text-left text-xl font-light sm:text-3xl"
-            style={{ color: "var(--brown-dark)" }}
+            style={{
+              color: "var(--brown-dark)",
+              ...(titleStyle ?? {}),
+              ...(designMode && titleSelected
+                ? { outline: "2px solid #b45309", outlineOffset: "3px", borderRadius: "8px" }
+                : {}),
+              ...(designMode ? { cursor: "pointer" } : {}),
+            }}
             contentEditable={editableTitle}
             suppressContentEditableWarning={true}
             onClick={(event) => {
+              if (designMode) {
+                event.stopPropagation();
+                onSelectTitleDesign?.();
+                return;
+              }
               if (!editableTitle) return;
               event.stopPropagation();
               onSelectTitle?.();

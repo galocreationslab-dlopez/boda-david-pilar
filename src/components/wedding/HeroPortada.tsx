@@ -13,17 +13,25 @@ import type { CSSProperties } from "react";
 
 export type HeroComponentKey =
   | "portada.fondo"
-  | "portada.sello"
+  | "portada.logo"
   | "portada.nombres"
+  | "portada.separador"
   | "portada.fecha"
   | "portada.bienvenida"
-  | "portada.cta";
+  | "portada.faltan"
+  | "portada.cuentaAtras"
+  | "portada.cuentaAtrasLeyendas"
+  | "portada.ctaFondo"
+  | "portada.ctaTexto"
+  | "portada.adminCtaFondo"
+  | "portada.adminCtaTexto";
 
 type Props = {
   config: Pick<WeddingConfig, "novia" | "novio" | "nombreConjunto" | "iniciales" | "fecha" | "fechaFormateada" | "textos">;
   viewport?: "desktop" | "movil";
   mostrarBotonConfirmar?: boolean;
   labelBotonConfirmar?: string;
+  isAdminButton?: boolean;
   onConfirmarClick?: () => void;
   editable?: boolean;
   designMode?: boolean;
@@ -39,6 +47,7 @@ export function HeroPortada({
   viewport = "desktop",
   mostrarBotonConfirmar = false,
   labelBotonConfirmar,
+  isAdminButton = false,
   onConfirmarClick,
   editable = false,
   designMode = false,
@@ -49,7 +58,11 @@ export function HeroPortada({
   onEditBienvenida,
 }: Props) {
   const forceMobile = viewport === "movil";
-  const selloColor = (componentStyles?.["portada.sello"]?.color as string) || "#C4964A";
+  const selloColor = (componentStyles?.["portada.logo"]?.color as string) || "#C4964A";
+  const separadorColor =
+    (componentStyles?.["portada.separador"]?.color as string)
+    || (componentStyles?.["portada.separador"]?.borderColor as string)
+    || "#C4964A";
 
   const styleFor = (key: HeroComponentKey, base: CSSProperties = {}): CSSProperties => ({
     ...base,
@@ -80,7 +93,7 @@ export function HeroPortada({
       <div className={`relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center gap-5 py-16 sm:gap-7 sm:py-20 ${forceMobile ? "max-w-[21rem] gap-4 py-12" : ""}`}>
 
         {/* Sello */}
-        <div className="animate-fade-up" style={styleFor("portada.sello")} onClick={(event) => { event.stopPropagation(); select("portada.sello"); }}>
+        <div className="animate-fade-up" style={styleFor("portada.logo")} onClick={(event) => { event.stopPropagation(); select("portada.logo"); }}>
           <SelloNupcial size={forceMobile ? 100 : 128} color={selloColor} />
         </div>
 
@@ -126,7 +139,9 @@ export function HeroPortada({
 
         {/* Fecha */}
         <div className="animate-fade-up delay-300" style={styleFor("portada.fecha")} onClick={(event) => { event.stopPropagation(); select("portada.fecha"); }}>
-          <OrnamentoDivisor color="#C4964A" />
+          <div style={styleFor("portada.separador")} onClick={(event) => { event.stopPropagation(); select("portada.separador"); }}>
+            <OrnamentoDivisor color={separadorColor} />
+          </div>
           <p
             className="smallcaps tracking-[0.25em] text-sm mt-1"
             style={{ color: "var(--bronze-pale)" }}
@@ -151,31 +166,103 @@ export function HeroPortada({
           &ldquo;{config.textos.bienvenida}&rdquo;
         </p>
 
-        {/* CTA: solo visible con código de invitación válido */}
-        {mostrarBotonConfirmar && (
-          <div
-            className="mt-2 w-full animate-fade-in sm:w-auto"
-            style={styleFor("portada.cta")}
-            onClick={(event) => { event.stopPropagation(); select("portada.cta"); }}
-          >
-            <button type="button" className="btn-primary w-full sm:w-auto" onClick={onConfirmarClick}>
-              {labelBotonConfirmar ?? "Confirmar asistencia"}
-            </button>
+        {/* CTA público y botón admin */}
+        {(mostrarBotonConfirmar || designMode) && (
+          <div className="mt-2 flex w-full flex-col gap-2 animate-fade-in sm:w-auto">
+            {(designMode || !isAdminButton) && (
+              <div
+                style={styleFor("portada.ctaFondo")}
+                onClick={(event) => { event.stopPropagation(); select("portada.ctaFondo"); }}
+              >
+                <button
+                  type="button"
+                  className="btn-primary w-full sm:w-auto"
+                  style={styleFor("portada.ctaFondo")}
+                  onClick={(event) => {
+                    if (designMode) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      select("portada.ctaFondo");
+                      return;
+                    }
+                    if (isAdminButton) return;
+                    onConfirmarClick?.();
+                  }}
+                >
+                  <span
+                    style={styleFor("portada.ctaTexto")}
+                    onClick={(event) => {
+                      if (!designMode) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      select("portada.ctaTexto");
+                    }}
+                  >
+                    Confirmar asistencia
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {(designMode || isAdminButton) && (
+              <div
+                style={styleFor("portada.adminCtaFondo")}
+                onClick={(event) => { event.stopPropagation(); select("portada.adminCtaFondo"); }}
+              >
+                <button
+                  type="button"
+                  className="btn-primary w-full sm:w-auto"
+                  style={styleFor("portada.adminCtaFondo")}
+                  onClick={(event) => {
+                    if (designMode) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      select("portada.adminCtaFondo");
+                      return;
+                    }
+                    if (!isAdminButton) return;
+                    onConfirmarClick?.();
+                  }}
+                >
+                  <span
+                    style={styleFor("portada.adminCtaTexto")}
+                    onClick={(event) => {
+                      if (!designMode) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      select("portada.adminCtaTexto");
+                    }}
+                  >
+                    {labelBotonConfirmar ?? "Panel de administración"}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
         {/* Cuenta atrás */}
         <div
           className="w-full mt-6 pt-8 animate-fade-up delay-500"
-          style={{ borderTop: "1px solid rgba(196,150,74,0.2)" }}
+          style={styleFor("portada.separador", { borderTop: "1px solid rgba(196,150,74,0.2)" })}
+          onClick={(event) => { event.stopPropagation(); select("portada.separador"); }}
         >
           <p
             className="smallcaps text-xs tracking-widest mb-5"
-            style={{ color: "var(--bronze-pale)", opacity: 0.6 }}
+            style={styleFor("portada.faltan", { color: "var(--bronze-pale)", opacity: 0.6 })}
+            onClick={(event) => { event.stopPropagation(); select("portada.faltan"); }}
           >
             faltan
           </p>
-          <CuentaAtras fechaObjetivo={config.fecha} />
+          <div style={styleFor("portada.cuentaAtras")} onClick={(event) => { event.stopPropagation(); select("portada.cuentaAtras"); }}>
+            <CuentaAtras
+              fechaObjetivo={config.fecha}
+              valueStyle={componentStyles?.["portada.cuentaAtras"]}
+              labelStyle={componentStyles?.["portada.cuentaAtrasLeyendas"]}
+              onValueClick={() => select("portada.cuentaAtras")}
+              onLabelClick={() => select("portada.cuentaAtrasLeyendas")}
+            />
+          </div>
         </div>
       </div>
 

@@ -208,7 +208,6 @@ export function SeccionTimeline({
       <div className="container-wedding">
         {/* Cabecera */}
         <div className="text-center mb-14">
-          <p className="section-subtitle">el gran día</p>
           <h2 className="section-title">6 de marzo de 2027</h2>
           <OrnamentoDivisor />
         </div>

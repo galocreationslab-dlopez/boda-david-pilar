@@ -80,16 +80,20 @@ export type TemaColorExtra = {
   valor: string;
 };
 
-export type TemaColorRole =
-  | "fondoPrincipal"
-  | "fondoAlterno"
+export type TemaColorRoleBase =
+  | "titulo"
+  | "tituloSeccion"
   | "textoPrincipal"
   | "textoSecundario"
-  | "titulos"
-  | "botonFondo"
-  | "botonTexto"
-  | "bordesDivisores"
-  | "highlightAcento";
+  | "fondoSeccion"
+  | "fondoSubseccion"
+  | "fondoBoton"
+  | "textoBoton"
+  | "logo"
+  | "nexosTransicionesBordes"
+  | "bordes";
+
+export type TemaColorRole = TemaColorRoleBase | (string & {});
 
 export type TemaPaleta = {
   id: string;
@@ -97,7 +101,8 @@ export type TemaPaleta = {
   colores: TemaColores;
   etiquetasColores?: Partial<Record<keyof TemaColores, string>>;
   coloresExtra?: TemaColorExtra[];
-  rolesColor?: Partial<Record<TemaColorRole, string>>;
+  rolesColor?: Partial<Record<string, string>>;
+  roleLabels?: Partial<Record<string, string>>;
 };
 
 export type TipoSeccionDiseno = "portada" | "historia" | "timeline" | "galeria";
@@ -249,15 +254,17 @@ export const weddingConfig: WeddingConfig = {
         },
         coloresExtra: [],
         rolesColor: {
-          fondoPrincipal: "cream",
-          fondoAlterno: "white",
+          titulo: "brownDark",
+          tituloSeccion: "brownDark",
           textoPrincipal: "brownDark",
           textoSecundario: "oliveMuted",
-          titulos: "brownDark",
-          botonFondo: "bronze",
-          botonTexto: "white",
-          bordesDivisores: "bronzeLight",
-          highlightAcento: "bronze",
+          fondoSeccion: "cream",
+          fondoSubseccion: "white",
+          fondoBoton: "bronze",
+          textoBoton: "white",
+          logo: "bronze",
+          nexosTransicionesBordes: "bronzeLight",
+          bordes: "bronzeLight",
         },
       },
     ],
@@ -277,6 +284,21 @@ export const weddingConfig: WeddingConfig = {
         tipo: "portada",
         paletaId: "paleta-clasica",
         usarPaletaGlobal: true,
+        componentRoles: {
+          "portada.fondo": "fondoSeccion",
+          "portada.logo": "logo",
+          "portada.nombres": "titulo",
+          "portada.separador": "nexosTransicionesBordes",
+          "portada.fecha": "textoSecundario",
+          "portada.bienvenida": "textoPrincipal",
+          "portada.faltan": "textoSecundario",
+          "portada.cuentaAtras": "titulo",
+          "portada.cuentaAtrasLeyendas": "textoSecundario",
+          "portada.ctaFondo": "fondoBoton",
+          "portada.ctaTexto": "textoBoton",
+          "portada.adminCtaFondo": "fondoBoton",
+          "portada.adminCtaTexto": "textoBoton",
+        },
         visible: true,
         perfiles: ["publico"],
         items: [],
@@ -288,6 +310,15 @@ export const weddingConfig: WeddingConfig = {
         tipo: "historia",
         paletaId: "paleta-clasica",
         usarPaletaGlobal: true,
+        componentRoles: {
+          "historia.tituloSeccion": "tituloSeccion",
+          "historia.fondoSeccion": "fondoSeccion",
+          "historia.card": "fondoSubseccion",
+          "historia.titulo": "textoPrincipal",
+          "historia.descripcion": "textoSecundario",
+          "historia.fecha": "textoBoton",
+          "historia.navegacion": "textoBoton",
+        },
         visible: true,
         perfiles: ["publico"],
         items: [],
@@ -310,6 +341,14 @@ export const weddingConfig: WeddingConfig = {
         tipo: "timeline",
         paletaId: "paleta-clasica",
         usarPaletaGlobal: true,
+        componentRoles: {
+          "timeline.tituloSeccion": "tituloSeccion",
+          "timeline.fondoSeccion": "fondoSeccion",
+          "timeline.card": "fondoSubseccion",
+          "timeline.titulo": "textoPrincipal",
+          "timeline.descripcion": "textoSecundario",
+          "timeline.hora": "textoBoton",
+        },
         visible: true,
         perfiles: ["publico"],
         items: [],

@@ -9,6 +9,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { CSSProperties } from "react";
 
 type TiempoRestante = {
   dias: number;
@@ -20,6 +21,10 @@ type TiempoRestante = {
 type CuentaAtrasProps = {
   fechaObjetivo: string; // ISO date "2027-03-06"
   className?: string;
+  valueStyle?: CSSProperties;
+  labelStyle?: CSSProperties;
+  onValueClick?: () => void;
+  onLabelClick?: () => void;
 };
 
 function calcularTiempo(fechaObjetivo: string): TiempoRestante {
@@ -42,15 +47,24 @@ function calcularTiempo(fechaObjetivo: string): TiempoRestante {
 function UnidadTiempo({
   valor,
   etiqueta,
+  valueStyle,
+  labelStyle,
+  onValueClick,
+  onLabelClick,
 }: {
   valor: number;
   etiqueta: string;
+  valueStyle?: CSSProperties;
+  labelStyle?: CSSProperties;
+  onValueClick?: () => void;
+  onLabelClick?: () => void;
 }) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-1 rounded-2xl px-2 py-1 sm:px-0 sm:py-0">
       <span
         className="font-display text-4xl sm:text-6xl font-light tabular-nums"
-        style={{ color: "var(--white)" }}
+        style={{ color: "var(--white)", ...(valueStyle ?? {}) }}
+        onClick={onValueClick}
         aria-live="polite"
         aria-atomic="true"
       >
@@ -58,7 +72,8 @@ function UnidadTiempo({
       </span>
       <span
         className="smallcaps text-xs tracking-widest"
-        style={{ color: "var(--bronze-pale)" }}
+        style={{ color: "var(--bronze-pale)", ...(labelStyle ?? {}) }}
+        onClick={onLabelClick}
       >
         {etiqueta}
       </span>
@@ -78,7 +93,7 @@ function Separador() {
   );
 }
 
-export function CuentaAtras({ fechaObjetivo, className = "" }: CuentaAtrasProps) {
+export function CuentaAtras({ fechaObjetivo, className = "", valueStyle, labelStyle, onValueClick, onLabelClick }: CuentaAtrasProps) {
   const [tiempo, setTiempo] = useState<TiempoRestante>(() =>
     calcularTiempo(fechaObjetivo)
   );
@@ -112,13 +127,13 @@ export function CuentaAtras({ fechaObjetivo, className = "" }: CuentaAtrasProps)
 
   return (
     <div className={`grid grid-cols-2 gap-x-4 gap-y-3 sm:flex sm:items-end sm:justify-center sm:gap-6 ${className}`}>
-      <UnidadTiempo valor={tiempo.dias} etiqueta="días" />
+      <UnidadTiempo valor={tiempo.dias} etiqueta="días" valueStyle={valueStyle} labelStyle={labelStyle} onValueClick={onValueClick} onLabelClick={onLabelClick} />
       <Separador />
-      <UnidadTiempo valor={tiempo.horas} etiqueta="horas" />
+      <UnidadTiempo valor={tiempo.horas} etiqueta="horas" valueStyle={valueStyle} labelStyle={labelStyle} onValueClick={onValueClick} onLabelClick={onLabelClick} />
       <Separador />
-      <UnidadTiempo valor={tiempo.minutos} etiqueta="minutos" />
+      <UnidadTiempo valor={tiempo.minutos} etiqueta="minutos" valueStyle={valueStyle} labelStyle={labelStyle} onValueClick={onValueClick} onLabelClick={onLabelClick} />
       <Separador />
-      <UnidadTiempo valor={tiempo.segundos} etiqueta="segundos" />
+      <UnidadTiempo valor={tiempo.segundos} etiqueta="segundos" valueStyle={valueStyle} labelStyle={labelStyle} onValueClick={onValueClick} onLabelClick={onLabelClick} />
     </div>
   );
 }

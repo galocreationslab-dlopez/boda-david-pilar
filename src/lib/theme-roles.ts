@@ -1,41 +1,47 @@
-import type { TemaColores, TemaPaleta } from "@/config/wedding.config";
+import type { TemaColores, TemaColorRoleBase, TemaPaleta } from "@/config/wedding.config";
 
 export const ROLE_KEYS = [
-  "fondoPrincipal",
-  "fondoAlterno",
+  "titulo",
+  "tituloSeccion",
   "textoPrincipal",
   "textoSecundario",
-  "titulos",
-  "botonFondo",
-  "botonTexto",
-  "bordesDivisores",
-  "highlightAcento",
+  "fondoSeccion",
+  "fondoSubseccion",
+  "fondoBoton",
+  "textoBoton",
+  "logo",
+  "nexosTransicionesBordes",
+  "bordes",
 ] as const;
 
-export type TemaColorRole = (typeof ROLE_KEYS)[number];
+export type TemaColorRole = (typeof ROLE_KEYS)[number] | (string & {});
 
-export const ROLE_LABELS: Record<TemaColorRole, string> = {
-  fondoPrincipal: "Fondo principal",
-  fondoAlterno: "Fondo alterno / sección",
+export const ROLE_LABELS: Record<TemaColorRoleBase, string> = {
+  titulo: "Título",
+  tituloSeccion: "Título sección",
   textoPrincipal: "Texto principal",
   textoSecundario: "Texto secundario",
-  titulos: "Títulos / encabezados",
-  botonFondo: "Botón — fondo",
-  botonTexto: "Botón — texto",
-  bordesDivisores: "Bordes / divisores",
-  highlightAcento: "Highlight / acento",
+  fondoSeccion: "Fondo sección",
+  fondoSubseccion: "Fondo subsección",
+  fondoBoton: "Fondo botón",
+  textoBoton: "Texto botón",
+  logo: "Logo",
+  nexosTransicionesBordes: "Nexos, transiciones y bordes",
+  bordes: "Bordes",
 };
 
-export const DEFAULT_ROLE_SWATCH: Record<TemaColorRole, keyof TemaColores> = {
-  fondoPrincipal: "cream",
-  fondoAlterno: "white",
+export const DEFAULT_ROLE_SWATCH: Record<TemaColorRoleBase, keyof TemaColores> = {
+  titulo: "brownDark",
+  tituloSeccion: "brownDark",
   textoPrincipal: "brownDark",
   textoSecundario: "oliveMuted",
-  titulos: "brownDark",
-  botonFondo: "bronze",
-  botonTexto: "white",
-  bordesDivisores: "bronzeLight",
-  highlightAcento: "bronze",
+  fondoSeccion: "cream",
+  fondoSubseccion: "white",
+  fondoBoton: "bronze",
+  textoBoton: "white",
+  logo: "bronze",
+  nexosTransicionesBordes: "bronzeLight",
+  bordes: "bronzeLight",
 };
 
 export type SwatchOption = {
@@ -58,19 +64,39 @@ export function buildPaletteSwatches(palette: TemaPaleta): SwatchOption[] {
   return [...core, ...extra];
 }
 
-function resolveRoleSwatchId(palette: TemaPaleta, role: TemaColorRole): string {
+function toHumanRoleLabel(rawRole: string): string {
+  return rawRole
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export function getRoleLabel(role: string, palette?: TemaPaleta | null): string {
+  return palette?.roleLabels?.[role] ?? ROLE_LABELS[role as TemaColorRoleBase] ?? toHumanRoleLabel(role);
+}
+
+export function getPaletteRoleKeys(palette?: TemaPaleta | null): string[] {
+  const fromPalette = Object.keys(palette?.rolesColor ?? {});
+  const merged = [...ROLE_KEYS, ...fromPalette];
+  return Array.from(new Set(merged));
+}
+
+function resolveRoleSwatchId(palette: TemaPaleta, role: string): string {
   const assigned = palette.rolesColor?.[role];
   if (assigned && buildPaletteSwatches(palette).some((swatch) => swatch.id === assigned)) {
     return assigned;
   }
-  return DEFAULT_ROLE_SWATCH[role];
+  const fallbackKey = DEFAULT_ROLE_SWATCH[role as TemaColorRoleBase];
+  return fallbackKey ?? "cream";
 }
 
-export function resolvePaletteRoleMap(palette: TemaPaleta): Record<TemaColorRole, string> {
-  return ROLE_KEYS.reduce((acc, role) => {
+export function resolvePaletteRoleMap(palette: TemaPaleta): Record<string, string> {
+  const roles = getPaletteRoleKeys(palette);
+  return roles.reduce((acc, role) => {
     acc[role] = resolveRoleSwatchId(palette, role);
     return acc;
-  }, {} as Record<TemaColorRole, string>);
+  }, {} as Record<string, string>);
 }
 
 function getSwatchColorById(palette: TemaPaleta, swatchId: string): string | null {
@@ -81,26 +107,28 @@ function getSwatchColorById(palette: TemaPaleta, swatchId: string): string | nul
   return extra?.valor ?? null;
 }
 
-export function resolvePaletteRoleColors(palette: TemaPaleta): Record<TemaColorRole, string> {
+export function resolvePaletteRoleColors(palette: TemaPaleta): Record<string, string> {
   const map = resolvePaletteRoleMap(palette);
-  return ROLE_KEYS.reduce((acc, role) => {
+  const roles = getPaletteRoleKeys(palette);
+  return roles.reduce((acc, role) => {
     const fromMap = getSwatchColorById(palette, map[role]);
-    const fallback = palette.colores[DEFAULT_ROLE_SWATCH[role]];
+    const fallbackKey = DEFAULT_ROLE_SWATCH[role as TemaColorRoleBase] ?? "cream";
+    const fallback = palette.colores[fallbackKey];
     acc[role] = fromMap ?? fallback;
     return acc;
-  }, {} as Record<TemaColorRole, string>);
+  }, {} as Record<string, string>);
 }
 
 export function resolvePaletteToThemeColors(palette: TemaPaleta): TemaColores {
   const roles = resolvePaletteRoleColors(palette);
   return {
-    bronze: roles.highlightAcento,
-    bronzeLight: roles.bordesDivisores,
+    bronze: roles.logo ?? palette.colores.bronze,
+    bronzeLight: roles.nexosTransicionesBordes ?? palette.colores.bronzeLight,
     olive: palette.colores.olive,
     oliveMuted: palette.colores.oliveMuted,
-    cream: palette.colores.cream,
-    brownDark: palette.colores.brownDark,
-    white: palette.colores.white,
+    cream: roles.fondoSeccion ?? palette.colores.cream,
+    brownDark: roles.textoPrincipal ?? palette.colores.brownDark,
+    white: roles.fondoSubseccion ?? palette.colores.white,
   };
 }
 
@@ -138,20 +166,20 @@ export function buildRoleContrastWarnings(palette: TemaPaleta): string[] {
   const roles = resolvePaletteRoleColors(palette);
   const checks = [
     {
-      label: "Texto principal sobre fondo principal",
-      ratio: contrastRatio(roles.textoPrincipal, roles.fondoPrincipal),
+      label: "Texto principal sobre fondo sección",
+      ratio: contrastRatio(roles.textoPrincipal, roles.fondoSeccion),
     },
     {
-      label: "Texto secundario sobre fondo principal",
-      ratio: contrastRatio(roles.textoSecundario, roles.fondoPrincipal),
+      label: "Texto secundario sobre fondo sección",
+      ratio: contrastRatio(roles.textoSecundario, roles.fondoSeccion),
     },
     {
       label: "Texto de botón sobre fondo de botón",
-      ratio: contrastRatio(roles.botonTexto, roles.botonFondo),
+      ratio: contrastRatio(roles.textoBoton, roles.fondoBoton),
     },
     {
-      label: "Acento sobre fondo principal",
-      ratio: contrastRatio(roles.highlightAcento, roles.fondoPrincipal),
+      label: "Logo sobre fondo sección",
+      ratio: contrastRatio(roles.logo, roles.fondoSeccion),
     },
   ];
 

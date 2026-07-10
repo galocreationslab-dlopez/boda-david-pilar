@@ -180,17 +180,17 @@ export function buildCssOverrides(config: WeddingConfig): string {
   const f = config.tema.fuentes;
   const lines: string[] = [":root {"];
   if (roles) {
-    lines.push(`  --role-fondo-principal: ${roles.fondoPrincipal};`);
-    lines.push(`  --role-fondo-alterno: ${roles.fondoAlterno};`);
+    lines.push(`  --role-fondo-principal: ${roles.fondoSeccion};`);
+    lines.push(`  --role-fondo-alterno: ${roles.fondoSubseccion};`);
     lines.push(`  --role-texto-principal: ${roles.textoPrincipal};`);
     lines.push(`  --role-texto-secundario: ${roles.textoSecundario};`);
-    lines.push(`  --role-titulos: ${roles.titulos};`);
-    lines.push(`  --role-boton-fondo: ${roles.botonFondo};`);
-    lines.push(`  --role-boton-texto: ${roles.botonTexto};`);
-    lines.push(`  --role-bordes-divisores: ${roles.bordesDivisores};`);
-    lines.push(`  --role-highlight-acento: ${roles.highlightAcento};`);
-    lines.push(`  --bronze-pale: ${roles.bordesDivisores};`);
-    lines.push(`  --cream-dark: ${roles.fondoAlterno};`);
+    lines.push(`  --role-titulos: ${roles.titulo};`);
+    lines.push(`  --role-boton-fondo: ${roles.fondoBoton};`);
+    lines.push(`  --role-boton-texto: ${roles.textoBoton};`);
+    lines.push(`  --role-bordes-divisores: ${roles.nexosTransicionesBordes};`);
+    lines.push(`  --role-highlight-acento: ${roles.logo};`);
+    lines.push(`  --bronze-pale: ${roles.nexosTransicionesBordes};`);
+    lines.push(`  --cream-dark: ${roles.fondoSubseccion};`);
     lines.push(`  --brown-mid: ${roles.textoSecundario};`);
   }
   if (c.bronze)       lines.push(`  --bronze: ${c.bronze};`);
