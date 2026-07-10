@@ -13,7 +13,7 @@ import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
 import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
-import { resolvePaletteToThemeColors } from "@/lib/theme-roles";
+import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
 import type { SeparadorDiseno, TipoSeccionDiseno, SeccionDiseno, TemaPaleta } from "@/config/wedding.config";
 import type { CSSProperties } from "react";
 
@@ -54,7 +54,17 @@ export default async function PaginaPrincipal() {
   const getSectionThemeVars = (section?: SeccionDiseno): CSSProperties => {
     const palette = getPaletteBySection(section);
     const resolved = palette ? resolvePaletteToThemeColors(palette) : config.tema.colores;
+    const roles = palette ? resolvePaletteRoleColors(palette) : null;
     return {
+      ["--role-fondo-principal" as string]: roles?.fondoPrincipal,
+      ["--role-fondo-alterno" as string]: roles?.fondoAlterno,
+      ["--role-texto-principal" as string]: roles?.textoPrincipal,
+      ["--role-texto-secundario" as string]: roles?.textoSecundario,
+      ["--role-titulos" as string]: roles?.titulos,
+      ["--role-boton-fondo" as string]: roles?.botonFondo,
+      ["--role-boton-texto" as string]: roles?.botonTexto,
+      ["--role-bordes-divisores" as string]: roles?.bordesDivisores,
+      ["--role-highlight-acento" as string]: roles?.highlightAcento,
       ["--bronze" as string]: resolved.bronze,
       ["--bronze-light" as string]: resolved.bronzeLight,
       ["--olive" as string]: resolved.olive,

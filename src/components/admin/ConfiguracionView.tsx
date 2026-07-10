@@ -12,6 +12,7 @@ import {
   ROLE_LABELS,
   buildPaletteSwatches,
   buildRoleContrastWarnings,
+  resolvePaletteRoleColors,
   resolvePaletteRoleMap,
   resolvePaletteToThemeColors,
 } from "@/lib/theme-roles";
@@ -285,6 +286,11 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const paletaActivaResolvedColors = useMemo(
     () => (paletaActiva ? resolvePaletteToThemeColors(paletaActiva) : ic.tema.colores),
     [ic.tema.colores, paletaActiva],
+  );
+
+  const paletaActivaRoleColors = useMemo(
+    () => (paletaActiva ? resolvePaletteRoleColors(paletaActiva) : null),
+    [paletaActiva],
   );
 
   const paletaSwatches = useMemo(
@@ -637,7 +643,17 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const getSectionThemeVars = (section: SeccionDiseno): CSSProperties => {
     const palette = getPaletteBySection(section);
     const resolved = palette ? resolvePaletteToThemeColors(palette) : ic.tema.colores;
+    const roles = palette ? resolvePaletteRoleColors(palette) : null;
     return {
+      ["--role-fondo-principal" as string]: roles?.fondoPrincipal,
+      ["--role-fondo-alterno" as string]: roles?.fondoAlterno,
+      ["--role-texto-principal" as string]: roles?.textoPrincipal,
+      ["--role-texto-secundario" as string]: roles?.textoSecundario,
+      ["--role-titulos" as string]: roles?.titulos,
+      ["--role-boton-fondo" as string]: roles?.botonFondo,
+      ["--role-boton-texto" as string]: roles?.botonTexto,
+      ["--role-bordes-divisores" as string]: roles?.bordesDivisores,
+      ["--role-highlight-acento" as string]: roles?.highlightAcento,
       ["--bronze" as string]: resolved.bronze,
       ["--bronze-light" as string]: resolved.bronzeLight,
       ["--olive" as string]: resolved.olive,
@@ -1808,6 +1824,15 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             >
               <div
                 style={{
+                  ["--role-fondo-principal" as string]: paletaActivaRoleColors?.fondoPrincipal,
+                  ["--role-fondo-alterno" as string]: paletaActivaRoleColors?.fondoAlterno,
+                  ["--role-texto-principal" as string]: paletaActivaRoleColors?.textoPrincipal,
+                  ["--role-texto-secundario" as string]: paletaActivaRoleColors?.textoSecundario,
+                  ["--role-titulos" as string]: paletaActivaRoleColors?.titulos,
+                  ["--role-boton-fondo" as string]: paletaActivaRoleColors?.botonFondo,
+                  ["--role-boton-texto" as string]: paletaActivaRoleColors?.botonTexto,
+                  ["--role-bordes-divisores" as string]: paletaActivaRoleColors?.bordesDivisores,
+                  ["--role-highlight-acento" as string]: paletaActivaRoleColors?.highlightAcento,
                   ["--bronze" as string]: paletaActivaResolvedColors.bronze ?? "#8C6A3F",
                   ["--bronze-light" as string]: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
                   ["--olive" as string]: paletaActivaResolvedColors.olive ?? "#5C6B3A",
