@@ -31,7 +31,6 @@ import type {
 type Tab = "diseno" | "historia" | "timeline";
 
 const ICONO_OPTIONS = ["rings", "cocktail", "fork", "cake", "music", "car", "iglesia", "finca"];
-const SECTION_TYPES: TipoSeccionDiseno[] = ["portada", "historia", "timeline", "galeria"];
 const PROFILE_OPTIONS = ["publico", "familia", "amigos", "vip", "admin"];
 
 const CORE_COLOR_KEYS: Array<keyof TemaColores> = [
@@ -478,6 +477,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       colores: normalizeTemaColores(base?.colores ?? ic.tema.colores),
       etiquetasColores: { ...DEFAULT_COLOR_LABELS, ...(base?.etiquetasColores ?? {}) },
       coloresExtra: [...(base?.coloresExtra ?? [])],
+      rolesColor: base ? resolvePaletteRoleMap(base) : undefined,
     };
     setPaletas((prev) => [...prev, nueva]);
     setPaletaEditandoId(nueva.id);
@@ -492,6 +492,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       colores: normalizeTemaColores(paletaEditando.colores),
       etiquetasColores: { ...(paletaEditando.etiquetasColores ?? {}) },
       coloresExtra: [...(paletaEditando.coloresExtra ?? [])],
+      rolesColor: resolvePaletteRoleMap(paletaEditando),
     };
     setPaletas((prev) => [...prev, clon]);
     setPaletaEditandoId(clon.id);
@@ -656,11 +657,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       ["--role-highlight-acento" as string]: roles?.highlightAcento,
       ["--bronze" as string]: resolved.bronze,
       ["--bronze-light" as string]: resolved.bronzeLight,
+      ["--bronze-pale" as string]: roles?.bordesDivisores ?? resolved.bronzeLight,
       ["--olive" as string]: resolved.olive,
       ["--olive-muted" as string]: resolved.oliveMuted,
       ["--cream" as string]: resolved.cream,
-      ["--cream-dark" as string]: "#EDE7DB",
+      ["--cream-dark" as string]: roles?.fondoAlterno ?? "#EDE7DB",
       ["--brown-dark" as string]: resolved.brownDark,
+      ["--brown-mid" as string]: roles?.textoSecundario ?? resolved.oliveMuted,
       ["--white" as string]: resolved.white,
       ["--font-display" as string]: fuentes.display,
       ["--font-body" as string]: fuentes.body,
@@ -1835,11 +1838,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   ["--role-highlight-acento" as string]: paletaActivaRoleColors?.highlightAcento,
                   ["--bronze" as string]: paletaActivaResolvedColors.bronze ?? "#8C6A3F",
                   ["--bronze-light" as string]: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
+                  ["--bronze-pale" as string]: paletaActivaRoleColors?.bordesDivisores ?? paletaActivaResolvedColors.bronzeLight,
                   ["--olive" as string]: paletaActivaResolvedColors.olive ?? "#5C6B3A",
                   ["--olive-muted" as string]: paletaActivaResolvedColors.oliveMuted ?? "#8A9468",
                   ["--cream" as string]: paletaActivaResolvedColors.cream ?? "#F7F3EC",
-                  ["--cream-dark" as string]: "#EDE7DB",
+                  ["--cream-dark" as string]: paletaActivaRoleColors?.fondoAlterno ?? "#EDE7DB",
                   ["--brown-dark" as string]: paletaActivaResolvedColors.brownDark ?? "#2E1F0E",
+                  ["--brown-mid" as string]: paletaActivaRoleColors?.textoSecundario ?? paletaActivaResolvedColors.oliveMuted,
                   ["--white" as string]: paletaActivaResolvedColors.white ?? "#FDFAF5",
                   ["--font-display" as string]: fuentes.display,
                   ["--font-body" as string]: fuentes.body,

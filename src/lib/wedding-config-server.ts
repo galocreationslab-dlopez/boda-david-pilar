@@ -189,6 +189,9 @@ export function buildCssOverrides(config: WeddingConfig): string {
     lines.push(`  --role-boton-texto: ${roles.botonTexto};`);
     lines.push(`  --role-bordes-divisores: ${roles.bordesDivisores};`);
     lines.push(`  --role-highlight-acento: ${roles.highlightAcento};`);
+    lines.push(`  --bronze-pale: ${roles.bordesDivisores};`);
+    lines.push(`  --cream-dark: ${roles.fondoAlterno};`);
+    lines.push(`  --brown-mid: ${roles.textoSecundario};`);
   }
   if (c.bronze)       lines.push(`  --bronze: ${c.bronze};`);
   if (c.bronzeLight)  lines.push(`  --bronze-light: ${c.bronzeLight};`);
