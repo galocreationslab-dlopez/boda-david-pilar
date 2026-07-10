@@ -41,7 +41,6 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
   const [inicialNovio, setInicialNovio] = useState(config.iniciales.novio ?? "");
   const [nombreConjunto, setNombreConjunto] = useState(config.nombreConjunto ?? `${config.novia.nombre} & ${config.novio.nombre}`);
   const [inicialesConjuntas, setInicialesConjuntas] = useState(config.inicialesConjuntas ?? `${config.iniciales.novia}&${config.iniciales.novio}`);
-  const [bienvenida, setBienvenida] = useState(config.textos.bienvenida ?? "");
   const [fechaFormateada, setFechaFormateada] = useState(config.fechaFormateada ?? "");
 
   const [ubicaciones, setUbicaciones] = useState<Array<Localizacion & { fechaHoraTexto?: string }>>(
@@ -108,10 +107,6 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
         nombreConjunto,
         inicialesConjuntas,
         fechaFormateada,
-        textos: {
-          ...config.textos,
-          bienvenida,
-        },
         localizaciones,
       };
 
@@ -190,9 +185,8 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
             <label className="label-field">Fecha visible</label>
             <input className="input-field" value={fechaFormateada} onChange={(e) => setFechaFormateada(e.target.value)} placeholder="6 de marzo de 2027" />
           </div>
-          <div className="md:col-span-2">
-            <label className="label-field">Texto de bienvenida</label>
-            <textarea className="input-field" rows={3} value={bienvenida} onChange={(e) => setBienvenida(e.target.value)} />
+          <div className="md:col-span-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
+            El texto de bienvenida se edita desde Diseño de la web, dentro de la sección Portada.
           </div>
         </div>
       </section>

@@ -108,6 +108,7 @@ export type SeccionDiseno = {
   titulo: string;
   tipo: TipoSeccionDiseno;
   paletaId: string;
+  usarPaletaGlobal?: boolean;
   visible: boolean;
   perfiles: string[];
   items: ItemSeccionDiseno[];
@@ -251,6 +252,7 @@ export const weddingConfig: WeddingConfig = {
         titulo: "Invitación",
         tipo: "portada",
         paletaId: "paleta-clasica",
+        usarPaletaGlobal: true,
         visible: true,
         perfiles: ["publico"],
         items: [],
@@ -261,6 +263,7 @@ export const weddingConfig: WeddingConfig = {
         titulo: "Nuestra historia",
         tipo: "historia",
         paletaId: "paleta-clasica",
+        usarPaletaGlobal: true,
         visible: true,
         perfiles: ["publico"],
         items: [],
@@ -271,6 +274,7 @@ export const weddingConfig: WeddingConfig = {
         titulo: "Momentos",
         tipo: "galeria",
         paletaId: "paleta-clasica",
+        usarPaletaGlobal: true,
         visible: true,
         perfiles: ["publico"],
         items: [],
@@ -281,6 +285,7 @@ export const weddingConfig: WeddingConfig = {
         titulo: "El gran día",
         tipo: "timeline",
         paletaId: "paleta-clasica",
+        usarPaletaGlobal: true,
         visible: true,
         perfiles: ["publico"],
         items: [],

@@ -56,10 +56,10 @@ export function HeroPortada({
               lineHeight: 1.05,
               letterSpacing: "-0.01em",
             }}
-            contentEditable={editable && Boolean(config.nombreConjunto?.trim())}
+            contentEditable={editable && typeof onEditNombreConjunto === "function" && Boolean(config.nombreConjunto?.trim())}
             suppressContentEditableWarning={true}
             onBlur={(event) => {
-              if (!editable) return;
+              if (!editable || typeof onEditNombreConjunto !== "function") return;
               onEditNombreConjunto?.(event.currentTarget.textContent ?? "");
             }}
           >

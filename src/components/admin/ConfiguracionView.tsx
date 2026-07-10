@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
 import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
 import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
@@ -61,6 +61,36 @@ function normalizeTemaColores(colores: TemaColores): TemaColores {
   };
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const cleaned = hex.trim().replace("#", "");
+  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(cleaned)) return null;
+  const normalized = cleaned.length === 3
+    ? cleaned.split("").map((char) => `${char}${char}`).join("")
+    : cleaned;
+  const value = Number.parseInt(normalized, 16);
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255,
+  };
+}
+
+function toLuminance(channel: number): number {
+  const s = channel / 255;
+  return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+}
+
+function contrastRatio(foregroundHex: string, backgroundHex: string): number | null {
+  const fg = hexToRgb(foregroundHex);
+  const bg = hexToRgb(backgroundHex);
+  if (!fg || !bg) return null;
+  const fgLum = 0.2126 * toLuminance(fg.r) + 0.7152 * toLuminance(fg.g) + 0.0722 * toLuminance(fg.b);
+  const bgLum = 0.2126 * toLuminance(bg.r) + 0.7152 * toLuminance(bg.g) + 0.0722 * toLuminance(bg.b);
+  const light = Math.max(fgLum, bgLum);
+  const dark = Math.min(fgLum, bgLum);
+  return Number(((light + 0.05) / (dark + 0.05)).toFixed(2));
+}
+
 function ensurePalette(paleta: TemaPaleta, fallback: TemaColores): TemaPaleta {
   const safe = {
     ...fallback,
@@ -108,6 +138,7 @@ function defaultSection(paletaId: string, tipo: TipoSeccionDiseno = "portada"): 
     titulo: tipo === "portada" ? "Invitacion" : "Titulo",
     tipo,
     paletaId,
+    usarPaletaGlobal: true,
     visible: true,
     perfiles: ["publico"],
     items: [],
@@ -120,8 +151,20 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
     return fromConfig.map((sec) => ({
       ...sec,
       paletaId: sec.paletaId || paletaId,
+      usarPaletaGlobal: sec.usarPaletaGlobal ?? true,
       perfiles: sec.perfiles?.length ? sec.perfiles : ["publico"],
-      items: sec.items ?? [],
+      items:
+        sec.tipo === "portada"
+          ? (sec.items?.length
+              ? sec.items
+              : [
+                  {
+                    id: `item-${uid()}`,
+                    titulo: "Bienvenida",
+                    descripcion: config.textos.bienvenida,
+                  },
+                ])
+          : (sec.items ?? []),
     }));
   }
 
@@ -213,6 +256,11 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [sectionDrafts, setSectionDrafts] = useState<Record<string, SeccionDiseno>>({});
   const [selectedDraftItemId, setSelectedDraftItemId] = useState<string | null>(null);
+  const [sectionEditMode, setSectionEditMode] = useState<"contenido" | "diseno">("contenido");
+  const [renamingSectionId, setRenamingSectionId] = useState<string | null>(null);
+  const [renamingValue, setRenamingValue] = useState("");
+  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
+  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
 
   const [paletasCollapsed, setPaletasCollapsed] = useState(false);
   const [separadorCollapsed, setSeparadorCollapsed] = useState(false);
@@ -243,6 +291,33 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     () => paletas.find((p) => p.id === paletaEditandoId) ?? paletaActiva,
     [paletaActiva, paletaEditandoId, paletas],
   );
+
+  const contrastWarnings = useMemo(() => {
+    if (!paletaEditando) return [] as string[];
+    const c = paletaEditando.colores;
+    const checks = [
+      {
+        label: "Texto principal sobre fondo principal",
+        ratio: contrastRatio(c.brownDark, c.cream),
+      },
+      {
+        label: "Texto secundario sobre fondo principal",
+        ratio: contrastRatio(c.oliveMuted, c.cream),
+      },
+      {
+        label: "Texto de botón sobre fondo de botón",
+        ratio: contrastRatio(c.white, c.bronze),
+      },
+      {
+        label: "Acento sobre fondo principal",
+        ratio: contrastRatio(c.bronzeLight, c.cream),
+      },
+    ];
+
+    return checks
+      .filter((item) => item.ratio !== null && item.ratio < 4.5)
+      .map((item) => `${item.label}: ${item.ratio?.toFixed(2)} (mínimo recomendado 4.5)`);
+  }, [paletaEditando]);
 
   const seccionesEfectivas = useMemo(
     () => secciones.map((sec) => sectionDrafts[sec.id] ?? sec),
@@ -481,6 +556,20 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     setSecciones((prev) => prev.map((s) => (s.id === sectionId ? { ...s, ...patch } : s)));
   };
 
+  const patchSectionMeta = (sectionId: string, patch: Partial<SeccionDiseno>) => {
+    if (sectionDrafts[sectionId]) {
+      setSectionDrafts((prev) => ({
+        ...prev,
+        [sectionId]: {
+          ...prev[sectionId],
+          ...patch,
+        },
+      }));
+      return;
+    }
+    updateSection(sectionId, patch);
+  };
+
   const addSection = () => {
     const paletaId = paletaActiva?.id ?? paletas[0]?.id ?? "";
     const next = defaultSection(paletaId, "portada");
@@ -533,6 +622,51 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     });
   };
 
+  const moveSectionBefore = (draggedSectionId: string, targetSectionId: string) => {
+    if (draggedSectionId === targetSectionId) return;
+
+    setSecciones((prev) => {
+      const draggedIndex = prev.findIndex((s) => s.id === draggedSectionId);
+      const targetIndex = prev.findIndex((s) => s.id === targetSectionId);
+      if (draggedIndex < 0 || targetIndex < 0) return prev;
+      const next = [...prev];
+      const [dragged] = next.splice(draggedIndex, 1);
+      const insertAt = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      next.splice(insertAt, 0, dragged);
+      return next;
+    });
+  };
+
+  const formatPerfilesLabel = (perfiles: string[] | undefined) => {
+    if (!perfiles || perfiles.length === 0) return "Todos";
+    if (perfiles.length <= 2) return perfiles.join(", ");
+    return `${perfiles.slice(0, 2).join(", ")} +${perfiles.length - 2}`;
+  };
+
+  const getPaletteBySection = (section: SeccionDiseno): TemaPaleta => {
+    const shouldUseGlobal = section.usarPaletaGlobal ?? true;
+    if (shouldUseGlobal) {
+      return paletaActiva ?? paletas[0];
+    }
+    return paletas.find((palette) => palette.id === section.paletaId) ?? paletaActiva ?? paletas[0];
+  };
+
+  const getSectionThemeVars = (section: SeccionDiseno): CSSProperties => {
+    const palette = getPaletteBySection(section);
+    return {
+      ["--bronze" as string]: palette?.colores.bronze ?? "#8C6A3F",
+      ["--bronze-light" as string]: palette?.colores.bronzeLight ?? "#C4964A",
+      ["--olive" as string]: palette?.colores.olive ?? "#5C6B3A",
+      ["--olive-muted" as string]: palette?.colores.oliveMuted ?? "#8A9468",
+      ["--cream" as string]: palette?.colores.cream ?? "#F7F3EC",
+      ["--cream-dark" as string]: "#EDE7DB",
+      ["--brown-dark" as string]: palette?.colores.brownDark ?? "#2E1F0E",
+      ["--white" as string]: palette?.colores.white ?? "#FDFAF5",
+      ["--font-display" as string]: fuentes.display,
+      ["--font-body" as string]: fuentes.body,
+    };
+  };
+
   const isSectionDirty = (sectionId: string): boolean => {
     const base = sectionBaseMap[sectionId];
     const draft = sectionDrafts[sectionId];
@@ -545,6 +679,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     if (!base) return;
     setSelectedSectionId(sectionId);
     setEditingSectionId(sectionId);
+    setSectionEditMode("contenido");
     setSectionDrafts((prev) => (prev[sectionId] ? prev : { ...prev, [sectionId]: structuredClone(base) }));
   };
 
@@ -557,6 +692,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     if (!base) return;
 
     setEditingSectionId(sectionId);
+    setSectionEditMode("contenido");
     setSectionDrafts((prev) => (prev[sectionId] ? prev : { ...prev, [sectionId]: structuredClone(base) }));
   };
 
@@ -710,17 +846,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     patchEditingSectionDraft({ items: [nextFirst, ...editingSectionDraft.items.slice(1)] });
   };
 
-  const setPortadaNombreConjunto = (text: string) => {
-    if (!editingSectionDraft || editingSectionDraft.tipo !== "portada") return;
-    const currentFirst = editingSectionDraft.items[0] ?? {
-      id: `item-${uid()}`,
-      titulo: "",
-      descripcion: "",
-    };
-    const nextFirst = { ...currentFirst, titulo: text };
-    patchEditingSectionDraft({ items: [nextFirst, ...editingSectionDraft.items.slice(1)] });
-  };
-
   const requestInlineImageEdit = (itemId: string) => {
     if (!editingSectionDraft) return;
     setSelectedDraftItemId(itemId);
@@ -741,12 +866,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
   const getPortadaConfig = (section: SeccionDiseno): WeddingConfig => {
     const welcome = section.items?.[0]?.descripcion?.trim();
-    const nombreConjunto = section.items?.[0]?.titulo?.trim();
-    const keepCurrentName = !nombreConjunto || nombreConjunto.toLowerCase() === "bienvenida";
-    if (!welcome && keepCurrentName) return ic;
+    if (!welcome) return ic;
     return {
       ...ic,
-      nombreConjunto: keepCurrentName ? ic.nombreConjunto : nombreConjunto,
       textos: {
         ...ic.textos,
         bienvenida: welcome || ic.textos.bienvenida,
@@ -758,6 +880,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     setSaving(true);
     try {
       const seccionesConPendientes = secciones.map((sec) => sectionDrafts[sec.id] ?? sec);
+      const seccionPortada = seccionesConPendientes.find((sec) => sec.tipo === "portada");
+      const bienvenidaPortada = seccionPortada?.items?.[0]?.descripcion;
       const colors = paletaActiva?.colores ?? ic.tema.colores;
       const payload: Record<string, unknown> = {
         tema: {
@@ -774,6 +898,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         timeline,
         logo: logoUrl,
       };
+
+      if (typeof bienvenidaPortada === "string") {
+        payload.textos = {
+          ...ic.textos,
+          bienvenida: bienvenidaPortada,
+        };
+      }
 
       const res = await fetch(`/api/admin/${inviteCode}/config`, {
         method: "POST",
@@ -926,11 +1057,12 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     const scale = compact ? 0.24 : editorViewport === "movil" ? 0.45 : 0.62;
     const width = compact ? "418%" : editorViewport === "movil" ? "222%" : "161%";
     const openInCanvas = compact;
+    const themeVars = getSectionThemeVars(section);
 
     return (
       <div className={`overflow-hidden rounded-xl border border-stone-200 bg-stone-100 ${compact ? "relative aspect-[16/10]" : ""}`}>
         <div
-          style={{ transform: `scale(${scale})`, transformOrigin: "top left", width }}
+          style={{ ...themeVars, transform: `scale(${scale})`, transformOrigin: "top left", width }}
           className={`${editable ? "pointer-events-auto" : "pointer-events-none"} ${compact ? "absolute inset-0" : ""}`}
         >
           {section.tipo === "portada" && (
@@ -938,7 +1070,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               <MainWithInvite
                 config={getPortadaConfig(section)}
                 editable={editable}
-                onEditNombreConjunto={setPortadaNombreConjunto}
                 onEditBienvenida={setPortadaWelcomeText}
               />
             </SeccionColapsable>
@@ -1197,6 +1328,19 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     ))}
                     <button onClick={addExtraColor} className="w-full rounded border border-dashed border-stone-300 py-1 text-xs text-stone-600">+ Anadir color</button>
                   </div>
+
+                  <div className={`rounded border p-2 text-[11px] ${contrastWarnings.length > 0 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+                    <p className="font-semibold">Contraste (WCAG)</p>
+                    {contrastWarnings.length > 0 ? (
+                      <ul className="mt-1 list-disc pl-4">
+                        {contrastWarnings.map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1">Sin advertencias en las combinaciones principales.</p>
+                    )}
+                  </div>
                 </>
               )}
             </section>
@@ -1256,6 +1400,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   const secDraft = sectionDrafts[sec.id] ?? sec;
                   const secDirty = isSectionDirty(sec.id);
                   const secEditing = editingSectionId === sec.id;
+                  const secPerfiles = secDraft.perfiles ?? [];
 
                   return (
                     <article
@@ -1263,15 +1408,115 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       ref={(node) => {
                         sectionCardRefs.current[sec.id] = node;
                       }}
-                      className={`rounded-xl border p-2 ${selectedSectionId === sec.id ? "border-amber-400 bg-amber-50/40" : "border-stone-200 bg-stone-50"}`}
+                      className={`rounded-xl border p-2 ${selectedSectionId === sec.id ? "border-amber-400 bg-amber-50/40" : "border-stone-200 bg-stone-50"} ${dragOverSectionId === sec.id ? "ring-2 ring-amber-300" : ""}`}
                       onClick={() => selectSectionFromPanel(sec.id)}
+                      onDragOver={(event) => {
+                        if (!draggingSectionId || draggingSectionId === sec.id) return;
+                        event.preventDefault();
+                        setDragOverSectionId(sec.id);
+                      }}
+                      onDragLeave={() => {
+                        if (dragOverSectionId === sec.id) setDragOverSectionId(null);
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        if (!draggingSectionId) return;
+                        moveSectionBefore(draggingSectionId, sec.id);
+                        setDragOverSectionId(null);
+                        setDraggingSectionId(null);
+                      }}
                     >
                       <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-stone-700">{sec.nombre || "Seccion"}</p>
-                        <div className="flex items-center gap-1">
-                          <button onClick={(e) => { e.stopPropagation(); moveSection(sec.id, -1); }} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↑</button>
-                          <button onClick={(e) => { e.stopPropagation(); moveSection(sec.id, 1); }} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↓</button>
+                        <div className="flex min-w-0 items-center gap-1">
+                          {renamingSectionId === sec.id ? (
+                            <input
+                              autoFocus
+                              className="input-field h-7 w-[170px] text-xs"
+                              value={renamingValue}
+                              onClick={(event) => event.stopPropagation()}
+                              onChange={(event) => setRenamingValue(event.target.value)}
+                              onBlur={() => {
+                                patchSectionMeta(sec.id, { nombre: renamingValue.trim() || "Sección" });
+                                setRenamingSectionId(null);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  patchSectionMeta(sec.id, { nombre: renamingValue.trim() || "Sección" });
+                                  setRenamingSectionId(null);
+                                }
+                                if (event.key === "Escape") {
+                                  setRenamingSectionId(null);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <p className="truncate text-xs font-semibold text-stone-700">{secDraft.nombre || "Seccion"}</p>
+                          )}
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setRenamingSectionId(sec.id);
+                              setRenamingValue(secDraft.nombre || "");
+                            }}
+                            className="rounded border border-stone-300 bg-white px-1.5 py-0.5 text-[11px] text-stone-600"
+                            title="Renombrar sección"
+                            aria-label="Renombrar sección"
+                          >
+                            ✎
+                          </button>
                         </div>
+
+                        <div className="flex items-center gap-1">
+                          <span
+                            draggable={true}
+                            onDragStart={(event) => {
+                              event.stopPropagation();
+                              event.dataTransfer.setData("text/plain", sec.id);
+                              event.dataTransfer.effectAllowed = "move";
+                              setDraggingSectionId(sec.id);
+                            }}
+                            onDragEnd={() => {
+                              setDraggingSectionId(null);
+                              setDragOverSectionId(null);
+                            }}
+                            className="cursor-grab rounded border border-stone-300 bg-white px-1.5 py-0.5 text-[11px] text-stone-500 active:cursor-grabbing"
+                            title="Arrastrar para reordenar"
+                            aria-label="Arrastrar para reordenar"
+                          >
+                            ⋮⋮
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mb-2">
+                        <details className="rounded border border-stone-200 bg-white px-2 py-1 text-[11px] text-stone-600" onClick={(event) => event.stopPropagation()}>
+                          <summary className="cursor-pointer list-none select-none">
+                            Visible para: {formatPerfilesLabel(secPerfiles)} ▾
+                          </summary>
+                          <div className="mt-2 grid grid-cols-2 gap-1">
+                            {PROFILE_OPTIONS.map((role) => (
+                              <label key={role} className="inline-flex items-center gap-1 text-[11px]">
+                                <input
+                                  type="checkbox"
+                                  checked={secPerfiles.includes(role)}
+                                  onChange={(event) => {
+                                    const next = event.target.checked
+                                      ? [...secPerfiles, role]
+                                      : secPerfiles.filter((item) => item !== role);
+                                    patchSectionMeta(sec.id, { perfiles: next });
+                                  }}
+                                />
+                                <span className="capitalize">{role}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </details>
+                        <p className="mt-1 text-[11px] text-stone-500">
+                          Paleta: {(secDraft.usarPaletaGlobal ?? true)
+                            ? `Global (${paletaActiva?.nombre ?? "sin nombre"})`
+                            : `Personalizada (${paletas.find((p) => p.id === secDraft.paletaId)?.nombre ?? "sin nombre"})`}
+                        </p>
                       </div>
 
                       <div className="relative">
@@ -1329,6 +1574,20 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     <span className="rounded border border-stone-300 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
                       Editando: {editingSectionDraft.nombre || "Sección"}
                     </span>
+                    <div className="inline-flex overflow-hidden rounded border border-stone-300 bg-white text-xs">
+                      <button
+                        onClick={() => setSectionEditMode("contenido")}
+                        className={`px-2 py-1 ${sectionEditMode === "contenido" ? "bg-amber-100 text-amber-800" : "text-stone-600"}`}
+                      >
+                        Contenido
+                      </button>
+                      <button
+                        onClick={() => setSectionEditMode("diseno")}
+                        className={`border-l border-stone-300 px-2 py-1 ${sectionEditMode === "diseno" ? "bg-amber-100 text-amber-800" : "text-stone-600"}`}
+                      >
+                        Diseño
+                      </button>
+                    </div>
                     <label className="inline-flex items-center gap-1 rounded border border-stone-300 px-2 py-1 text-xs text-stone-600">
                       <input
                         type="checkbox"
@@ -1337,48 +1596,46 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       />
                       Visible
                     </label>
-                    <div className="inline-flex items-center gap-1 rounded border border-stone-300 px-2 py-1 text-xs text-stone-600">
-                      {PROFILE_OPTIONS.map((role) => (
-                        <label key={role} className="inline-flex items-center gap-1">
-                          <input
-                            type="checkbox"
-                            checked={(editingSectionDraft.perfiles ?? []).includes(role)}
-                            onChange={(e) => {
-                              const current = editingSectionDraft.perfiles ?? [];
-                              const next = e.target.checked
-                                ? [...current, role]
-                                : current.filter((r) => r !== role);
-                              patchEditingSectionDraft({ perfiles: next });
-                            }}
-                          />
-                          <span className="uppercase">{role.slice(0, 3)}</span>
-                        </label>
-                      ))}
+                  </div>
+
+                  {sectionEditMode === "diseno" && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="inline-flex overflow-hidden rounded border border-stone-300 bg-white text-xs">
+                        <button
+                          onClick={() => patchEditingSectionDraft({ usarPaletaGlobal: true, paletaId: paletaActivaId })}
+                          className={`px-2 py-1 ${(editingSectionDraft.usarPaletaGlobal ?? true) ? "bg-amber-100 text-amber-800" : "text-stone-600"}`}
+                        >
+                          Usar paleta global
+                        </button>
+                        <button
+                          onClick={() => patchEditingSectionDraft({ usarPaletaGlobal: false })}
+                          className={`border-l border-stone-300 px-2 py-1 ${(editingSectionDraft.usarPaletaGlobal ?? true) ? "text-stone-600" : "bg-amber-100 text-amber-800"}`}
+                        >
+                          Personalizar sección
+                        </button>
+                      </div>
+                      <select
+                        className="input-field h-8 w-[170px] text-xs"
+                        value={editingSectionDraft.paletaId}
+                        disabled={editingSectionDraft.usarPaletaGlobal ?? true}
+                        onChange={(e) => patchEditingSectionDraft({ paletaId: e.target.value })}
+                      >
+                        {paletas.map((p) => (
+                          <option key={p.id} value={p.id}>{p.nombre}</option>
+                        ))}
+                      </select>
+                      <span className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-600">
+                        Activa: {(editingSectionDraft.usarPaletaGlobal ?? true)
+                          ? `Global (${paletaActiva?.nombre ?? "sin nombre"})`
+                          : `Sección (${paletas.find((p) => p.id === editingSectionDraft.paletaId)?.nombre ?? "sin nombre"})`}
+                      </span>
+                      <button onClick={handleSave} disabled={saving} className="ml-auto rounded-lg bg-amber-700 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
+                        {saving ? "Aplicando..." : "Aplicar y guardar"}
+                      </button>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      className="input-field h-8 w-[160px] text-xs"
-                      value={editingSectionDraft.tipo}
-                      onChange={(e) => patchEditingSectionDraft({ tipo: e.target.value as TipoSeccionDiseno })}
-                    >
-                      {SECTION_TYPES.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                    <select
-                      className="input-field h-8 w-[170px] text-xs"
-                      value={editingSectionDraft.paletaId}
-                      onChange={(e) => patchEditingSectionDraft({ paletaId: e.target.value })}
-                    >
-                      {paletas.map((p) => (
-                        <option key={p.id} value={p.id}>{p.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {(editingSectionDraft.tipo === "historia" || editingSectionDraft.tipo === "timeline") && (
+                  {sectionEditMode === "contenido" && (editingSectionDraft.tipo === "historia" || editingSectionDraft.tipo === "timeline") && (
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <button onClick={addEditingSectionItem} className="rounded border border-stone-300 px-2 py-1 text-xs text-stone-600">
                         Añadir entrada
@@ -1389,7 +1646,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     </div>
                   )}
 
-                  {editingSectionDraft.tipo === "galeria" && (
+                  {sectionEditMode === "contenido" && editingSectionDraft.tipo === "galeria" && (
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <button onClick={addEditingSectionItem} className="rounded border border-stone-300 px-2 py-1 text-xs text-stone-600">
                         Añadir imagen
@@ -1400,11 +1657,23 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     </div>
                   )}
 
-                  {editingSectionDraft.tipo === "portada" && (
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <button onClick={handleSave} disabled={saving} className="rounded-lg bg-amber-700 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
-                        {saving ? "Aplicando..." : "Aplicar y guardar"}
-                      </button>
+                  {sectionEditMode === "contenido" && editingSectionDraft.tipo === "portada" && (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="label-field">Texto de bienvenida (Portada)</label>
+                        <textarea
+                          className="input-field w-full text-sm"
+                          rows={3}
+                          value={editingSectionDraft.items?.[0]?.descripcion ?? ic.textos.bienvenida}
+                          onChange={(e) => setPortadaWelcomeText(e.target.value)}
+                          placeholder="Escribe el mensaje de bienvenida"
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button onClick={handleSave} disabled={saving} className="rounded-lg bg-amber-700 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
+                          {saving ? "Aplicando..." : "Aplicar y guardar"}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </>
@@ -1432,7 +1701,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
               <div className="border-t border-stone-200" />
 
-              {editingSectionDraft && selectedDraftItem && selectedDraftItemId && (
+              {sectionEditMode === "contenido" && editingSectionDraft && editingSectionDraft.tipo !== "portada" && selectedDraftItem && selectedDraftItemId && (
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     className="input-field h-8 w-[180px] text-xs"
@@ -1542,12 +1811,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   {previewSectionsToRender.map((sec, idx) => {
                     const isLast = idx === previewSectionsToRender.length - 1;
                     const sectionIsBeingEdited = hasAnySectionInEditMode && editingSectionId === sec.id;
+                    const sectionThemeVars = getSectionThemeVars(sec);
                     return (
                       <div
                         key={sec.id}
                         ref={(node) => {
                           previewSectionRefs.current[sec.id] = node;
                         }}
+                        style={sectionThemeVars}
                         className={`relative ${!hasAnySectionInEditMode && selectedSectionId === sec.id ? "ring-1 ring-amber-300" : ""}`}
                       >
                         {sec.tipo === "portada" && (
@@ -1555,7 +1826,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             <MainWithInvite
                               config={getPortadaConfig(sec)}
                               editable={sectionIsBeingEdited}
-                              onEditNombreConjunto={setPortadaNombreConjunto}
                               onEditBienvenida={setPortadaWelcomeText}
                             />
                           </SeccionColapsable>
