@@ -763,7 +763,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   );
 
   const selectedComponentOption = useMemo(
-    () => editingComponentOptions.find((option) => option.key === selectedDesignComponentKey) ?? null,
+    () => editingComponentOptions.find((option) => option.key === selectedDesignComponentKey) ?? editingComponentOptions[0] ?? null,
     [editingComponentOptions, selectedDesignComponentKey],
   );
 
@@ -783,9 +783,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   );
 
   const selectedComponentRole = useMemo(() => {
-    if (!editingSectionDraft || !selectedDesignComponentKey) return null;
-    return getComponentRoleForSection(editingSectionDraft, selectedDesignComponentKey);
-  }, [editingSectionDraft, selectedDesignComponentKey]);
+    if (!editingSectionDraft || !selectedComponentOption) return null;
+    return getComponentRoleForSection(editingSectionDraft, selectedComponentOption.key);
+  }, [editingSectionDraft, selectedComponentOption]);
 
   const getSectionThemeVars = (section: SeccionDiseno): CSSProperties => {
     const palette = getPaletteBySection(section);
@@ -831,7 +831,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     if (!base) return;
 
     setEditingSectionId(sectionId);
-    setSectionEditMode("contenido");
     setSectionDrafts((prev) => (prev[sectionId] ? prev : { ...prev, [sectionId]: structuredClone(base) }));
   };
 
@@ -1750,6 +1749,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
                   {sectionEditMode === "diseno" && (
                     <div className="space-y-2">
+                      <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                        Modo diseño activo: selecciona un componente en el lienzo para asignar rol y color.
+                      </p>
+
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="inline-flex overflow-hidden rounded border border-stone-300 bg-white text-xs">
                           <button
@@ -1797,19 +1800,25 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         </div>
                       </div>
 
-                      {selectedComponentOption && selectedComponentRole && editingPalette && (
+                      {selectedComponentRole && editingPalette && (
                         <div className="grid gap-2 sm:grid-cols-[1fr_1fr]">
                           <div className="rounded border border-stone-200 bg-white p-2">
                             <label className="mb-1 block text-[11px] font-semibold text-stone-600">Rol del componente</label>
                             <select
                               className="input-field h-8 w-full text-xs"
                               value={selectedComponentRole}
-                              onChange={(event) => patchEditingSectionComponentRole(selectedComponentOption.key, event.target.value as TemaColorRole)}
+                              onChange={(event) => {
+                                if (!selectedComponentOption) return;
+                                patchEditingSectionComponentRole(selectedComponentOption.key, event.target.value as TemaColorRole);
+                              }}
                             >
                               {ROLE_KEYS.map((role) => (
                                 <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                               ))}
                             </select>
+                            <p className="mt-1 text-[11px] text-stone-500">
+                              Componente: {selectedComponentOption?.label ?? "Selecciona un componente"}
+                            </p>
                           </div>
                           <div className="rounded border border-stone-200 bg-white p-2">
                             <label className="mb-1 block text-[11px] font-semibold text-stone-600">Color del rol</label>
@@ -1822,6 +1831,28 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                                 <option key={swatch.id} value={swatch.id}>{swatch.label}</option>
                               ))}
                             </select>
+                          </div>
+                        </div>
+                      )}
+
+                      {editingPaletteRoleMap && editingPalette && (
+                        <div className="rounded border border-stone-200 bg-white p-2">
+                          <p className="mb-2 text-[11px] font-semibold text-stone-600">Roles de la sección</p>
+                          <div className="grid gap-1 sm:grid-cols-2">
+                            {ROLE_KEYS.map((role) => (
+                              <label key={role} className="grid grid-cols-[1fr_130px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
+                                <span className="text-[11px] text-stone-700">{ROLE_LABELS[role]}</span>
+                                <select
+                                  className="h-7 rounded border border-stone-300 bg-white px-1 text-[11px] text-stone-700"
+                                  value={editingPaletteRoleMap[role]}
+                                  onChange={(event) => applySwatchToRoleInEditingSection(role, event.target.value)}
+                                >
+                                  {editingPaletteSwatches.map((swatch) => (
+                                    <option key={swatch.id} value={swatch.id}>{swatch.label}</option>
+                                  ))}
+                                </select>
+                              </label>
+                            ))}
                           </div>
                         </div>
                       )}

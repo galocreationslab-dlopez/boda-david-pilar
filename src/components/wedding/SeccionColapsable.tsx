@@ -5,7 +5,7 @@
  * La portada (ocultarCabecera=true) no muestra cabecera.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
   id: string;
@@ -31,6 +31,10 @@ export function SeccionColapsable({
   children,
 }: Props) {
   const [abierta, setAbierta] = useState(abiertaPorDefecto);
+
+  useEffect(() => {
+    setAbierta(abiertaPorDefecto);
+  }, [abiertaPorDefecto]);
 
   return (
     <section id={id} style={{ backgroundColor: bgColor }}>
