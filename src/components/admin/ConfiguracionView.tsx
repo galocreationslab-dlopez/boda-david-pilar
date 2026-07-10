@@ -1180,8 +1180,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <p className="text-xs font-semibold text-stone-700">{sec.nombre || "Seccion"}</p>
                         <div className="flex items-center gap-1">
-                          <button onClick={() => moveSection(sec.id, -1)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↑</button>
-                          <button onClick={() => moveSection(sec.id, 1)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↓</button>
+                          <button onClick={(e) => { e.stopPropagation(); moveSection(sec.id, -1); }} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↑</button>
+                          <button onClick={(e) => { e.stopPropagation(); moveSection(sec.id, 1); }} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↓</button>
                         </div>
                       </div>
 
@@ -1200,14 +1200,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         {secEditing || secDirty ? (
                           <>
                             <button
-                              onClick={() => saveSectionDraftById(sec.id)}
+                              onClick={(e) => { e.stopPropagation(); saveSectionDraftById(sec.id); }}
                               disabled={!secDirty}
                               className="rounded border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700 disabled:opacity-50"
                             >
                               Guardar cambios
                             </button>
                             <button
-                              onClick={() => discardSectionDraftById(sec.id)}
+                              onClick={(e) => { e.stopPropagation(); discardSectionDraftById(sec.id); }}
                               className="rounded border border-red-200 px-1.5 py-0.5 text-[11px] text-red-600"
                             >
                               Descartar
@@ -1215,15 +1215,15 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           </>
                         ) : (
                           <button
-                            onClick={() => startSectionEditing(sec.id)}
+                            onClick={(e) => { e.stopPropagation(); startSectionEditing(sec.id); }}
                             className="rounded border border-stone-300 bg-white px-1.5 py-0.5 text-[11px]"
                             title="Editar sección"
                           >
                             Editar
                           </button>
                         )}
-                        <button onClick={() => cloneSection(sec.id)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">Clonar</button>
-                        <button onClick={() => removeSection(sec.id)} className="rounded border border-red-200 px-1.5 py-0.5 text-[11px] text-red-600">Eliminar</button>
+                        <button onClick={(e) => { e.stopPropagation(); cloneSection(sec.id); }} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">Clonar</button>
+                        <button onClick={(e) => { e.stopPropagation(); removeSection(sec.id); }} className="rounded border border-red-200 px-1.5 py-0.5 text-[11px] text-red-600">Eliminar</button>
                       </div>
                     </article>
                   );
@@ -1237,12 +1237,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               {editingSectionDraft ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      className="input-field h-8 min-w-[240px] flex-1 text-xs"
-                      value={editingSectionDraft.titulo}
-                      onChange={(e) => patchEditingSectionDraft({ titulo: e.target.value })}
-                      placeholder="Título de sección"
-                    />
+                    <span className="rounded border border-stone-300 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
+                      Editando: {editingSectionDraft.nombre || "Sección"}
+                    </span>
                     <label className="inline-flex items-center gap-1 rounded border border-stone-300 px-2 py-1 text-xs text-stone-600">
                       <input
                         type="checkbox"
@@ -1290,12 +1287,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         <option key={p.id} value={p.id}>{p.nombre}</option>
                       ))}
                     </select>
-                    <input
-                      className="input-field h-8 w-[180px] text-xs"
-                      value={editingSectionDraft.nombre}
-                      onChange={(e) => patchEditingSectionDraft({ nombre: e.target.value })}
-                      placeholder="Nombre interno"
-                    />
                   </div>
 
                   {(editingSectionDraft.tipo === "historia" || editingSectionDraft.tipo === "timeline") && (
@@ -1321,13 +1312,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   )}
 
                   {editingSectionDraft.tipo === "portada" && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        className="input-field h-8 min-w-[280px] flex-1 text-xs"
-                        value={editingSectionDraft.items?.[0]?.descripcion ?? ic.textos.bienvenida}
-                        onChange={(e) => setPortadaWelcomeText(e.target.value)}
-                        placeholder="Texto de bienvenida portada"
-                      />
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       <button onClick={handleSave} disabled={saving} className="rounded-lg bg-amber-700 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
                         {saving ? "Aplicando..." : "Aplicar y guardar"}
                       </button>
@@ -1467,14 +1452,38 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 <main className={editorViewport === "movil" ? "mx-auto max-w-[430px]" : ""}>
                   {previewSectionsToRender.map((sec, idx) => {
                     const isLast = idx === previewSectionsToRender.length - 1;
+                    const sectionIsBeingEdited = hasAnySectionInEditMode && editingSectionId === sec.id;
                     return (
                       <div
                         key={sec.id}
                         ref={(node) => {
                           previewSectionRefs.current[sec.id] = node;
                         }}
-                        className={!hasAnySectionInEditMode && selectedSectionId === sec.id ? "ring-1 ring-amber-300" : ""}
+                        className={`relative ${!hasAnySectionInEditMode && selectedSectionId === sec.id ? "ring-1 ring-amber-300" : ""}`}
                       >
+                        {sectionIsBeingEdited && sec.tipo !== "portada" && (
+                          <div className="pointer-events-auto absolute left-3 right-3 top-2 z-20 rounded-lg border border-amber-300 bg-white/95 p-2 shadow-sm">
+                            <input
+                              className="input-field h-8 w-full text-xs"
+                              value={sec.titulo}
+                              onChange={(e) => patchEditingSectionDraft({ titulo: e.target.value })}
+                              placeholder="Título de sección"
+                            />
+                          </div>
+                        )}
+
+                        {sectionIsBeingEdited && sec.tipo === "portada" && (
+                          <div className="pointer-events-auto absolute left-3 right-3 top-2 z-20 rounded-lg border border-amber-300 bg-white/95 p-2 shadow-sm">
+                            <textarea
+                              className="input-field w-full text-xs"
+                              rows={2}
+                              value={sec.items?.[0]?.descripcion ?? ic.textos.bienvenida}
+                              onChange={(e) => setPortadaWelcomeText(e.target.value)}
+                              placeholder="Frase de invitación"
+                            />
+                          </div>
+                        )}
+
                         {sec.tipo === "portada" && (
                           <SeccionColapsable id={`preview-${sec.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
                             <MainWithInvite config={getPortadaConfig(sec)} />
