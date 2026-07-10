@@ -220,6 +220,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [editorViewport, setEditorViewport] = useState<"desktop" | "movil">("desktop");
   const sectionCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const previewSectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const inlineImageFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [inlineImageTargetItemId, setInlineImageTargetItemId] = useState<string | null>(null);
 
   const [fuentes, setFuentes] = useState({ ...ic.tema.fuentes });
   const [logoUrl, setLogoUrl] = useState(ic.logo ?? "");
@@ -708,14 +710,46 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     patchEditingSectionDraft({ items: [nextFirst, ...editingSectionDraft.items.slice(1)] });
   };
 
+  const setPortadaNombreConjunto = (text: string) => {
+    if (!editingSectionDraft || editingSectionDraft.tipo !== "portada") return;
+    const currentFirst = editingSectionDraft.items[0] ?? {
+      id: `item-${uid()}`,
+      titulo: "",
+      descripcion: "",
+    };
+    const nextFirst = { ...currentFirst, titulo: text };
+    patchEditingSectionDraft({ items: [nextFirst, ...editingSectionDraft.items.slice(1)] });
+  };
+
+  const requestInlineImageEdit = (itemId: string) => {
+    if (!editingSectionDraft) return;
+    setSelectedDraftItemId(itemId);
+
+    const selectedItem = editingSectionDraft.items.find((item) => item.id === itemId);
+    const useUrl = window.confirm("Editar imagen: Aceptar para pegar URL. Cancelar para subir archivo.");
+
+    if (useUrl) {
+      const nextUrl = window.prompt("Pega la URL pública de la imagen", selectedItem?.imagen ?? "");
+      if (nextUrl === null) return;
+      patchEditingSectionItem(itemId, { imagen: nextUrl.trim() });
+      return;
+    }
+
+    setInlineImageTargetItemId(itemId);
+    inlineImageFileInputRef.current?.click();
+  };
+
   const getPortadaConfig = (section: SeccionDiseno): WeddingConfig => {
     const welcome = section.items?.[0]?.descripcion?.trim();
-    if (!welcome) return ic;
+    const nombreConjunto = section.items?.[0]?.titulo?.trim();
+    const keepCurrentName = !nombreConjunto || nombreConjunto.toLowerCase() === "bienvenida";
+    if (!welcome && keepCurrentName) return ic;
     return {
       ...ic,
+      nombreConjunto: keepCurrentName ? ic.nombreConjunto : nombreConjunto,
       textos: {
         ...ic.textos,
-        bienvenida: welcome,
+        bienvenida: welcome || ic.textos.bienvenida,
       },
     };
   };
@@ -888,7 +922,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     return previewGalleryMedia;
   };
 
-  const renderSectionCanvas = (section: SeccionDiseno, compact = false) => {
+  const renderSectionCanvas = (section: SeccionDiseno, compact = false, editable = false) => {
     const scale = compact ? 0.24 : editorViewport === "movil" ? 0.45 : 0.62;
     const width = compact ? "418%" : editorViewport === "movil" ? "222%" : "161%";
     const openInCanvas = compact;
@@ -897,26 +931,81 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       <div className={`overflow-hidden rounded-xl border border-stone-200 bg-stone-100 ${compact ? "relative aspect-[16/10]" : ""}`}>
         <div
           style={{ transform: `scale(${scale})`, transformOrigin: "top left", width }}
-          className={`pointer-events-none ${compact ? "absolute inset-0" : ""}`}
+          className={`${editable ? "pointer-events-auto" : "pointer-events-none"} ${compact ? "absolute inset-0" : ""}`}
         >
           {section.tipo === "portada" && (
             <SeccionColapsable id={`canvas-${section.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
-              <MainWithInvite config={getPortadaConfig(section)} />
+              <MainWithInvite
+                config={getPortadaConfig(section)}
+                editable={editable}
+                onEditNombreConjunto={setPortadaNombreConjunto}
+                onEditBienvenida={setPortadaWelcomeText}
+              />
             </SeccionColapsable>
           )}
           {section.tipo === "historia" && (
-            <SeccionColapsable id={`canvas-${section.id}`} titulo={section.titulo || "Nuestra historia"} abiertaPorDefecto={openInCanvas} bgColor="var(--cream)">
-              <SeccionHistoria eventos={historyEventsForSection(section)} />
+            <SeccionColapsable
+              id={`canvas-${section.id}`}
+              titulo={section.titulo || "Nuestra historia"}
+              abiertaPorDefecto={openInCanvas}
+              bgColor="var(--cream)"
+              editableTitle={editable}
+              onSelectTitle={() => setSelectedSectionId(section.id)}
+              onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
+            >
+              <SeccionHistoria
+                eventos={historyEventsForSection(section)}
+                editable={editable}
+                onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                onEditTexto={(itemId, field, value) => {
+                  if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });
+                  if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
+                  if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
+                }}
+                onRequestEditImagen={requestInlineImageEdit}
+              />
             </SeccionColapsable>
           )}
           {section.tipo === "timeline" && (
-            <SeccionColapsable id={`canvas-${section.id}`} titulo={section.titulo || "El gran día"} abiertaPorDefecto={openInCanvas} bgColor="var(--cream-dark)">
-              <SeccionTimeline localizaciones={ic.localizaciones} timeline={timelineEventsForSection(section)} />
+            <SeccionColapsable
+              id={`canvas-${section.id}`}
+              titulo={section.titulo || "El gran día"}
+              abiertaPorDefecto={openInCanvas}
+              bgColor="var(--cream-dark)"
+              editableTitle={editable}
+              onSelectTitle={() => setSelectedSectionId(section.id)}
+              onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
+            >
+              <SeccionTimeline
+                localizaciones={ic.localizaciones}
+                timeline={timelineEventsForSection(section)}
+                editable={editable}
+                onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                onEditTexto={(itemId, field, value) => {
+                  if (field === "hora") patchEditingSectionItem(itemId, { hora: value });
+                  if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
+                  if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
+                }}
+              />
             </SeccionColapsable>
           )}
           {section.tipo === "galeria" && (
-            <SeccionColapsable id={`canvas-${section.id}`} titulo={section.titulo || "Galería"} abiertaPorDefecto={openInCanvas} bgColor="var(--cream)">
-              <SeccionGaleria media={galleryMediaForSection(section)} />
+            <SeccionColapsable
+              id={`canvas-${section.id}`}
+              titulo={section.titulo || "Galería"}
+              abiertaPorDefecto={openInCanvas}
+              bgColor="var(--cream)"
+              editableTitle={editable}
+              onSelectTitle={() => setSelectedSectionId(section.id)}
+              onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
+            >
+              <SeccionGaleria
+                media={galleryMediaForSection(section)}
+                editable={editable}
+                onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                onEditTexto={(itemId, value) => patchEditingSectionItem(itemId, { titulo: value })}
+                onRequestEditImagen={requestInlineImageEdit}
+              />
             </SeccionColapsable>
           )}
         </div>
@@ -1186,7 +1275,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       </div>
 
                       <div className="relative">
-                        {renderSectionCanvas(secDraft, true)}
+                        {renderSectionCanvas(secDraft, true, secEditing)}
                         {secDirty && (
                           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                             <span className="rounded bg-black/45 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
@@ -1461,50 +1550,82 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         }}
                         className={`relative ${!hasAnySectionInEditMode && selectedSectionId === sec.id ? "ring-1 ring-amber-300" : ""}`}
                       >
-                        {sectionIsBeingEdited && sec.tipo !== "portada" && (
-                          <div className="pointer-events-auto absolute left-3 right-3 top-2 z-20 rounded-lg border border-amber-300 bg-white/95 p-2 shadow-sm">
-                            <input
-                              className="input-field h-8 w-full text-xs"
-                              value={sec.titulo}
-                              onChange={(e) => patchEditingSectionDraft({ titulo: e.target.value })}
-                              placeholder="Título de sección"
-                            />
-                          </div>
-                        )}
-
-                        {sectionIsBeingEdited && sec.tipo === "portada" && (
-                          <div className="pointer-events-auto absolute left-3 right-3 top-2 z-20 rounded-lg border border-amber-300 bg-white/95 p-2 shadow-sm">
-                            <textarea
-                              className="input-field w-full text-xs"
-                              rows={2}
-                              value={sec.items?.[0]?.descripcion ?? ic.textos.bienvenida}
-                              onChange={(e) => setPortadaWelcomeText(e.target.value)}
-                              placeholder="Frase de invitación"
-                            />
-                          </div>
-                        )}
-
                         {sec.tipo === "portada" && (
                           <SeccionColapsable id={`preview-${sec.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
-                            <MainWithInvite config={getPortadaConfig(sec)} />
+                            <MainWithInvite
+                              config={getPortadaConfig(sec)}
+                              editable={sectionIsBeingEdited}
+                              onEditNombreConjunto={setPortadaNombreConjunto}
+                              onEditBienvenida={setPortadaWelcomeText}
+                            />
                           </SeccionColapsable>
                         )}
 
                         {sec.tipo === "historia" && (
-                          <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "Nuestra historia"} abiertaPorDefecto={false} bgColor="var(--cream)">
-                            <SeccionHistoria eventos={historyEventsForSection(sec)} />
+                          <SeccionColapsable
+                            id={`preview-${sec.id}`}
+                            titulo={sec.titulo || "Nuestra historia"}
+                            abiertaPorDefecto={sectionIsBeingEdited}
+                            bgColor="var(--cream)"
+                            editableTitle={sectionIsBeingEdited}
+                            onSelectTitle={() => setSelectedSectionId(sec.id)}
+                            onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
+                          >
+                            <SeccionHistoria
+                              eventos={historyEventsForSection(sec)}
+                              editable={sectionIsBeingEdited}
+                              onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                              onEditTexto={(itemId, field, value) => {
+                                if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });
+                                if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
+                                if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
+                              }}
+                              onRequestEditImagen={requestInlineImageEdit}
+                            />
                           </SeccionColapsable>
                         )}
 
                         {sec.tipo === "galeria" && (
-                          <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "Galería"} abiertaPorDefecto={false} bgColor="var(--cream)">
-                            <SeccionGaleria media={galleryMediaForSection(sec)} />
+                          <SeccionColapsable
+                            id={`preview-${sec.id}`}
+                            titulo={sec.titulo || "Galería"}
+                            abiertaPorDefecto={sectionIsBeingEdited}
+                            bgColor="var(--cream)"
+                            editableTitle={sectionIsBeingEdited}
+                            onSelectTitle={() => setSelectedSectionId(sec.id)}
+                            onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
+                          >
+                            <SeccionGaleria
+                              media={galleryMediaForSection(sec)}
+                              editable={sectionIsBeingEdited}
+                              onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                              onEditTexto={(itemId, value) => patchEditingSectionItem(itemId, { titulo: value })}
+                              onRequestEditImagen={requestInlineImageEdit}
+                            />
                           </SeccionColapsable>
                         )}
 
                         {sec.tipo === "timeline" && (
-                          <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "El gran día"} abiertaPorDefecto={false} bgColor="var(--cream-dark)">
-                            <SeccionTimeline localizaciones={ic.localizaciones} timeline={timelineEventsForSection(sec)} />
+                          <SeccionColapsable
+                            id={`preview-${sec.id}`}
+                            titulo={sec.titulo || "El gran día"}
+                            abiertaPorDefecto={sectionIsBeingEdited}
+                            bgColor="var(--cream-dark)"
+                            editableTitle={sectionIsBeingEdited}
+                            onSelectTitle={() => setSelectedSectionId(sec.id)}
+                            onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
+                          >
+                            <SeccionTimeline
+                              localizaciones={ic.localizaciones}
+                              timeline={timelineEventsForSection(sec)}
+                              editable={sectionIsBeingEdited}
+                              onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
+                              onEditTexto={(itemId, field, value) => {
+                                if (field === "hora") patchEditingSectionItem(itemId, { hora: value });
+                                if (field === "titulo") patchEditingSectionItem(itemId, { titulo: value });
+                                if (field === "descripcion") patchEditingSectionItem(itemId, { descripcion: value });
+                              }}
+                            />
                           </SeccionColapsable>
                         )}
 
@@ -1512,6 +1633,23 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       </div>
                     );
                   })}
+
+                  {hasAnySectionInEditMode && (
+                    <input
+                      ref={inlineImageFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file && inlineImageTargetItemId) {
+                          void uploadEditingSectionItemImage(inlineImageTargetItemId, file);
+                        }
+                        setInlineImageTargetItemId(null);
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  )}
 
                   {previewSectionsToRender.length === 0 && (
                     <div className="rounded-xl border border-dashed border-stone-300 p-8 text-center text-sm text-stone-500">

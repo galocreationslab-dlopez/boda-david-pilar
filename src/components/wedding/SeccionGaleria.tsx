@@ -1,11 +1,17 @@
+"use client";
+
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
 
 type Props = {
   media: PublicGalleryMedia[];
+  editable?: boolean;
+  onEditTexto?: (itemId: string, value: string) => void;
+  onRequestEditImagen?: (itemId: string) => void;
+  onSelectItem?: (itemId: string) => void;
 };
 
-export function SeccionGaleria({ media }: Props) {
+export function SeccionGaleria({ media, editable = false, onEditTexto, onRequestEditImagen, onSelectItem }: Props) {
   return (
     <div className="section-wedding" style={{ backgroundColor: "var(--cream)" }}>
       <div className="container-wedding">
@@ -29,11 +35,33 @@ export function SeccionGaleria({ media }: Props) {
                       src={item.url_publica ?? ""}
                       alt={item.nombre}
                       className="h-full w-full object-cover"
+                      onClick={(event) => {
+                        if (!editable) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onSelectItem?.(item.id);
+                        onRequestEditImagen?.(item.id);
+                      }}
                     />
                   )}
                 </div>
                 <div className="space-y-1 p-4">
-                  <p className="font-display text-xl font-light text-stone-800">{item.nombre}</p>
+                  <p
+                    className="font-display text-xl font-light text-stone-800"
+                    contentEditable={editable}
+                    suppressContentEditableWarning={true}
+                    onClick={(event) => {
+                      if (!editable) return;
+                      event.stopPropagation();
+                      onSelectItem?.(item.id);
+                    }}
+                    onBlur={(event) => {
+                      if (!editable) return;
+                      onEditTexto?.(item.id, event.currentTarget.textContent ?? "");
+                    }}
+                  >
+                    {item.nombre}
+                  </p>
                   <p className="text-xs uppercase tracking-[0.22em] text-stone-400">{item.subido_por ?? "Galería"}</p>
                 </div>
               </article>

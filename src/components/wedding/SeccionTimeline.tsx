@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * components/wedding/SeccionTimeline.tsx
  * Timeline horizontal con camino curvo punteado.
@@ -11,6 +13,9 @@ import type { Localizacion } from "@/config/wedding.config";
 type Props = {
   localizaciones: Localizacion[];
   timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; enlaceMaps?: string }>;
+  editable?: boolean;
+  onEditTexto?: (itemId: string, field: "hora" | "titulo" | "descripcion", value: string) => void;
+  onSelectItem?: (itemId: string) => void;
 };
 
 type PuntoTimeline = {
@@ -154,7 +159,7 @@ function buildTimelinePoints(
   });
 }
 
-export function SeccionTimeline({ localizaciones, timeline }: Props) {
+export function SeccionTimeline({ localizaciones, timeline, editable = false, onEditTexto, onSelectItem }: Props) {
   const puntos = buildTimelinePoints(timeline, localizaciones);
   const showCurvedLine = puntos.length === 3;
 
@@ -199,13 +204,34 @@ export function SeccionTimeline({ localizaciones, timeline }: Props) {
                   borderTop: "3px solid var(--bronze)",
                 }}
               >
-                <p className="smallcaps text-xs tracking-widest" style={{ color: "var(--bronze)" }}>
+                <p
+                  className="smallcaps text-xs tracking-widest"
+                  style={{ color: "var(--bronze)" }}
+                  contentEditable={editable}
+                  suppressContentEditableWarning={true}
+                  onClick={() => onSelectItem?.(punto.id)}
+                  onBlur={(event) => onEditTexto?.(punto.id, "hora", event.currentTarget.textContent ?? "")}
+                >
                   {punto.hora}
                 </p>
-                <h3 className="font-display text-2xl font-light" style={{ color: "var(--brown-dark)" }}>
+                <h3
+                  className="font-display text-2xl font-light"
+                  style={{ color: "var(--brown-dark)" }}
+                  contentEditable={editable}
+                  suppressContentEditableWarning={true}
+                  onClick={() => onSelectItem?.(punto.id)}
+                  onBlur={(event) => onEditTexto?.(punto.id, "titulo", event.currentTarget.textContent ?? "")}
+                >
                   {punto.titulo}
                 </h3>
-                <p className="text-sm" style={{ color: "var(--olive-muted)" }}>
+                <p
+                  className="text-sm"
+                  style={{ color: "var(--olive-muted)" }}
+                  contentEditable={editable}
+                  suppressContentEditableWarning={true}
+                  onClick={() => onSelectItem?.(punto.id)}
+                  onBlur={(event) => onEditTexto?.(punto.id, "descripcion", event.currentTarget.textContent ?? "")}
+                >
                   {punto.subtitulo}
                 </p>
 
@@ -281,6 +307,10 @@ export function SeccionTimeline({ localizaciones, timeline }: Props) {
                     <span
                       className="font-display font-light"
                       style={{ fontSize: "1.15rem", color: "var(--white)", lineHeight: 1 }}
+                      contentEditable={editable}
+                      suppressContentEditableWarning={true}
+                      onClick={() => onSelectItem?.(punto.id)}
+                      onBlur={(event) => onEditTexto?.(punto.id, "hora", event.currentTarget.textContent ?? "")}
                     >
                       {punto.hora}
                     </span>
@@ -299,12 +329,20 @@ export function SeccionTimeline({ localizaciones, timeline }: Props) {
                     <p
                       className="font-display text-xl font-light mb-1"
                       style={{ color: "var(--brown-dark)" }}
+                      contentEditable={editable}
+                      suppressContentEditableWarning={true}
+                      onClick={() => onSelectItem?.(punto.id)}
+                      onBlur={(event) => onEditTexto?.(punto.id, "titulo", event.currentTarget.textContent ?? "")}
                     >
                       {punto.titulo}
                     </p>
                     <p
                       className="text-sm font-light mb-3"
                       style={{ color: "var(--olive-muted)" }}
+                      contentEditable={editable}
+                      suppressContentEditableWarning={true}
+                      onClick={() => onSelectItem?.(punto.id)}
+                      onBlur={(event) => onEditTexto?.(punto.id, "descripcion", event.currentTarget.textContent ?? "")}
                     >
                       {punto.subtitulo}
                     </p>

@@ -10,7 +10,13 @@ import Image from "next/image";
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { EventoHistoria } from "@/config/wedding.config";
 
-type Props = { eventos: EventoHistoria[] };
+type Props = {
+  eventos: EventoHistoria[];
+  editable?: boolean;
+  onEditTexto?: (id: string, field: "fecha" | "titulo" | "descripcion", value: string) => void;
+  onRequestEditImagen?: (id: string) => void;
+  onSelectItem?: (id: string) => void;
+};
 
 function resolveImageSrc(value: string): string {
   if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")) {
@@ -19,7 +25,7 @@ function resolveImageSrc(value: string): string {
   return `/images/${value}`;
 }
 
-export function SeccionHistoria({ eventos }: Props) {
+export function SeccionHistoria({ eventos, editable = false, onEditTexto, onRequestEditImagen, onSelectItem }: Props) {
   const [actual, setActual] = useState(0);
   const evento = eventos[actual];
   const total = eventos.length;
@@ -55,17 +61,43 @@ export function SeccionHistoria({ eventos }: Props) {
                     fill
                     className="object-cover"
                     sizes="100vw"
+                    onClick={() => {
+                      if (!editable) return;
+                      onSelectItem?.(item.id);
+                      onRequestEditImagen?.(item.id);
+                    }}
                   />
                 </div>
               )}
               <div className="space-y-3 p-6 text-left">
-                <p className="smallcaps text-xs tracking-widest" style={{ color: "var(--bronze)" }}>
+                <p
+                  className="smallcaps text-xs tracking-widest"
+                  style={{ color: "var(--bronze)" }}
+                  contentEditable={editable}
+                  suppressContentEditableWarning={true}
+                  onClick={() => onSelectItem?.(item.id)}
+                  onBlur={(event) => onEditTexto?.(item.id, "fecha", event.currentTarget.textContent ?? "")}
+                >
                   {item.fecha}
                 </p>
-                <h3 className="font-display text-3xl font-light" style={{ color: "var(--brown-dark)" }}>
+                <h3
+                  className="font-display text-3xl font-light"
+                  style={{ color: "var(--brown-dark)" }}
+                  contentEditable={editable}
+                  suppressContentEditableWarning={true}
+                  onClick={() => onSelectItem?.(item.id)}
+                  onBlur={(event) => onEditTexto?.(item.id, "titulo", event.currentTarget.textContent ?? "")}
+                >
                   {item.titulo}
                 </h3>
-                <p className="font-display text-lg italic font-light leading-relaxed" style={{ color: "var(--brown-mid)" }}>
+                <p
+                  className="font-display text-lg italic font-light leading-relaxed"
+                  style={{ color: "var(--brown-mid)" }}
+                  contentEditable={editable}
+                  suppressContentEditableWarning={true}
+                  onClick={() => onSelectItem?.(item.id)}
+                  onBlur={(event) => onEditTexto?.(item.id, "descripcion", event.currentTarget.textContent ?? "")}
+                >
                   {item.descripcion}
                 </p>
               </div>
@@ -95,6 +127,11 @@ export function SeccionHistoria({ eventos }: Props) {
                   fill
                   className="object-cover"
                   sizes="40vw"
+                  onClick={() => {
+                    if (!editable) return;
+                    onSelectItem?.(evento.id);
+                    onRequestEditImagen?.(evento.id);
+                  }}
                 />
               </div>
             )}
@@ -108,6 +145,10 @@ export function SeccionHistoria({ eventos }: Props) {
               <p
                 className="smallcaps mb-3 text-xs tracking-widest"
                 style={{ color: "var(--bronze)" }}
+                contentEditable={editable}
+                suppressContentEditableWarning={true}
+                onClick={() => onSelectItem?.(evento.id)}
+                onBlur={(event) => onEditTexto?.(evento.id, "fecha", event.currentTarget.textContent ?? "")}
               >
                 {evento.fecha}
               </p>
@@ -116,6 +157,10 @@ export function SeccionHistoria({ eventos }: Props) {
               <h3
                 className="font-display mb-4 text-4xl font-light"
                 style={{ color: "var(--brown-dark)" }}
+                contentEditable={editable}
+                suppressContentEditableWarning={true}
+                onClick={() => onSelectItem?.(evento.id)}
+                onBlur={(event) => onEditTexto?.(evento.id, "titulo", event.currentTarget.textContent ?? "")}
               >
                 {evento.titulo}
               </h3>
@@ -124,6 +169,10 @@ export function SeccionHistoria({ eventos }: Props) {
               <p
                 className="font-display text-xl italic font-light leading-relaxed"
                 style={{ color: "var(--brown-mid)" }}
+                contentEditable={editable}
+                suppressContentEditableWarning={true}
+                onClick={() => onSelectItem?.(evento.id)}
+                onBlur={(event) => onEditTexto?.(evento.id, "descripcion", event.currentTarget.textContent ?? "")}
               >
                 {evento.descripcion}
               </p>
@@ -138,6 +187,11 @@ export function SeccionHistoria({ eventos }: Props) {
                   fill
                   className="object-cover"
                   sizes="40vw"
+                  onClick={() => {
+                    if (!editable) return;
+                    onSelectItem?.(evento.id);
+                    onRequestEditImagen?.(evento.id);
+                  }}
                 />
               </div>
             )}

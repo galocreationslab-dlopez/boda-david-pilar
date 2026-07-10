@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * components/wedding/HeroPortada.tsx
  * Portada/invitación — siempre desplegada, fondo oscuro con gradiente.
@@ -13,9 +15,20 @@ type Props = {
   mostrarBotonConfirmar?: boolean;
   labelBotonConfirmar?: string;
   onConfirmarClick?: () => void;
+  editable?: boolean;
+  onEditNombreConjunto?: (value: string) => void;
+  onEditBienvenida?: (value: string) => void;
 };
 
-export function HeroPortada({ config, mostrarBotonConfirmar = false, labelBotonConfirmar, onConfirmarClick }: Props) {
+export function HeroPortada({
+  config,
+  mostrarBotonConfirmar = false,
+  labelBotonConfirmar,
+  onConfirmarClick,
+  editable = false,
+  onEditNombreConjunto,
+  onEditBienvenida,
+}: Props) {
   return (
     <div
       className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-4 text-center"
@@ -42,6 +55,12 @@ export function HeroPortada({ config, mostrarBotonConfirmar = false, labelBotonC
               color: "var(--white)",
               lineHeight: 1.05,
               letterSpacing: "-0.01em",
+            }}
+            contentEditable={editable && Boolean(config.nombreConjunto?.trim())}
+            suppressContentEditableWarning={true}
+            onBlur={(event) => {
+              if (!editable) return;
+              onEditNombreConjunto?.(event.currentTarget.textContent ?? "");
             }}
           >
             {config.nombreConjunto?.trim() ? (
@@ -82,6 +101,13 @@ export function HeroPortada({ config, mostrarBotonConfirmar = false, labelBotonC
         <p
           className="font-display text-xl sm:text-2xl font-light italic max-w-md leading-relaxed animate-fade-up delay-400"
           style={{ color: "var(--cream)", opacity: 0.85 }}
+          contentEditable={editable}
+          suppressContentEditableWarning={true}
+          onBlur={(event) => {
+            if (!editable) return;
+            const value = (event.currentTarget.textContent ?? "").replace(/^"|"$/g, "").trim();
+            onEditBienvenida?.(value);
+          }}
         >
           &ldquo;{config.textos.bienvenida}&rdquo;
         </p>

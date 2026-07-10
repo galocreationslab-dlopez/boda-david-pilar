@@ -13,6 +13,9 @@ type Props = {
   abiertaPorDefecto: boolean;
   ocultarCabecera?: boolean;
   bgColor?: string;
+  editableTitle?: boolean;
+  onChangeTitle?: (value: string) => void;
+  onSelectTitle?: () => void;
   children: React.ReactNode;
 };
 
@@ -22,6 +25,9 @@ export function SeccionColapsable({
   abiertaPorDefecto,
   ocultarCabecera = false,
   bgColor = "var(--cream)",
+  editableTitle = false,
+  onChangeTitle,
+  onSelectTitle,
   children,
 }: Props) {
   const [abierta, setAbierta] = useState(abiertaPorDefecto);
@@ -43,6 +49,17 @@ export function SeccionColapsable({
           <span
             className="font-display text-left text-xl font-light sm:text-3xl"
             style={{ color: "var(--brown-dark)" }}
+            contentEditable={editableTitle}
+            suppressContentEditableWarning={true}
+            onClick={(event) => {
+              if (!editableTitle) return;
+              event.stopPropagation();
+              onSelectTitle?.();
+            }}
+            onBlur={(event) => {
+              if (!editableTitle) return;
+              onChangeTitle?.(event.currentTarget.textContent ?? "");
+            }}
           >
             {titulo}
           </span>
