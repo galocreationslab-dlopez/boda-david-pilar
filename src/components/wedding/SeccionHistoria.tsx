@@ -12,6 +12,7 @@ import type { EventoHistoria } from "@/config/wedding.config";
 
 type Props = {
   eventos: EventoHistoria[];
+  viewport?: "desktop" | "movil";
   editable?: boolean;
   onEditTexto?: (id: string, field: "fecha" | "titulo" | "descripcion", value: string) => void;
   onRequestEditImagen?: (id: string) => void;
@@ -25,10 +26,11 @@ function resolveImageSrc(value: string): string {
   return `/images/${value}`;
 }
 
-export function SeccionHistoria({ eventos, editable = false, onEditTexto, onRequestEditImagen, onSelectItem }: Props) {
+export function SeccionHistoria({ eventos, viewport, editable = false, onEditTexto, onRequestEditImagen, onSelectItem }: Props) {
   const [actual, setActual] = useState(0);
   const evento = eventos[actual];
   const total = eventos.length;
+  const forceMobile = viewport === "movil";
 
   const anterior = () => setActual((p) => Math.max(0, p - 1));
   const siguiente = () => setActual((p) => Math.min(total - 1, p + 1));
@@ -43,7 +45,7 @@ export function SeccionHistoria({ eventos, editable = false, onEditTexto, onRequ
           <OrnamentoDivisor />
         </div>
 
-        <div className="space-y-6 md:hidden">
+        <div className={forceMobile ? "space-y-6" : "space-y-6 md:hidden"}>
           {eventos.map((item) => (
             <article
               key={item.id}
@@ -107,7 +109,7 @@ export function SeccionHistoria({ eventos, editable = false, onEditTexto, onRequ
 
         {/* Visor escritorio */}
         <div
-          className="relative hidden overflow-hidden md:block"
+          className={forceMobile ? "hidden" : "relative hidden overflow-hidden md:block"}
           style={{
             backgroundColor: "var(--white)",
             border: "1px solid var(--cream-dark)",

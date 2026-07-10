@@ -13,6 +13,7 @@ import type { Localizacion } from "@/config/wedding.config";
 type Props = {
   localizaciones: Localizacion[];
   timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; enlaceMaps?: string }>;
+  viewport?: "desktop" | "movil";
   editable?: boolean;
   onEditTexto?: (itemId: string, field: "hora" | "titulo" | "descripcion", value: string) => void;
   onSelectItem?: (itemId: string) => void;
@@ -159,9 +160,10 @@ function buildTimelinePoints(
   });
 }
 
-export function SeccionTimeline({ localizaciones, timeline, editable = false, onEditTexto, onSelectItem }: Props) {
+export function SeccionTimeline({ localizaciones, timeline, viewport, editable = false, onEditTexto, onSelectItem }: Props) {
   const puntos = buildTimelinePoints(timeline, localizaciones);
   const showCurvedLine = puntos.length === 3;
+  const forceMobile = viewport === "movil";
 
   return (
     <div className="section-wedding" style={{ backgroundColor: "var(--cream-dark)" }}>
@@ -174,7 +176,7 @@ export function SeccionTimeline({ localizaciones, timeline, editable = false, on
         </div>
 
         {/* ── Timeline móvil (vertical) ── */}
-        <div className="space-y-6 md:hidden">
+        <div className={forceMobile ? "space-y-6" : "space-y-6 md:hidden"}>
           {puntos.map((punto, index) => (
             <article key={punto.id} className="relative pl-10">
               {index < puntos.length - 1 && (
@@ -266,7 +268,7 @@ export function SeccionTimeline({ localizaciones, timeline, editable = false, on
         </div>
 
         {/* ── Timeline escritorio (horizontal) ── */}
-        <div className="relative hidden w-full pb-4 md:block">
+        <div className={forceMobile ? "hidden" : "relative hidden w-full pb-4 md:block"}>
           <div className="relative">
 
             {/* Camino curvo punteado SVG entre los puntos */}

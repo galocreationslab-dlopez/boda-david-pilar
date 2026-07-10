@@ -1089,6 +1089,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             >
               <SeccionHistoria
                 eventos={historyEventsForSection(section)}
+                viewport={editorViewport}
                 editable={editable}
                 onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                 onEditTexto={(itemId, field, value) => {
@@ -1113,6 +1114,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               <SeccionTimeline
                 localizaciones={ic.localizaciones}
                 timeline={timelineEventsForSection(section)}
+                viewport={editorViewport}
                 editable={editable}
                 onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                 onEditTexto={(itemId, field, value) => {
@@ -1135,6 +1137,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             >
               <SeccionGaleria
                 media={galleryMediaForSection(section)}
+                viewport={editorViewport}
                 editable={editable}
                 onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                 onEditTexto={(itemId, value) => patchEditingSectionItem(itemId, { titulo: value })}
@@ -1886,6 +1889,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           >
                             <SeccionHistoria
                               eventos={historyEventsForSection(sec)}
+                              viewport={editorViewport}
                               editable={sectionIsBeingEdited}
                               onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                               onEditTexto={(itemId, field, value) => {
@@ -1910,6 +1914,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           >
                             <SeccionGaleria
                               media={galleryMediaForSection(sec)}
+                              viewport={editorViewport}
                               editable={sectionIsBeingEdited}
                               onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                               onEditTexto={(itemId, value) => patchEditingSectionItem(itemId, { titulo: value })}
@@ -1931,6 +1936,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             <SeccionTimeline
                               localizaciones={ic.localizaciones}
                               timeline={timelineEventsForSection(sec)}
+                              viewport={editorViewport}
                               editable={sectionIsBeingEdited}
                               onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                               onEditTexto={(itemId, field, value) => {

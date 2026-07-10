@@ -96,11 +96,11 @@ export function resolvePaletteToThemeColors(palette: TemaPaleta): TemaColores {
   return {
     bronze: roles.highlightAcento,
     bronzeLight: roles.bordesDivisores,
-    olive: roles.botonFondo,
-    oliveMuted: roles.textoSecundario,
-    cream: roles.fondoPrincipal,
-    brownDark: roles.textoPrincipal,
-    white: roles.fondoAlterno,
+    olive: palette.colores.olive,
+    oliveMuted: palette.colores.oliveMuted,
+    cream: palette.colores.cream,
+    brownDark: palette.colores.brownDark,
+    white: palette.colores.white,
   };
 }
 

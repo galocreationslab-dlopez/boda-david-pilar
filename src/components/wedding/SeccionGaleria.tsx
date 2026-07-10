@@ -5,13 +5,16 @@ import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
 
 type Props = {
   media: PublicGalleryMedia[];
+  viewport?: "desktop" | "movil";
   editable?: boolean;
   onEditTexto?: (itemId: string, value: string) => void;
   onRequestEditImagen?: (itemId: string) => void;
   onSelectItem?: (itemId: string) => void;
 };
 
-export function SeccionGaleria({ media, editable = false, onEditTexto, onRequestEditImagen, onSelectItem }: Props) {
+export function SeccionGaleria({ media, viewport, editable = false, onEditTexto, onRequestEditImagen, onSelectItem }: Props) {
+  const galleryGridClass = viewport === "movil" ? "grid gap-4 grid-cols-1" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3";
+
   return (
     <div className="section-wedding" style={{ backgroundColor: "var(--cream)" }}>
       <div className="container-wedding">
@@ -24,7 +27,7 @@ export function SeccionGaleria({ media, editable = false, onEditTexto, onRequest
         {media.length === 0 ? (
           <p className="text-center text-sm text-stone-500">Todavía no hay imágenes seleccionadas para la galería.</p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={galleryGridClass}>
             {media.map((item) => (
               <article key={item.id} className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
                 <div className="aspect-[4/3] bg-stone-100">
