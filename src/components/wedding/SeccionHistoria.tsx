@@ -9,11 +9,23 @@ import { useState } from "react";
 import Image from "next/image";
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { EventoHistoria } from "@/config/wedding.config";
+import type { CSSProperties } from "react";
+
+export type HistoriaComponentKey =
+  | "historia.card"
+  | "historia.fecha"
+  | "historia.titulo"
+  | "historia.descripcion"
+  | "historia.imagen";
 
 type Props = {
   eventos: EventoHistoria[];
   viewport?: "desktop" | "movil";
   editable?: boolean;
+  designMode?: boolean;
+  selectedComponentKey?: HistoriaComponentKey | null;
+  onSelectComponent?: (key: HistoriaComponentKey) => void;
+  componentStyles?: Partial<Record<HistoriaComponentKey, CSSProperties>>;
   onEditTexto?: (id: string, field: "fecha" | "titulo" | "descripcion", value: string) => void;
   onRequestEditImagen?: (id: string) => void;
   onSelectItem?: (id: string) => void;
@@ -26,11 +38,36 @@ function resolveImageSrc(value: string): string {
   return `/images/${value}`;
 }
 
-export function SeccionHistoria({ eventos, viewport, editable = false, onEditTexto, onRequestEditImagen, onSelectItem }: Props) {
+export function SeccionHistoria({
+  eventos,
+  viewport,
+  editable = false,
+  designMode = false,
+  selectedComponentKey,
+  onSelectComponent,
+  componentStyles,
+  onEditTexto,
+  onRequestEditImagen,
+  onSelectItem,
+}: Props) {
   const [actual, setActual] = useState(0);
   const evento = eventos[actual];
   const total = eventos.length;
   const forceMobile = viewport === "movil";
+
+  const styleFor = (key: HistoriaComponentKey, base: CSSProperties = {}): CSSProperties => ({
+    ...base,
+    ...(componentStyles?.[key] ?? {}),
+    ...(designMode && selectedComponentKey === key
+      ? { outline: "2px solid #b45309", outlineOffset: "2px", borderRadius: "8px" }
+      : {}),
+    ...(designMode ? { cursor: "pointer" } : {}),
+  });
+
+  const select = (key: HistoriaComponentKey) => {
+    if (!designMode) return;
+    onSelectComponent?.(key);
+  };
 
   const anterior = () => setActual((p) => Math.max(0, p - 1));
   const siguiente = () => setActual((p) => Math.min(total - 1, p + 1));
@@ -50,13 +87,14 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
             <article
               key={item.id}
               className="overflow-hidden border"
-              style={{
+              style={styleFor("historia.card", {
                 backgroundColor: "var(--white)",
                 borderColor: "var(--cream-dark)",
-              }}
+              })}
+              onClick={() => select("historia.card")}
             >
               {item.imagen && (
-                <div className="relative h-48 w-full">
+                <div className="relative h-48 w-full" style={styleFor("historia.imagen")} onClick={(event) => { event.stopPropagation(); select("historia.imagen"); }}>
                   <Image
                     src={resolveImageSrc(item.imagen)}
                     alt={item.titulo}
@@ -64,6 +102,7 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
                     className="object-cover"
                     sizes="100vw"
                     onClick={() => {
+                      if (designMode) return;
                       if (!editable) return;
                       onSelectItem?.(item.id);
                       onRequestEditImagen?.(item.id);
@@ -74,30 +113,48 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
               <div className="space-y-3 p-6 text-left">
                 <p
                   className="smallcaps text-xs tracking-widest"
-                  style={{ color: "var(--bronze)" }}
-                  contentEditable={editable}
+                  style={styleFor("historia.fecha", { color: "var(--bronze)" })}
+                  contentEditable={!designMode && editable}
                   suppressContentEditableWarning={true}
-                  onClick={() => onSelectItem?.(item.id)}
+                  onClick={() => {
+                    if (designMode) {
+                      select("historia.fecha");
+                      return;
+                    }
+                    onSelectItem?.(item.id);
+                  }}
                   onBlur={(event) => onEditTexto?.(item.id, "fecha", event.currentTarget.textContent ?? "")}
                 >
                   {item.fecha}
                 </p>
                 <h3
                   className="font-display text-3xl font-light"
-                  style={{ color: "var(--brown-dark)" }}
-                  contentEditable={editable}
+                  style={styleFor("historia.titulo", { color: "var(--brown-dark)" })}
+                  contentEditable={!designMode && editable}
                   suppressContentEditableWarning={true}
-                  onClick={() => onSelectItem?.(item.id)}
+                  onClick={() => {
+                    if (designMode) {
+                      select("historia.titulo");
+                      return;
+                    }
+                    onSelectItem?.(item.id);
+                  }}
                   onBlur={(event) => onEditTexto?.(item.id, "titulo", event.currentTarget.textContent ?? "")}
                 >
                   {item.titulo}
                 </h3>
                 <p
                   className="font-display text-lg italic font-light leading-relaxed"
-                  style={{ color: "var(--brown-mid)" }}
-                  contentEditable={editable}
+                  style={styleFor("historia.descripcion", { color: "var(--brown-mid)" })}
+                  contentEditable={!designMode && editable}
                   suppressContentEditableWarning={true}
-                  onClick={() => onSelectItem?.(item.id)}
+                  onClick={() => {
+                    if (designMode) {
+                      select("historia.descripcion");
+                      return;
+                    }
+                    onSelectItem?.(item.id);
+                  }}
                   onBlur={(event) => onEditTexto?.(item.id, "descripcion", event.currentTarget.textContent ?? "")}
                 >
                   {item.descripcion}
@@ -110,10 +167,11 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
         {/* Visor escritorio */}
         <div
           className={forceMobile ? "hidden" : "relative hidden overflow-hidden md:block"}
-          style={{
+          style={styleFor("historia.card", {
             backgroundColor: "var(--white)",
             border: "1px solid var(--cream-dark)",
-          }}
+          })}
+          onClick={() => select("historia.card")}
         >
           {/* Slide */}
           <div
@@ -122,7 +180,7 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
           >
             {/* Imagen — izquierda o derecha según config */}
             {evento.imagen && evento.lado === "izquierda" && (
-              <div className="relative min-h-full w-2/5 flex-shrink-0">
+              <div className="relative min-h-full w-2/5 flex-shrink-0" style={styleFor("historia.imagen")} onClick={(event) => { event.stopPropagation(); select("historia.imagen"); }}>
                 <Image
                   src={resolveImageSrc(evento.imagen)}
                   alt={evento.titulo}
@@ -130,6 +188,7 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
                   className="object-cover"
                   sizes="40vw"
                   onClick={() => {
+                    if (designMode) return;
                     if (!editable) return;
                     onSelectItem?.(evento.id);
                     onRequestEditImagen?.(evento.id);
@@ -146,10 +205,16 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
               {/* Fecha / subtítulo */}
               <p
                 className="smallcaps mb-3 text-xs tracking-widest"
-                style={{ color: "var(--bronze)" }}
-                contentEditable={editable}
+                style={styleFor("historia.fecha", { color: "var(--bronze)" })}
+                contentEditable={!designMode && editable}
                 suppressContentEditableWarning={true}
-                onClick={() => onSelectItem?.(evento.id)}
+                onClick={() => {
+                  if (designMode) {
+                    select("historia.fecha");
+                    return;
+                  }
+                  onSelectItem?.(evento.id);
+                }}
                 onBlur={(event) => onEditTexto?.(evento.id, "fecha", event.currentTarget.textContent ?? "")}
               >
                 {evento.fecha}
@@ -158,10 +223,16 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
               {/* Título */}
               <h3
                 className="font-display mb-4 text-4xl font-light"
-                style={{ color: "var(--brown-dark)" }}
-                contentEditable={editable}
+                style={styleFor("historia.titulo", { color: "var(--brown-dark)" })}
+                contentEditable={!designMode && editable}
                 suppressContentEditableWarning={true}
-                onClick={() => onSelectItem?.(evento.id)}
+                onClick={() => {
+                  if (designMode) {
+                    select("historia.titulo");
+                    return;
+                  }
+                  onSelectItem?.(evento.id);
+                }}
                 onBlur={(event) => onEditTexto?.(evento.id, "titulo", event.currentTarget.textContent ?? "")}
               >
                 {evento.titulo}
@@ -170,10 +241,16 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
               {/* Descripción */}
               <p
                 className="font-display text-xl italic font-light leading-relaxed"
-                style={{ color: "var(--brown-mid)" }}
-                contentEditable={editable}
+                style={styleFor("historia.descripcion", { color: "var(--brown-mid)" })}
+                contentEditable={!designMode && editable}
                 suppressContentEditableWarning={true}
-                onClick={() => onSelectItem?.(evento.id)}
+                onClick={() => {
+                  if (designMode) {
+                    select("historia.descripcion");
+                    return;
+                  }
+                  onSelectItem?.(evento.id);
+                }}
                 onBlur={(event) => onEditTexto?.(evento.id, "descripcion", event.currentTarget.textContent ?? "")}
               >
                 {evento.descripcion}
@@ -182,7 +259,7 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
 
             {/* Imagen — derecha */}
             {evento.imagen && evento.lado === "derecha" && (
-              <div className="relative min-h-full w-2/5 flex-shrink-0">
+              <div className="relative min-h-full w-2/5 flex-shrink-0" style={styleFor("historia.imagen")} onClick={(event) => { event.stopPropagation(); select("historia.imagen"); }}>
                 <Image
                   src={resolveImageSrc(evento.imagen)}
                   alt={evento.titulo}
@@ -190,6 +267,7 @@ export function SeccionHistoria({ eventos, viewport, editable = false, onEditTex
                   className="object-cover"
                   sizes="40vw"
                   onClick={() => {
+                    if (designMode) return;
                     if (!editable) return;
                     onSelectItem?.(evento.id);
                     onRequestEditImagen?.(evento.id);

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { HeroPortada } from "./HeroPortada";
+import { HeroPortada, type HeroComponentKey } from "./HeroPortada";
 import type { WeddingConfig } from "@/config/wedding.config";
+import type { CSSProperties } from "react";
 
 type InvitacionAPI = {
   invitacion: {
@@ -52,11 +53,25 @@ type Props = {
   config: WeddingConfig;
   viewport?: "desktop" | "movil";
   editable?: boolean;
+  designMode?: boolean;
+  selectedComponentKey?: HeroComponentKey | null;
+  onSelectComponent?: (key: HeroComponentKey) => void;
+  componentStyles?: Partial<Record<HeroComponentKey, CSSProperties>>;
   onEditNombreConjunto?: (value: string) => void;
   onEditBienvenida?: (value: string) => void;
 };
 
-export default function MainWithInvite({ config, viewport = "desktop", editable = false, onEditNombreConjunto, onEditBienvenida }: Props) {
+export default function MainWithInvite({
+  config,
+  viewport = "desktop",
+  editable = false,
+  designMode = false,
+  selectedComponentKey,
+  onSelectComponent,
+  componentStyles,
+  onEditNombreConjunto,
+  onEditBienvenida,
+}: Props) {
   const router = useRouter();
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const hasInviteCode = Boolean(inviteCode && inviteCode.trim().length > 0);
@@ -140,6 +155,10 @@ export default function MainWithInvite({ config, viewport = "desktop", editable 
         labelBotonConfirmar={esAdmin ? "Panel de administración" : undefined}
         onConfirmarClick={handleConfirmarClick}
         editable={editable}
+        designMode={designMode}
+        selectedComponentKey={selectedComponentKey}
+        onSelectComponent={onSelectComponent}
+        componentStyles={componentStyles}
         onEditNombreConjunto={onEditNombreConjunto}
         onEditBienvenida={onEditBienvenida}
       />

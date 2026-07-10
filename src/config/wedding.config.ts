@@ -121,6 +121,7 @@ export type SeccionDiseno = {
   tipo: TipoSeccionDiseno;
   paletaId: string;
   usarPaletaGlobal?: boolean;
+  componentRoles?: Partial<Record<string, TemaColorRole>>;
   visible: boolean;
   perfiles: string[];
   items: ItemSeccionDiseno[];

@@ -9,12 +9,25 @@
 
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { Localizacion } from "@/config/wedding.config";
+import type { CSSProperties } from "react";
+
+export type TimelineComponentKey =
+  | "timeline.card"
+  | "timeline.icono"
+  | "timeline.hora"
+  | "timeline.titulo"
+  | "timeline.descripcion"
+  | "timeline.mapa";
 
 type Props = {
   localizaciones: Localizacion[];
   timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; enlaceMaps?: string }>;
   viewport?: "desktop" | "movil";
   editable?: boolean;
+  designMode?: boolean;
+  selectedComponentKey?: TimelineComponentKey | null;
+  onSelectComponent?: (key: TimelineComponentKey) => void;
+  componentStyles?: Partial<Record<TimelineComponentKey, CSSProperties>>;
   onEditTexto?: (itemId: string, field: "hora" | "titulo" | "descripcion", value: string) => void;
   onSelectItem?: (itemId: string) => void;
 };
@@ -160,10 +173,35 @@ function buildTimelinePoints(
   });
 }
 
-export function SeccionTimeline({ localizaciones, timeline, viewport, editable = false, onEditTexto, onSelectItem }: Props) {
+export function SeccionTimeline({
+  localizaciones,
+  timeline,
+  viewport,
+  editable = false,
+  designMode = false,
+  selectedComponentKey,
+  onSelectComponent,
+  componentStyles,
+  onEditTexto,
+  onSelectItem,
+}: Props) {
   const puntos = buildTimelinePoints(timeline, localizaciones);
   const showCurvedLine = puntos.length === 3;
   const forceMobile = viewport === "movil";
+
+  const styleFor = (key: TimelineComponentKey, base: CSSProperties = {}): CSSProperties => ({
+    ...base,
+    ...(componentStyles?.[key] ?? {}),
+    ...(designMode && selectedComponentKey === key
+      ? { outline: "2px solid #b45309", outlineOffset: "2px", borderRadius: "8px" }
+      : {}),
+    ...(designMode ? { cursor: "pointer" } : {}),
+  });
+
+  const select = (key: TimelineComponentKey) => {
+    if (!designMode) return;
+    onSelectComponent?.(key);
+  };
 
   return (
     <div className="section-wedding" style={{ backgroundColor: "var(--cream-dark)" }}>
@@ -189,56 +227,76 @@ export function SeccionTimeline({ localizaciones, timeline, viewport, editable =
 
               <div
                 className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full"
-                style={{
+                style={styleFor("timeline.icono", {
                   backgroundColor: "var(--brown-dark)",
                   color: "var(--bronze-light)",
                   boxShadow: "0 0 0 3px var(--cream-dark), 0 0 0 5px var(--bronze-pale)",
-                }}
+                })}
+                onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
               >
                 {ICONOS[punto.icono]}
               </div>
 
               <div
                 className="space-y-3 border px-4 pb-4 pt-3"
-                style={{
+                style={styleFor("timeline.card", {
                   backgroundColor: "var(--white)",
                   borderColor: "var(--cream-dark)",
                   borderTop: "3px solid var(--bronze)",
-                }}
+                })}
+                onClick={() => select("timeline.card")}
               >
                 <p
                   className="smallcaps text-xs tracking-widest"
-                  style={{ color: "var(--bronze)" }}
-                  contentEditable={editable}
+                  style={styleFor("timeline.hora", { color: "var(--bronze)" })}
+                  contentEditable={!designMode && editable}
                   suppressContentEditableWarning={true}
-                  onClick={() => onSelectItem?.(punto.id)}
+                  onClick={() => {
+                    if (designMode) {
+                      select("timeline.hora");
+                      return;
+                    }
+                    onSelectItem?.(punto.id);
+                  }}
                   onBlur={(event) => onEditTexto?.(punto.id, "hora", event.currentTarget.textContent ?? "")}
                 >
                   {punto.hora}
                 </p>
                 <h3
                   className="font-display text-2xl font-light"
-                  style={{ color: "var(--brown-dark)" }}
-                  contentEditable={editable}
+                  style={styleFor("timeline.titulo", { color: "var(--brown-dark)" })}
+                  contentEditable={!designMode && editable}
                   suppressContentEditableWarning={true}
-                  onClick={() => onSelectItem?.(punto.id)}
+                  onClick={() => {
+                    if (designMode) {
+                      select("timeline.titulo");
+                      return;
+                    }
+                    onSelectItem?.(punto.id);
+                  }}
                   onBlur={(event) => onEditTexto?.(punto.id, "titulo", event.currentTarget.textContent ?? "")}
                 >
                   {punto.titulo}
                 </h3>
                 <p
                   className="text-sm"
-                  style={{ color: "var(--olive-muted)" }}
-                  contentEditable={editable}
+                  style={styleFor("timeline.descripcion", { color: "var(--olive-muted)" })}
+                  contentEditable={!designMode && editable}
                   suppressContentEditableWarning={true}
-                  onClick={() => onSelectItem?.(punto.id)}
+                  onClick={() => {
+                    if (designMode) {
+                      select("timeline.descripcion");
+                      return;
+                    }
+                    onSelectItem?.(punto.id);
+                  }}
                   onBlur={(event) => onEditTexto?.(punto.id, "descripcion", event.currentTarget.textContent ?? "")}
                 >
                   {punto.subtitulo}
                 </p>
 
                 {punto.mapaSrc && (
-                  <div className="overflow-hidden" style={{ height: "150px" }}>
+                  <div className="overflow-hidden" style={styleFor("timeline.mapa", { height: "150px" })} onClick={(event) => { event.stopPropagation(); select("timeline.mapa"); }}>
                     <iframe
                       src={punto.mapaSrc}
                       width="100%"
@@ -299,19 +357,26 @@ export function SeccionTimeline({ localizaciones, timeline, viewport, editable =
                   {/* Nodo circular con icono */}
                   <div
                     className="w-[104px] h-[104px] rounded-full flex flex-col items-center justify-center gap-1 flex-shrink-0"
-                    style={{
+                    style={styleFor("timeline.icono", {
                       backgroundColor: "var(--brown-dark)",
                       color: "var(--bronze-light)",
                       boxShadow: "0 0 0 4px var(--cream-dark), 0 0 0 6px var(--bronze-pale)",
-                    }}
+                    })}
+                    onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
                   >
                     {ICONOS[punto.icono]}
                     <span
                       className="font-display font-light"
-                      style={{ fontSize: "1.15rem", color: "var(--white)", lineHeight: 1 }}
-                      contentEditable={editable}
+                      style={styleFor("timeline.hora", { fontSize: "1.15rem", color: "var(--white)", lineHeight: 1 })}
+                      contentEditable={!designMode && editable}
                       suppressContentEditableWarning={true}
-                      onClick={() => onSelectItem?.(punto.id)}
+                      onClick={() => {
+                        if (designMode) {
+                          select("timeline.hora");
+                          return;
+                        }
+                        onSelectItem?.(punto.id);
+                      }}
                       onBlur={(event) => onEditTexto?.(punto.id, "hora", event.currentTarget.textContent ?? "")}
                     >
                       {punto.hora}
@@ -321,29 +386,42 @@ export function SeccionTimeline({ localizaciones, timeline, viewport, editable =
                   {/* Tarjeta de contenido */}
                   <div
                     className="w-full"
-                    style={{
+                    style={styleFor("timeline.card", {
                       backgroundColor: "var(--white)",
                       border: "1px solid var(--cream-dark)",
                       borderTop: "3px solid var(--bronze)",
                       padding: "1.25rem",
-                    }}
+                    })}
+                    onClick={() => select("timeline.card")}
                   >
                     <p
                       className="font-display text-xl font-light mb-1"
-                      style={{ color: "var(--brown-dark)" }}
-                      contentEditable={editable}
+                      style={styleFor("timeline.titulo", { color: "var(--brown-dark)" })}
+                      contentEditable={!designMode && editable}
                       suppressContentEditableWarning={true}
-                      onClick={() => onSelectItem?.(punto.id)}
+                      onClick={() => {
+                        if (designMode) {
+                          select("timeline.titulo");
+                          return;
+                        }
+                        onSelectItem?.(punto.id);
+                      }}
                       onBlur={(event) => onEditTexto?.(punto.id, "titulo", event.currentTarget.textContent ?? "")}
                     >
                       {punto.titulo}
                     </p>
                     <p
                       className="text-sm font-light mb-3"
-                      style={{ color: "var(--olive-muted)" }}
-                      contentEditable={editable}
+                      style={styleFor("timeline.descripcion", { color: "var(--olive-muted)" })}
+                      contentEditable={!designMode && editable}
                       suppressContentEditableWarning={true}
-                      onClick={() => onSelectItem?.(punto.id)}
+                      onClick={() => {
+                        if (designMode) {
+                          select("timeline.descripcion");
+                          return;
+                        }
+                        onSelectItem?.(punto.id);
+                      }}
                       onBlur={(event) => onEditTexto?.(punto.id, "descripcion", event.currentTarget.textContent ?? "")}
                     >
                       {punto.subtitulo}
@@ -351,7 +429,7 @@ export function SeccionTimeline({ localizaciones, timeline, viewport, editable =
 
                     {/* Mini mapa embed para el bus */}
                     {punto.mapaSrc && (
-                      <div className="mb-3 overflow-hidden" style={{ height: "120px" }}>
+                      <div className="mb-3 overflow-hidden" style={styleFor("timeline.mapa", { height: "120px" })} onClick={(event) => { event.stopPropagation(); select("timeline.mapa"); }}>
                         <iframe
                           src={punto.mapaSrc}
                           width="100%"

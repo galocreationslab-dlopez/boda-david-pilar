@@ -9,6 +9,15 @@ import { SelloNupcial } from "@/components/ui/SelloNupcial";
 import { CuentaAtras } from "@/components/ui/CuentaAtras";
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { WeddingConfig } from "@/config/wedding.config";
+import type { CSSProperties } from "react";
+
+export type HeroComponentKey =
+  | "portada.fondo"
+  | "portada.sello"
+  | "portada.nombres"
+  | "portada.fecha"
+  | "portada.bienvenida"
+  | "portada.cta";
 
 type Props = {
   config: Pick<WeddingConfig, "novia" | "novio" | "nombreConjunto" | "iniciales" | "fecha" | "fechaFormateada" | "textos">;
@@ -17,6 +26,10 @@ type Props = {
   labelBotonConfirmar?: string;
   onConfirmarClick?: () => void;
   editable?: boolean;
+  designMode?: boolean;
+  selectedComponentKey?: HeroComponentKey | null;
+  onSelectComponent?: (key: HeroComponentKey) => void;
+  componentStyles?: Partial<Record<HeroComponentKey, CSSProperties>>;
   onEditNombreConjunto?: (value: string) => void;
   onEditBienvenida?: (value: string) => void;
 };
@@ -28,10 +41,29 @@ export function HeroPortada({
   labelBotonConfirmar,
   onConfirmarClick,
   editable = false,
+  designMode = false,
+  selectedComponentKey,
+  onSelectComponent,
+  componentStyles,
   onEditNombreConjunto,
   onEditBienvenida,
 }: Props) {
   const forceMobile = viewport === "movil";
+  const selloColor = (componentStyles?.["portada.sello"]?.color as string) || "#C4964A";
+
+  const styleFor = (key: HeroComponentKey, base: CSSProperties = {}): CSSProperties => ({
+    ...base,
+    ...(componentStyles?.[key] ?? {}),
+    ...(designMode && selectedComponentKey === key
+      ? { outline: "2px solid #b45309", outlineOffset: "3px", borderRadius: "8px" }
+      : {}),
+    ...(designMode ? { cursor: "pointer" } : {}),
+  });
+
+  const select = (key: HeroComponentKey) => {
+    if (!designMode) return;
+    onSelectComponent?.(key);
+  };
 
   return (
     <div
@@ -40,18 +72,20 @@ export function HeroPortada({
         backgroundColor: "var(--brown-dark)",
         backgroundImage:
           "radial-gradient(circle at 20% 50%, rgba(140,106,63,0.2) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(92,107,58,0.15) 0%, transparent 50%)",
+        ...styleFor("portada.fondo"),
       }}
+      onClick={() => select("portada.fondo")}
     >
       {/* Contenido principal */}
       <div className={`relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center gap-5 py-16 sm:gap-7 sm:py-20 ${forceMobile ? "max-w-[21rem] gap-4 py-12" : ""}`}>
 
         {/* Sello */}
-        <div className="animate-fade-up">
-          <SelloNupcial size={forceMobile ? 100 : 128} color="#C4964A" />
+        <div className="animate-fade-up" style={styleFor("portada.sello")} onClick={(event) => { event.stopPropagation(); select("portada.sello"); }}>
+          <SelloNupcial size={forceMobile ? 100 : 128} color={selloColor} />
         </div>
 
         {/* Nombres */}
-        <div className="animate-fade-up delay-200">
+        <div className="animate-fade-up delay-200" style={styleFor("portada.nombres")} onClick={(event) => { event.stopPropagation(); select("portada.nombres"); }}>
           <h1
             className="font-display font-light"
             style={{
@@ -60,7 +94,7 @@ export function HeroPortada({
               lineHeight: 1.05,
               letterSpacing: "-0.01em",
             }}
-            contentEditable={editable && typeof onEditNombreConjunto === "function" && Boolean(config.nombreConjunto?.trim())}
+            contentEditable={!designMode && editable && typeof onEditNombreConjunto === "function" && Boolean(config.nombreConjunto?.trim())}
             suppressContentEditableWarning={true}
             onBlur={(event) => {
               if (!editable || typeof onEditNombreConjunto !== "function") return;
@@ -91,7 +125,7 @@ export function HeroPortada({
         </div>
 
         {/* Fecha */}
-        <div className="animate-fade-up delay-300">
+        <div className="animate-fade-up delay-300" style={styleFor("portada.fecha")} onClick={(event) => { event.stopPropagation(); select("portada.fecha"); }}>
           <OrnamentoDivisor color="#C4964A" />
           <p
             className="smallcaps tracking-[0.25em] text-sm mt-1"
@@ -104,9 +138,10 @@ export function HeroPortada({
         {/* Texto de bienvenida */}
         <p
           className={`font-display font-light italic leading-relaxed animate-fade-up delay-400 ${forceMobile ? "max-w-[18rem] text-lg" : "max-w-md text-xl sm:text-2xl"}`}
-          style={{ color: "var(--cream)", opacity: 0.85 }}
-          contentEditable={editable}
+          style={styleFor("portada.bienvenida", { color: "var(--cream)", opacity: 0.85 })}
+          contentEditable={!designMode && editable}
           suppressContentEditableWarning={true}
+          onClick={(event) => { event.stopPropagation(); select("portada.bienvenida"); }}
           onBlur={(event) => {
             if (!editable) return;
             const value = (event.currentTarget.textContent ?? "").replace(/^"|"$/g, "").trim();
@@ -118,7 +153,11 @@ export function HeroPortada({
 
         {/* CTA: solo visible con código de invitación válido */}
         {mostrarBotonConfirmar && (
-          <div className="mt-2 w-full animate-fade-in sm:w-auto">
+          <div
+            className="mt-2 w-full animate-fade-in sm:w-auto"
+            style={styleFor("portada.cta")}
+            onClick={(event) => { event.stopPropagation(); select("portada.cta"); }}
+          >
             <button type="button" className="btn-primary w-full sm:w-auto" onClick={onConfirmarClick}>
               {labelBotonConfirmar ?? "Confirmar asistencia"}
             </button>

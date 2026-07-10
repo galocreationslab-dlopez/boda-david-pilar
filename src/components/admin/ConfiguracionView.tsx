@@ -2,13 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
+import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
 import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
-import { SeccionHistoria } from "@/components/wedding/SeccionHistoria";
-import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
-import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
+import { SeccionHistoria, type HistoriaComponentKey } from "@/components/wedding/SeccionHistoria";
+import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding/SeccionTimeline";
+import { SeccionGaleria, type GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
 import {
+  ROLE_KEYS,
+  ROLE_LABELS,
   buildPaletteSwatches,
+  resolvePaletteRoleColors,
   resolvePaletteRoleMap,
   resolvePaletteToThemeColors,
 } from "@/lib/theme-roles";
@@ -18,11 +22,46 @@ import type {
   EventoHistoria,
   EventoTimeline,
   TemaColores,
+  TemaColorRole,
   TemaPaleta,
   SeparadorDiseno,
   SeccionDiseno,
   TipoSeccionDiseno,
 } from "@/config/wedding.config";
+
+type SectionComponentKey = HeroComponentKey | HistoriaComponentKey | TimelineComponentKey | GaleriaComponentKey;
+
+const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; label: string; defaultRole: TemaColorRole }>> = {
+  portada: [
+    { key: "portada.fondo", label: "Fondo portada", defaultRole: "fondoPrincipal" },
+    { key: "portada.sello", label: "Sello", defaultRole: "highlightAcento" },
+    { key: "portada.nombres", label: "Nombres", defaultRole: "titulos" },
+    { key: "portada.fecha", label: "Fecha", defaultRole: "bordesDivisores" },
+    { key: "portada.bienvenida", label: "Texto bienvenida", defaultRole: "textoSecundario" },
+    { key: "portada.cta", label: "Botón CTA", defaultRole: "botonFondo" },
+  ],
+  historia: [
+    { key: "historia.card", label: "Tarjeta historia", defaultRole: "fondoAlterno" },
+    { key: "historia.imagen", label: "Imagen historia", defaultRole: "bordesDivisores" },
+    { key: "historia.fecha", label: "Fecha historia", defaultRole: "highlightAcento" },
+    { key: "historia.titulo", label: "Título historia", defaultRole: "titulos" },
+    { key: "historia.descripcion", label: "Texto historia", defaultRole: "textoSecundario" },
+  ],
+  timeline: [
+    { key: "timeline.card", label: "Tarjeta timeline", defaultRole: "fondoAlterno" },
+    { key: "timeline.icono", label: "Icono timeline", defaultRole: "highlightAcento" },
+    { key: "timeline.hora", label: "Hora timeline", defaultRole: "textoPrincipal" },
+    { key: "timeline.titulo", label: "Título timeline", defaultRole: "titulos" },
+    { key: "timeline.descripcion", label: "Texto timeline", defaultRole: "textoSecundario" },
+    { key: "timeline.mapa", label: "Mapa timeline", defaultRole: "bordesDivisores" },
+  ],
+  galeria: [
+    { key: "galeria.card", label: "Tarjeta galería", defaultRole: "fondoAlterno" },
+    { key: "galeria.imagen", label: "Imagen galería", defaultRole: "bordesDivisores" },
+    { key: "galeria.titulo", label: "Título galería", defaultRole: "titulos" },
+    { key: "galeria.subtitulo", label: "Subtítulo galería", defaultRole: "textoSecundario" },
+  ],
+};
 
 type Tab = "diseno" | "historia" | "timeline";
 
@@ -125,6 +164,7 @@ function defaultSection(paletaId: string, tipo: TipoSeccionDiseno = "portada"): 
     tipo,
     paletaId,
     usarPaletaGlobal: true,
+    componentRoles: {},
     visible: true,
     perfiles: ["publico"],
     items: [],
@@ -138,6 +178,7 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
       ...sec,
       paletaId: sec.paletaId || paletaId,
       usarPaletaGlobal: sec.usarPaletaGlobal ?? true,
+      componentRoles: sec.componentRoles ?? {},
       perfiles: sec.perfiles?.length ? sec.perfiles : ["publico"],
       items:
         sec.tipo === "portada"
@@ -242,6 +283,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [sectionDrafts, setSectionDrafts] = useState<Record<string, SeccionDiseno>>({});
   const [selectedDraftItemId, setSelectedDraftItemId] = useState<string | null>(null);
+  const [selectedDesignComponentKey, setSelectedDesignComponentKey] = useState<SectionComponentKey | null>(null);
   const [sectionEditMode, setSectionEditMode] = useState<"contenido" | "diseno">("contenido");
   const [renamingSectionId, setRenamingSectionId] = useState<string | null>(null);
   const [renamingValue, setRenamingValue] = useState("");
@@ -327,6 +369,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     if (!editingSectionDraft || !selectedDraftItemId) return null;
     return editingSectionDraft.items.find((item) => item.id === selectedDraftItemId) ?? null;
   }, [editingSectionDraft, selectedDraftItemId]);
+
+  useEffect(() => {
+    if (!editingSectionDraft || sectionEditMode !== "diseno") {
+      setSelectedDesignComponentKey(null);
+      return;
+    }
+    const options = SECTION_COMPONENT_OPTIONS[editingSectionDraft.tipo] ?? [];
+    setSelectedDesignComponentKey((prev) => {
+      if (prev && options.some((option) => option.key === prev)) return prev;
+      return options[0]?.key ?? null;
+    });
+  }, [editingSectionDraft, sectionEditMode]);
 
   const visiblePreviewSections = useMemo(
     () =>
@@ -627,6 +681,111 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     }
     return paletas.find((palette) => palette.id === section.paletaId) ?? paletaActiva ?? paletas[0];
   };
+
+  const getSectionComponentOptions = (section: SeccionDiseno) => SECTION_COMPONENT_OPTIONS[section.tipo] ?? [];
+
+  const getComponentRoleForSection = (section: SeccionDiseno, componentKey: SectionComponentKey): TemaColorRole => {
+    const options = getSectionComponentOptions(section);
+    const option = options.find((item) => item.key === componentKey);
+    return section.componentRoles?.[componentKey] ?? option?.defaultRole ?? "textoPrincipal";
+  };
+
+  const patchEditingSectionComponentRole = (componentKey: SectionComponentKey, role: TemaColorRole) => {
+    if (!editingSectionDraft) return;
+    patchEditingSectionDraft({
+      componentRoles: {
+        ...(editingSectionDraft.componentRoles ?? {}),
+        [componentKey]: role,
+      },
+    });
+  };
+
+  const getComponentStyleByKey = (key: SectionComponentKey, color: string): CSSProperties => {
+    switch (key) {
+      case "portada.fondo":
+        return { backgroundColor: color };
+      case "portada.sello":
+      case "portada.nombres":
+      case "portada.fecha":
+      case "portada.bienvenida":
+      case "portada.cta":
+      case "historia.fecha":
+      case "historia.titulo":
+      case "historia.descripcion":
+      case "timeline.hora":
+      case "timeline.titulo":
+      case "timeline.descripcion":
+      case "timeline.icono":
+      case "galeria.titulo":
+      case "galeria.subtitulo":
+        return { color };
+      case "historia.card":
+      case "timeline.card":
+      case "galeria.card":
+      case "historia.imagen":
+      case "timeline.mapa":
+      case "galeria.imagen":
+        return { borderColor: color };
+      default:
+        return {};
+    }
+  };
+
+  const getSectionComponentStyles = (section: SeccionDiseno): Partial<Record<SectionComponentKey, CSSProperties>> => {
+    const palette = getPaletteBySection(section);
+    const roleColors = resolvePaletteRoleColors(palette);
+    const options = getSectionComponentOptions(section);
+    return options.reduce((acc, option) => {
+      const role = getComponentRoleForSection(section, option.key);
+      const color = roleColors[role];
+      acc[option.key] = getComponentStyleByKey(option.key, color);
+      return acc;
+    }, {} as Partial<Record<SectionComponentKey, CSSProperties>>);
+  };
+
+  const applySwatchToRoleInEditingSection = (role: TemaColorRole, swatchId: string) => {
+    if (!editingSectionDraft) return;
+    const paletteId = (editingSectionDraft.usarPaletaGlobal ?? true)
+      ? paletaActivaId
+      : editingSectionDraft.paletaId;
+    updatePaleta(paletteId, (palette) => ({
+      ...palette,
+      rolesColor: {
+        ...resolvePaletteRoleMap(palette),
+        [role]: swatchId,
+      },
+    }));
+  };
+
+  const editingComponentOptions = useMemo(
+    () => (editingSectionDraft ? getSectionComponentOptions(editingSectionDraft) : []),
+    [editingSectionDraft],
+  );
+
+  const selectedComponentOption = useMemo(
+    () => editingComponentOptions.find((option) => option.key === selectedDesignComponentKey) ?? null,
+    [editingComponentOptions, selectedDesignComponentKey],
+  );
+
+  const editingPalette = useMemo(
+    () => (editingSectionDraft ? getPaletteBySection(editingSectionDraft) : null),
+    [editingSectionDraft, paletas, paletaActivaId],
+  );
+
+  const editingPaletteSwatches = useMemo(
+    () => (editingPalette ? buildPaletteSwatches(editingPalette) : []),
+    [editingPalette],
+  );
+
+  const editingPaletteRoleMap = useMemo(
+    () => (editingPalette ? resolvePaletteRoleMap(editingPalette) : null),
+    [editingPalette],
+  );
+
+  const selectedComponentRole = useMemo(() => {
+    if (!editingSectionDraft || !selectedDesignComponentKey) return null;
+    return getComponentRoleForSection(editingSectionDraft, selectedDesignComponentKey);
+  }, [editingSectionDraft, selectedDesignComponentKey]);
 
   const getSectionThemeVars = (section: SeccionDiseno): CSSProperties => {
     const palette = getPaletteBySection(section);
@@ -1038,6 +1197,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     const width = compact ? "418%" : editorViewport === "movil" ? "222%" : "161%";
     const openInCanvas = compact;
     const themeVars = getSectionThemeVars(section);
+    const contentMode = editable && sectionEditMode === "contenido";
+    const designMode = editable && sectionEditMode === "diseno";
+    const componentStyles = getSectionComponentStyles(section);
 
     return (
       <div className={`overflow-hidden rounded-xl border border-stone-200 bg-stone-100 ${compact ? "relative aspect-[16/10]" : ""}`}>
@@ -1050,7 +1212,11 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               <MainWithInvite
                 config={getPortadaConfig(section)}
                 viewport={editorViewport}
-                editable={editable}
+                editable={contentMode}
+                designMode={designMode}
+                selectedComponentKey={designMode ? selectedDesignComponentKey as HeroComponentKey | null : null}
+                onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
+                componentStyles={componentStyles}
                 onEditBienvenida={setPortadaWelcomeText}
               />
             </SeccionColapsable>
@@ -1061,14 +1227,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               titulo={section.titulo || "Nuestra historia"}
               abiertaPorDefecto={openInCanvas}
               bgColor="var(--cream)"
-              editableTitle={editable}
+              editableTitle={contentMode}
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
             >
               <SeccionHistoria
                 eventos={historyEventsForSection(section)}
                 viewport={editorViewport}
-                editable={editable}
+                editable={contentMode}
+                designMode={designMode}
+                selectedComponentKey={designMode ? selectedDesignComponentKey as HistoriaComponentKey | null : null}
+                onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
+                componentStyles={componentStyles}
                 onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                 onEditTexto={(itemId, field, value) => {
                   if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });
@@ -1085,7 +1255,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               titulo={section.titulo || "El gran día"}
               abiertaPorDefecto={openInCanvas}
               bgColor="var(--cream-dark)"
-              editableTitle={editable}
+              editableTitle={contentMode}
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
             >
@@ -1093,7 +1263,11 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 localizaciones={ic.localizaciones}
                 timeline={timelineEventsForSection(section)}
                 viewport={editorViewport}
-                editable={editable}
+                editable={contentMode}
+                designMode={designMode}
+                selectedComponentKey={designMode ? selectedDesignComponentKey as TimelineComponentKey | null : null}
+                onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
+                componentStyles={componentStyles}
                 onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                 onEditTexto={(itemId, field, value) => {
                   if (field === "hora") patchEditingSectionItem(itemId, { hora: value });
@@ -1109,14 +1283,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               titulo={section.titulo || "Galería"}
               abiertaPorDefecto={openInCanvas}
               bgColor="var(--cream)"
-              editableTitle={editable}
+              editableTitle={contentMode}
               onSelectTitle={() => setSelectedSectionId(section.id)}
               onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
             >
               <SeccionGaleria
                 media={galleryMediaForSection(section)}
                 viewport={editorViewport}
-                editable={editable}
+                editable={contentMode}
+                designMode={designMode}
+                selectedComponentKey={designMode ? selectedDesignComponentKey as GaleriaComponentKey | null : null}
+                onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
+                componentStyles={componentStyles}
                 onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                 onEditTexto={(itemId, value) => patchEditingSectionItem(itemId, { titulo: value })}
                 onRequestEditImagen={requestInlineImageEdit}
@@ -1571,36 +1749,82 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   </div>
 
                   {sectionEditMode === "diseno" && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="inline-flex overflow-hidden rounded border border-stone-300 bg-white text-xs">
-                        <button
-                          onClick={() => patchEditingSectionDraft({ usarPaletaGlobal: true, paletaId: paletaActivaId })}
-                          className={`px-2 py-1 ${(editingSectionDraft.usarPaletaGlobal ?? true) ? "bg-amber-100 text-amber-800" : "text-stone-600"}`}
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="inline-flex overflow-hidden rounded border border-stone-300 bg-white text-xs">
+                          <button
+                            onClick={() => patchEditingSectionDraft({ usarPaletaGlobal: true, paletaId: paletaActivaId })}
+                            className={`px-2 py-1 ${(editingSectionDraft.usarPaletaGlobal ?? true) ? "bg-amber-100 text-amber-800" : "text-stone-600"}`}
+                          >
+                            Usar paleta global
+                          </button>
+                          <button
+                            onClick={() => patchEditingSectionDraft({ usarPaletaGlobal: false })}
+                            className={`border-l border-stone-300 px-2 py-1 ${(editingSectionDraft.usarPaletaGlobal ?? true) ? "text-stone-600" : "bg-amber-100 text-amber-800"}`}
+                          >
+                            Personalizar sección
+                          </button>
+                        </div>
+                        <select
+                          className="input-field h-8 w-[170px] text-xs"
+                          value={editingSectionDraft.paletaId}
+                          disabled={editingSectionDraft.usarPaletaGlobal ?? true}
+                          onChange={(e) => patchEditingSectionDraft({ paletaId: e.target.value })}
                         >
-                          Usar paleta global
-                        </button>
-                        <button
-                          onClick={() => patchEditingSectionDraft({ usarPaletaGlobal: false })}
-                          className={`border-l border-stone-300 px-2 py-1 ${(editingSectionDraft.usarPaletaGlobal ?? true) ? "text-stone-600" : "bg-amber-100 text-amber-800"}`}
-                        >
-                          Personalizar sección
-                        </button>
+                          {paletas.map((p) => (
+                            <option key={p.id} value={p.id}>{p.nombre}</option>
+                          ))}
+                        </select>
+                        <span className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-600">
+                          Activa: {(editingSectionDraft.usarPaletaGlobal ?? true)
+                            ? `Global (${paletaActiva?.nombre ?? "sin nombre"})`
+                            : `Sección (${paletas.find((p) => p.id === editingSectionDraft.paletaId)?.nombre ?? "sin nombre"})`}
+                        </span>
                       </div>
-                      <select
-                        className="input-field h-8 w-[170px] text-xs"
-                        value={editingSectionDraft.paletaId}
-                        disabled={editingSectionDraft.usarPaletaGlobal ?? true}
-                        onChange={(e) => patchEditingSectionDraft({ paletaId: e.target.value })}
-                      >
-                        {paletas.map((p) => (
-                          <option key={p.id} value={p.id}>{p.nombre}</option>
-                        ))}
-                      </select>
-                      <span className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-600">
-                        Activa: {(editingSectionDraft.usarPaletaGlobal ?? true)
-                          ? `Global (${paletaActiva?.nombre ?? "sin nombre"})`
-                          : `Sección (${paletas.find((p) => p.id === editingSectionDraft.paletaId)?.nombre ?? "sin nombre"})`}
-                      </span>
+
+                      <div className="rounded border border-stone-200 bg-stone-50 p-2">
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-600">Componentes gráficos</p>
+                        <div className="flex flex-wrap gap-1">
+                          {editingComponentOptions.map((option) => (
+                            <button
+                              key={option.key}
+                              onClick={() => setSelectedDesignComponentKey(option.key)}
+                              className={`rounded border px-2 py-1 text-[11px] ${selectedDesignComponentKey === option.key ? "border-amber-500 bg-amber-100 text-amber-800" : "border-stone-300 bg-white text-stone-600"}`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {selectedComponentOption && selectedComponentRole && editingPalette && (
+                        <div className="grid gap-2 sm:grid-cols-[1fr_1fr]">
+                          <div className="rounded border border-stone-200 bg-white p-2">
+                            <label className="mb-1 block text-[11px] font-semibold text-stone-600">Rol del componente</label>
+                            <select
+                              className="input-field h-8 w-full text-xs"
+                              value={selectedComponentRole}
+                              onChange={(event) => patchEditingSectionComponentRole(selectedComponentOption.key, event.target.value as TemaColorRole)}
+                            >
+                              {ROLE_KEYS.map((role) => (
+                                <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="rounded border border-stone-200 bg-white p-2">
+                            <label className="mb-1 block text-[11px] font-semibold text-stone-600">Color del rol</label>
+                            <select
+                              className="input-field h-8 w-full text-xs"
+                              value={editingPaletteRoleMap?.[selectedComponentRole] ?? ""}
+                              onChange={(event) => applySwatchToRoleInEditingSection(selectedComponentRole, event.target.value)}
+                            >
+                              {editingPaletteSwatches.map((swatch) => (
+                                <option key={swatch.id} value={swatch.id}>{swatch.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1667,7 +1891,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   {previewSectionsToRender.map((sec, idx) => {
                     const isLast = idx === previewSectionsToRender.length - 1;
                     const sectionIsBeingEdited = hasAnySectionInEditMode && editingSectionId === sec.id;
+                    const contentMode = sectionIsBeingEdited && sectionEditMode === "contenido";
+                    const designMode = sectionIsBeingEdited && sectionEditMode === "diseno";
                     const sectionThemeVars = getSectionThemeVars(sec);
+                    const componentStyles = getSectionComponentStyles(sec);
                     return (
                       <div
                         key={sec.id}
@@ -1681,7 +1908,12 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           <SeccionColapsable id={`preview-${sec.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
                             <MainWithInvite
                               config={getPortadaConfig(sec)}
-                              editable={sectionIsBeingEdited}
+                              viewport={editorViewport}
+                              editable={contentMode}
+                              designMode={designMode}
+                              selectedComponentKey={designMode ? selectedDesignComponentKey as HeroComponentKey | null : null}
+                              onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
+                              componentStyles={componentStyles}
                               onEditBienvenida={setPortadaWelcomeText}
                             />
                           </SeccionColapsable>
@@ -1693,14 +1925,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             titulo={sec.titulo || "Nuestra historia"}
                             abiertaPorDefecto={sectionIsBeingEdited}
                             bgColor="var(--cream)"
-                            editableTitle={sectionIsBeingEdited}
+                            editableTitle={contentMode}
                             onSelectTitle={() => setSelectedSectionId(sec.id)}
                             onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
                           >
                             <SeccionHistoria
                               eventos={historyEventsForSection(sec)}
                               viewport={editorViewport}
-                              editable={sectionIsBeingEdited}
+                              editable={contentMode}
+                              designMode={designMode}
+                              selectedComponentKey={designMode ? selectedDesignComponentKey as HistoriaComponentKey | null : null}
+                              onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
+                              componentStyles={componentStyles}
                               onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                               onEditTexto={(itemId, field, value) => {
                                 if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });
@@ -1718,14 +1954,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             titulo={sec.titulo || "Galería"}
                             abiertaPorDefecto={sectionIsBeingEdited}
                             bgColor="var(--cream)"
-                            editableTitle={sectionIsBeingEdited}
+                            editableTitle={contentMode}
                             onSelectTitle={() => setSelectedSectionId(sec.id)}
                             onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
                           >
                             <SeccionGaleria
                               media={galleryMediaForSection(sec)}
                               viewport={editorViewport}
-                              editable={sectionIsBeingEdited}
+                              editable={contentMode}
+                              designMode={designMode}
+                              selectedComponentKey={designMode ? selectedDesignComponentKey as GaleriaComponentKey | null : null}
+                              onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
+                              componentStyles={componentStyles}
                               onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                               onEditTexto={(itemId, value) => patchEditingSectionItem(itemId, { titulo: value })}
                               onRequestEditImagen={requestInlineImageEdit}
@@ -1739,7 +1979,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             titulo={sec.titulo || "El gran día"}
                             abiertaPorDefecto={sectionIsBeingEdited}
                             bgColor="var(--cream-dark)"
-                            editableTitle={sectionIsBeingEdited}
+                            editableTitle={contentMode}
                             onSelectTitle={() => setSelectedSectionId(sec.id)}
                             onChangeTitle={(value) => patchEditingSectionDraft({ titulo: value })}
                           >
@@ -1747,7 +1987,11 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               localizaciones={ic.localizaciones}
                               timeline={timelineEventsForSection(sec)}
                               viewport={editorViewport}
-                              editable={sectionIsBeingEdited}
+                              editable={contentMode}
+                              designMode={designMode}
+                              selectedComponentKey={designMode ? selectedDesignComponentKey as TimelineComponentKey | null : null}
+                              onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
+                              componentStyles={componentStyles}
                               onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                               onEditTexto={(itemId, field, value) => {
                                 if (field === "hora") patchEditingSectionItem(itemId, { hora: value });
