@@ -207,19 +207,16 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     buildInitialSecciones(ic, initialPaletas[0]?.id ?? ""),
   );
   const [previewRole, setPreviewRole] = useState<string>("publico");
-  const [previewOnlySelected, setPreviewOnlySelected] = useState(false);
   const [selectedSectionId, setSelectedSectionId] = useState<string>(
     buildInitialSecciones(ic, initialPaletas[0]?.id ?? "")[0]?.id ?? "",
   );
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [sectionDrafts, setSectionDrafts] = useState<Record<string, SeccionDiseno>>({});
 
   const [paletasCollapsed, setPaletasCollapsed] = useState(false);
   const [separadorCollapsed, setSeparadorCollapsed] = useState(false);
 
-  const [editorOpen, setEditorOpen] = useState(false);
   const [editorViewport, setEditorViewport] = useState<"desktop" | "movil">("desktop");
-  const [sectionDraft, setSectionDraft] = useState<SeccionDiseno | null>(null);
-  const [draftSavedSnapshot, setDraftSavedSnapshot] = useState<string>("");
-  const [editorToast, setEditorToast] = useState<{ type: "ok" | "info"; text: string } | null>(null);
   const sectionCardRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const [fuentes, setFuentes] = useState({ ...ic.tema.fuentes });
@@ -243,25 +240,38 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     [paletaActiva, paletaEditandoId, paletas],
   );
 
+  const seccionesEfectivas = useMemo(
+    () => secciones.map((sec) => sectionDrafts[sec.id] ?? sec),
+    [secciones, sectionDrafts],
+  );
+
+  const sectionBaseMap = useMemo(
+    () => Object.fromEntries(secciones.map((sec) => [sec.id, sec])) as Record<string, SeccionDiseno>,
+    [secciones],
+  );
+
+  const pendingDraftIds = useMemo(
+    () =>
+      Object.keys(sectionDrafts).filter((id) => {
+        const base = sectionBaseMap[id];
+        const draft = sectionDrafts[id];
+        if (!base || !draft) return false;
+        return JSON.stringify(base) !== JSON.stringify(draft);
+      }),
+    [sectionBaseMap, sectionDrafts],
+  );
+
+  const hasPendingDrafts = pendingDraftIds.length > 0;
+
   const visiblePreviewSections = useMemo(
     () =>
-      secciones.filter((s) => {
+      seccionesEfectivas.filter((s) => {
         if (!s.visible) return false;
         if (!s.perfiles || s.perfiles.length === 0) return true;
         return s.perfiles.includes(previewRole) || s.perfiles.includes("publico");
       }),
-    [previewRole, secciones],
+    [previewRole, seccionesEfectivas],
   );
-
-  const visibleSectionsForPreview = useMemo(() => {
-    if (!previewOnlySelected) return visiblePreviewSections;
-    return visiblePreviewSections.filter((section) => section.id === selectedSectionId);
-  }, [previewOnlySelected, selectedSectionId, visiblePreviewSections]);
-
-  const editorIsDirty = useMemo(() => {
-    if (!sectionDraft) return false;
-    return JSON.stringify(sectionDraft) !== draftSavedSnapshot;
-  }, [draftSavedSnapshot, sectionDraft]);
 
   useEffect(() => {
     const node = sectionCardRefs.current[selectedSectionId];
@@ -271,33 +281,48 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   }, [selectedSectionId]);
 
   useEffect(() => {
-    if (!editorToast) return;
-    const timer = setTimeout(() => setEditorToast(null), 2200);
-    return () => clearTimeout(timer);
-  }, [editorToast]);
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasPendingDrafts) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasPendingDrafts]);
 
   useEffect(() => {
-    if (!editorOpen) return;
+    const onDocumentClick = (event: MouseEvent) => {
+      if (!hasPendingDrafts) return;
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest("a") as HTMLAnchorElement | null;
+      if (!anchor?.href) return;
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
-      if (isSaveShortcut) {
-        event.preventDefault();
-        if (sectionDraft) {
-          saveCurrentSectionDraft();
-        }
+      const url = new URL(anchor.href, window.location.href);
+      const samePage = url.pathname === window.location.pathname && url.search === window.location.search;
+      if (samePage) return;
+
+      event.preventDefault();
+
+      const guardar = confirm("Hay cambios pendientes. Aceptar = Guardar todo y salir. Cancelar = elegir descarte.");
+      if (guardar) {
+        void (async () => {
+          await handleSave();
+          window.location.assign(url.toString());
+        })();
         return;
       }
 
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeSectionEditor();
-      }
+      const descartar = confirm("Descartar todos los cambios pendientes y salir?");
+      if (!descartar) return;
+
+      setSectionDrafts({});
+      setEditingSectionId(null);
+      window.location.assign(url.toString());
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [editorOpen, sectionDraft, secciones, draftSavedSnapshot]);
+    document.addEventListener("click", onDocumentClick, true);
+    return () => document.removeEventListener("click", onDocumentClick, true);
+  }, [hasPendingDrafts, sectionDrafts, secciones, paletaActiva, fuentes, paletas, paletaActivaId, separador, historia, timeline, logoUrl]);
 
   const previewGalleryMedia = useMemo<PublicGalleryMedia[]>(() => {
     const fromResources = resources
@@ -447,6 +472,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       }
       return next;
     });
+    setSectionDrafts((prev) => {
+      const clone = { ...prev };
+      delete clone[sectionId];
+      return clone;
+    });
+    if (editingSectionId === sectionId) {
+      setEditingSectionId(null);
+    }
   };
 
   const moveSection = (sectionId: string, direction: -1 | 1) => {
@@ -462,52 +495,46 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     });
   };
 
-  const openSectionEditor = (sectionId: string) => {
-    const section = secciones.find((s) => s.id === sectionId);
-    if (!section) return;
-    setSelectedSectionId(section.id);
-    setSectionDraft(structuredClone(section));
-    setDraftSavedSnapshot(JSON.stringify(section));
-    setEditorOpen(true);
+  const isSectionDirty = (sectionId: string): boolean => {
+    const base = sectionBaseMap[sectionId];
+    const draft = sectionDrafts[sectionId];
+    if (!base || !draft) return false;
+    return JSON.stringify(base) !== JSON.stringify(draft);
   };
 
-  const saveCurrentSectionDraft = () => {
-    if (!sectionDraft) return;
-    setSecciones((prev) => prev.map((s) => (s.id === sectionDraft.id ? sectionDraft : s)));
-    setDraftSavedSnapshot(JSON.stringify(sectionDraft));
-    setEditorToast({ type: "ok", text: "Sección guardada" });
-    showMsg("ok", `Seccion \"${sectionDraft.nombre || sectionDraft.titulo}\" guardada.`);
+  const startSectionEditing = (sectionId: string) => {
+    const base = sectionBaseMap[sectionId];
+    if (!base) return;
+    setSelectedSectionId(sectionId);
+    setEditingSectionId(sectionId);
+    setSectionDrafts((prev) => (prev[sectionId] ? prev : { ...prev, [sectionId]: structuredClone(base) }));
   };
 
-  const resolveUnsavedBeforeLeave = (): boolean => {
-    if (!editorIsDirty) return true;
-    const guardar = confirm("Hay cambios sin guardar. Aceptar = Guardar cambios. Cancelar = Descartar.");
-    if (guardar) {
-      saveCurrentSectionDraft();
-      return true;
+  const saveSectionDraftById = (sectionId: string) => {
+    const draft = sectionDrafts[sectionId];
+    if (!draft) return;
+    setSecciones((prev) => prev.map((s) => (s.id === sectionId ? draft : s)));
+    setSectionDrafts((prev) => {
+      const clone = { ...prev };
+      delete clone[sectionId];
+      return clone;
+    });
+    if (editingSectionId === sectionId) {
+      setEditingSectionId(null);
     }
-    return confirm("Confirmar descarte de cambios de esta seccion?");
+    showMsg("ok", `Seccion \"${draft.nombre || draft.titulo}\" guardada.`);
   };
 
-  const closeSectionEditor = () => {
-    if (!resolveUnsavedBeforeLeave()) return;
-    setEditorOpen(false);
-    setSectionDraft(null);
-  };
-
-  const navigateEditorSection = (direction: -1 | 1) => {
-    if (!sectionDraft) return;
-    const idx = secciones.findIndex((s) => s.id === sectionDraft.id);
-    if (idx < 0) return;
-    const nextIdx = idx + direction;
-    if (nextIdx < 0 || nextIdx >= secciones.length) return;
-
-    if (!resolveUnsavedBeforeLeave()) return;
-
-    const nextSection = secciones[nextIdx];
-    setSelectedSectionId(nextSection.id);
-    setSectionDraft(structuredClone(nextSection));
-    setDraftSavedSnapshot(JSON.stringify(nextSection));
+  const discardSectionDraftById = (sectionId: string) => {
+    setSectionDrafts((prev) => {
+      const clone = { ...prev };
+      delete clone[sectionId];
+      return clone;
+    });
+    if (editingSectionId === sectionId) {
+      setEditingSectionId(null);
+    }
+    showMsg("ok", "Cambios de sección descartados.");
   };
 
   const reorderSections = (sourceId: string, targetId: string) => {
@@ -562,6 +589,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const handleSave = async () => {
     setSaving(true);
     try {
+      const seccionesConPendientes = secciones.map((sec) => sectionDrafts[sec.id] ?? sec);
       const colors = paletaActiva?.colores ?? ic.tema.colores;
       const payload: Record<string, unknown> = {
         tema: {
@@ -572,7 +600,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         },
         diseno: {
           separador,
-          secciones,
+          secciones: seccionesConPendientes,
         },
         historia,
         timeline,
@@ -588,6 +616,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         const data = await res.json().catch(() => ({}));
         throw new Error((data as { error?: string }).error ?? "Error al guardar");
       }
+      setSecciones(seccionesConPendientes);
+      setSectionDrafts({});
+      setEditingSectionId(null);
       showMsg("ok", "Diseno guardado. Refresca la web publica para verlo aplicado.");
     } catch (e) {
       showMsg("error", e instanceof Error ? e.message : "Error");
@@ -668,42 +699,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       showMsg("error", error instanceof Error ? error.message : "Error al subir imagen");
     } finally {
       setUploadingHistoriaId(null);
-    }
-  };
-
-  const uploadSectionItemImage = async (itemId: string, file: File) => {
-    if (!sectionDraft) return;
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("section", sectionDraft.tipo === "timeline" ? "timeline" : "historia");
-      const res = await fetch(`/api/admin/${inviteCode}/resources`, {
-        method: "POST",
-        body: fd,
-      });
-      const data: unknown = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error((data as { error?: string }).error ?? "No se pudo subir la imagen");
-      }
-      const resource = (data as { resource?: ResourceItem }).resource;
-      if (!resource?.url_publica) {
-        throw new Error("La subida no devolvio una URL publica");
-      }
-
-      setSectionDraft((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items.map((item) =>
-            item.id === itemId ? { ...item, imagen: resource.url_publica ?? undefined } : item,
-          ),
-        };
-      });
-
-      setResources((prev) => [resource, ...prev]);
-      showMsg("ok", "Imagen subida correctamente");
-    } catch (error) {
-      showMsg("error", error instanceof Error ? error.message : "Error al subir imagen");
     }
   };
 
@@ -1030,52 +1025,81 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               </div>
 
               <div className="space-y-2">
-                {secciones.map((sec, idx) => (
-                  <article
-                    key={sec.id}
-                    ref={(node) => {
-                      sectionCardRefs.current[sec.id] = node;
-                    }}
-                    className={`rounded-xl border p-2 ${selectedSectionId === sec.id ? "border-amber-400 bg-amber-50/40" : "border-stone-200 bg-stone-50"}`}
-                    onClick={() => setSelectedSectionId(sec.id)}
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-stone-700">{sec.nombre || "Seccion"}</p>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => moveSection(sec.id, -1)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↑</button>
-                        <button onClick={() => moveSection(sec.id, 1)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↓</button>
+                {secciones.map((sec) => {
+                  const secDraft = sectionDrafts[sec.id] ?? sec;
+                  const secDirty = isSectionDirty(sec.id);
+                  const secEditing = editingSectionId === sec.id;
+
+                  return (
+                    <article
+                      key={sec.id}
+                      ref={(node) => {
+                        sectionCardRefs.current[sec.id] = node;
+                      }}
+                      className={`rounded-xl border p-2 ${selectedSectionId === sec.id ? "border-amber-400 bg-amber-50/40" : "border-stone-200 bg-stone-50"}`}
+                      onClick={() => setSelectedSectionId(sec.id)}
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-stone-700">{sec.nombre || "Seccion"}</p>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => moveSection(sec.id, -1)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↑</button>
+                          <button onClick={() => moveSection(sec.id, 1)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">↓</button>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="relative">
-                      {renderSectionCanvas(sec, true)}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openSectionEditor(sec.id);
-                        }}
-                        className="absolute right-1 top-1 rounded border border-stone-300 bg-white px-1.5 py-0.5 text-[11px]"
-                        title="Editar sección"
-                      >
-                        ✎
-                      </button>
-                    </div>
+                      <div className="relative">
+                        <div className="aspect-[16/10]">
+                          {renderSectionCanvas(secDraft, true)}
+                        </div>
+                        {secDirty && (
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                            <span className="rounded bg-black/45 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                              Pendiente
+                            </span>
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="mt-2 flex justify-end gap-1">
-                      <button onClick={() => cloneSection(sec.id)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">Clonar</button>
-                      <button onClick={() => removeSection(sec.id)} className="rounded border border-red-200 px-1.5 py-0.5 text-[11px] text-red-600">Eliminar</button>
-                    </div>
-                  </article>
-                ))}
+                      <div className="mt-2 flex flex-wrap justify-end gap-1">
+                        {secEditing || secDirty ? (
+                          <>
+                            <button
+                              onClick={() => saveSectionDraftById(sec.id)}
+                              disabled={!secDirty}
+                              className="rounded border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700 disabled:opacity-50"
+                            >
+                              Guardar cambios
+                            </button>
+                            <button
+                              onClick={() => discardSectionDraftById(sec.id)}
+                              className="rounded border border-red-200 px-1.5 py-0.5 text-[11px] text-red-600"
+                            >
+                              Descartar
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => startSectionEditing(sec.id)}
+                            className="rounded border border-stone-300 bg-white px-1.5 py-0.5 text-[11px]"
+                            title="Editar sección"
+                          >
+                            Editar
+                          </button>
+                        )}
+                        <button onClick={() => cloneSection(sec.id)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">Clonar</button>
+                        <button onClick={() => removeSection(sec.id)} className="rounded border border-red-200 px-1.5 py-0.5 text-[11px] text-red-600">Eliminar</button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </section>
           </aside>
 
           <section className="rounded-2xl border border-stone-200 bg-white p-4 space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap border-b border-stone-100 pb-3">
-              <div>
-                <h2 className="text-base font-semibold text-stone-700">Previsualizacion en tiempo real</h2>
-                <p className="text-xs text-stone-500">Los cambios se ven aqui al instante. Se publican al pulsar Guardar.</p>
+              <div className="min-h-[32px] text-xs text-stone-500">
+                {editingSectionId ? `Editando sección: ${secciones.find((s) => s.id === editingSectionId)?.nombre ?? "Sección"}` : "Sin sección activa en edición"}
               </div>
               <div className="flex items-center gap-2">
                 <select className="input-field w-[170px]" value={previewRole} onChange={(e) => setPreviewRole(e.target.value)}>
@@ -1083,14 +1107,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     <option key={role} value={role}>{role}</option>
                   ))}
                 </select>
-                <label className="inline-flex items-center gap-1 text-xs text-stone-600">
-                  <input
-                    type="checkbox"
-                    checked={previewOnlySelected}
-                    onChange={(e) => setPreviewOnlySelected(e.target.checked)}
-                  />
-                  Solo seccion
-                </label>
+                <select className="input-field w-[150px]" value={editorViewport} onChange={(e) => setEditorViewport(e.target.value as "desktop" | "movil")}>
+                  <option value="desktop">Vista PC</option>
+                  <option value="movil">Vista móvil</option>
+                </select>
                 <button onClick={handleSave} disabled={saving} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
                   {saving ? "Aplicando..." : "Aplicar y guardar"}
                 </button>
@@ -1107,7 +1127,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             >
               <div
                 style={{
-                  // Variables CSS del preview para que renderice igual que la web real.
                   ["--bronze" as string]: paletaActiva?.colores.bronze ?? "#8C6A3F",
                   ["--bronze-light" as string]: paletaActiva?.colores.bronzeLight ?? "#C4964A",
                   ["--olive" as string]: paletaActiva?.colores.olive ?? "#5C6B3A",
@@ -1120,9 +1139,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   ["--font-body" as string]: fuentes.body,
                 }}
               >
-                <main>
-                  {visibleSectionsForPreview.map((sec, idx) => {
-                    const isLast = idx === visibleSectionsForPreview.length - 1;
+                <main className={editorViewport === "movil" ? "mx-auto max-w-[430px]" : ""}>
+                  {visiblePreviewSections.map((sec, idx) => {
+                    const isLast = idx === visiblePreviewSections.length - 1;
                     return (
                       <div key={sec.id}>
                         {sec.tipo === "portada" && (
@@ -1154,7 +1173,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     );
                   })}
 
-                  {visibleSectionsForPreview.length === 0 && (
+                  {visiblePreviewSections.length === 0 && (
                     <div className="rounded-xl border border-dashed border-stone-300 p-8 text-center text-sm text-stone-500">
                       No hay secciones visibles para este perfil.
                     </div>
@@ -1163,411 +1182,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               </div>
             </div>
           </section>
-        </div>
-      )}
-
-      {editorOpen && sectionDraft && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[92vh] w-full max-w-[1300px] overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-stone-200 p-4">
-              <div className="flex items-center gap-2">
-                <button onClick={() => navigateEditorSection(-1)} className="rounded border border-stone-300 px-2 py-1 text-xs">←</button>
-                <input
-                  className="rounded border border-stone-300 px-3 py-1.5 text-sm font-semibold text-stone-800"
-                  value={sectionDraft.titulo}
-                  onChange={(e) => setSectionDraft((prev) => (prev ? { ...prev, titulo: e.target.value } : prev))}
-                />
-                <button onClick={() => navigateEditorSection(1)} className="rounded border border-stone-300 px-2 py-1 text-xs">→</button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-500">Ctrl/Cmd+S</span>
-                <span className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] text-stone-500">Esc</span>
-                <span
-                  className={`rounded-full px-2 py-1 text-[11px] font-semibold ${editorIsDirty ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}
-                >
-                  {editorIsDirty ? "Sin guardar" : "Guardado"}
-                </span>
-                <button onClick={saveCurrentSectionDraft} className="rounded bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white">Guardar sección</button>
-                <button onClick={closeSectionEditor} className="rounded border border-stone-300 px-3 py-1.5 text-xs">Cerrar</button>
-              </div>
-            </div>
-
-            <div className="grid max-h-[calc(92vh-70px)] gap-0 lg:grid-cols-[380px_1fr]">
-              <div className="overflow-auto border-r border-stone-200 p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="label-field">Tipo de sección</label>
-                  {sectionDraft.tipo === "galeria" && (
-                    <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-stone-700">Imágenes de galería</p>
-                        <button
-                          onClick={() =>
-                            setSectionDraft((prev) => {
-                              if (!prev) return prev;
-                              return {
-                                ...prev,
-                                items: [
-                                  ...(prev.items ?? []),
-                                  {
-                                    id: `item-${uid()}`,
-                                    titulo: "Nueva imagen",
-                                    descripcion: "",
-                                    imagen: "",
-                                    filtrosImagen: [],
-                                  },
-                                ],
-                              };
-                            })
-                          }
-                          className="rounded border border-stone-300 px-2 py-1 text-xs"
-                        >
-                          + Imagen
-                        </button>
-                      </div>
-
-                      {(sectionDraft.items ?? []).map((item) => (
-                        <div key={item.id} className="space-y-1 rounded-lg border border-stone-200 bg-white p-2">
-                          <input
-                            className="input-field"
-                            value={item.titulo}
-                            onChange={(e) =>
-                              setSectionDraft((prev) => {
-                                if (!prev) return prev;
-                                return {
-                                  ...prev,
-                                  items: prev.items.map((it) => (it.id === item.id ? { ...it, titulo: e.target.value } : it)),
-                                };
-                              })
-                            }
-                            placeholder="Título"
-                          />
-
-                          <select
-                            className="input-field"
-                            value={item.imagen ?? ""}
-                            onChange={(e) =>
-                              setSectionDraft((prev) => {
-                                if (!prev) return prev;
-                                return {
-                                  ...prev,
-                                  items: prev.items.map((it) =>
-                                    it.id === item.id ? { ...it, imagen: e.target.value || undefined } : it,
-                                  ),
-                                };
-                              })
-                            }
-                          >
-                            <option value="">Selecciona de biblioteca</option>
-                            {resourcesForHistoria.map((resource) => (
-                              <option key={resource.id} value={resource.url_publica ?? ""}>
-                                {resource.nombre}
-                              </option>
-                            ))}
-                          </select>
-
-                          <div className="grid grid-cols-[1fr_auto] gap-1">
-                            <input
-                              className="input-field"
-                              value={item.imagen ?? ""}
-                              onChange={(e) =>
-                                setSectionDraft((prev) => {
-                                  if (!prev) return prev;
-                                  return {
-                                    ...prev,
-                                    items: prev.items.map((it) =>
-                                      it.id === item.id ? { ...it, imagen: e.target.value || undefined } : it,
-                                    ),
-                                  };
-                                })
-                              }
-                              placeholder="URL imagen"
-                            />
-                            <label className="inline-flex cursor-pointer items-center rounded border border-stone-300 px-2 text-xs">
-                              Subir
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) void uploadSectionItemImage(item.id, file);
-                                  e.currentTarget.value = "";
-                                }}
-                              />
-                            </label>
-                          </div>
-
-                          {item.imagen && (
-                            <img
-                              src={previewSrcForAdmin(inviteCode, item.imagen)}
-                              alt={item.titulo || "item"}
-                              className="h-24 w-full rounded object-cover"
-                            />
-                          )}
-
-                          <button
-                            onClick={() =>
-                              setSectionDraft((prev) => {
-                                if (!prev) return prev;
-                                return { ...prev, items: prev.items.filter((it) => it.id !== item.id) };
-                              })
-                            }
-                            className="text-xs text-red-500"
-                          >
-                            Eliminar imagen
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                    <select
-                      className="input-field"
-                      value={sectionDraft.tipo}
-                      onChange={(e) => setSectionDraft((prev) => (prev ? { ...prev, tipo: e.target.value as TipoSeccionDiseno } : prev))}
-                    >
-                      {SECTION_TYPES.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label-field">Paleta</label>
-                    <select
-                      className="input-field"
-                      value={sectionDraft.paletaId}
-                      onChange={(e) => setSectionDraft((prev) => (prev ? { ...prev, paletaId: e.target.value } : prev))}
-                    >
-                      {paletas.map((p) => (
-                        <option key={p.id} value={p.id}>{p.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label-field">Vista</label>
-                    <select className="input-field" value={editorViewport} onChange={(e) => setEditorViewport(e.target.value as "desktop" | "movil")}>
-                      <option value="desktop">PC</option>
-                      <option value="movil">Móvil</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label-field">Visible</label>
-                    <label className="inline-flex h-[38px] items-center gap-2 rounded-xl border border-stone-300 px-3 text-sm text-stone-600">
-                      <input
-                        type="checkbox"
-                        checked={sectionDraft.visible}
-                        onChange={(e) => setSectionDraft((prev) => (prev ? { ...prev, visible: e.target.checked } : prev))}
-                      />
-                      Mostrar
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="label-field">Perfiles visibles</label>
-                  <div className="grid grid-cols-2 gap-1">
-                    {PROFILE_OPTIONS.map((role) => (
-                      <label key={role} className="inline-flex items-center gap-2 text-xs text-stone-600">
-                        <input
-                          type="checkbox"
-                          checked={(sectionDraft.perfiles ?? []).includes(role)}
-                          onChange={(e) => {
-                            const current = sectionDraft.perfiles ?? [];
-                            const next = e.target.checked ? [...current, role] : current.filter((r) => r !== role);
-                            setSectionDraft((prev) => (prev ? { ...prev, perfiles: next } : prev));
-                          }}
-                        />
-                        {role}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {(sectionDraft.tipo === "historia" || sectionDraft.tipo === "timeline") && (
-                  <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-stone-700">Entradas</p>
-                      <button onClick={() => setSectionDraft((prev) => {
-                        if (!prev) return prev;
-                        const nextItem = {
-                          id: `item-${uid()}`,
-                          titulo: prev.tipo === "timeline" ? "Nuevo hito" : "Nueva historia",
-                          descripcion: "",
-                          hora: prev.tipo === "timeline" ? "12:00" : undefined,
-                          filtrosImagen: [],
-                        };
-                        return { ...prev, items: [...(prev.items ?? []), nextItem] };
-                      })} className="rounded border border-stone-300 px-2 py-1 text-xs">+ Entrada</button>
-                    </div>
-
-                    {(sectionDraft.items ?? []).map((item) => (
-                      <div key={item.id} className="space-y-1 rounded-lg border border-stone-200 bg-white p-2">
-                        <input
-                          className="input-field"
-                          value={item.titulo}
-                          onChange={(e) => setSectionDraft((prev) => {
-                            if (!prev) return prev;
-                            return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, titulo: e.target.value } : it)) };
-                          })}
-                          placeholder="Título"
-                        />
-                        <textarea
-                          className="input-field"
-                          rows={2}
-                          value={item.descripcion}
-                          onChange={(e) => setSectionDraft((prev) => {
-                            if (!prev) return prev;
-                            return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, descripcion: e.target.value } : it)) };
-                          })}
-                          placeholder="Descripción"
-                        />
-                        {sectionDraft.tipo === "timeline" && (
-                          <div className="grid grid-cols-2 gap-1">
-                            <input
-                              className="input-field"
-                              value={item.hora ?? ""}
-                              onChange={(e) => setSectionDraft((prev) => {
-                                if (!prev) return prev;
-                                return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, hora: e.target.value } : it)) };
-                              })}
-                              placeholder="Hora"
-                            />
-                            <select
-                              className="input-field"
-                              value={item.icono ?? "rings"}
-                              onChange={(e) => setSectionDraft((prev) => {
-                                if (!prev) return prev;
-                                return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, icono: e.target.value } : it)) };
-                              })}
-                            >
-                              {ICONO_OPTIONS.map((icon) => <option key={icon} value={icon}>{icon}</option>)}
-                            </select>
-                          </div>
-                        )}
-                        <input
-                          className="input-field"
-                          value={item.enlaceMaps ?? ""}
-                          onChange={(e) => setSectionDraft((prev) => {
-                            if (!prev) return prev;
-                            return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, enlaceMaps: e.target.value } : it)) };
-                          })}
-                          placeholder="Enlace maps"
-                        />
-
-                        <div className="grid grid-cols-[1fr_auto] gap-1">
-                          <input
-                            className="input-field"
-                            value={item.imagen ?? ""}
-                            onChange={(e) => setSectionDraft((prev) => {
-                              if (!prev) return prev;
-                              return { ...prev, items: prev.items.map((it) => (it.id === item.id ? { ...it, imagen: e.target.value } : it)) };
-                            })}
-                            placeholder="URL imagen"
-                          />
-                          <label className="inline-flex cursor-pointer items-center rounded border border-stone-300 px-2 text-xs">
-                            Subir
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) void uploadSectionItemImage(item.id, file);
-                                e.currentTarget.value = "";
-                              }}
-                            />
-                          </label>
-                        </div>
-
-                        <div className="flex items-center gap-2 text-xs">
-                          {(["sepia", "grayscale", "blur"] as const).map((filterKey) => (
-                            <label key={filterKey} className="inline-flex items-center gap-1">
-                              <input
-                                type="checkbox"
-                                checked={(item.filtrosImagen ?? []).includes(filterKey)}
-                                onChange={(e) => setSectionDraft((prev) => {
-                                  if (!prev) return prev;
-                                  return {
-                                    ...prev,
-                                    items: prev.items.map((it) => {
-                                      if (it.id !== item.id) return it;
-                                      const current = it.filtrosImagen ?? [];
-                                      const next = e.target.checked
-                                        ? [...current, filterKey]
-                                        : current.filter((f) => f !== filterKey);
-                                      return { ...it, filtrosImagen: next };
-                                    }),
-                                  };
-                                })}
-                              />
-                              {filterKey}
-                            </label>
-                          ))}
-                        </div>
-
-                        {item.imagen && (
-                          <img
-                            src={previewSrcForAdmin(inviteCode, item.imagen)}
-                            alt={item.titulo || "item"}
-                            className="h-24 w-full rounded object-cover"
-                            style={{ filter: getItemFilterCss(item.filtrosImagen) }}
-                          />
-                        )}
-
-                        <button
-                          onClick={() => setSectionDraft((prev) => {
-                            if (!prev) return prev;
-                            return { ...prev, items: prev.items.filter((it) => it.id !== item.id) };
-                          })}
-                          className="text-xs text-red-500"
-                        >
-                          Eliminar entrada
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {sectionDraft.tipo === "portada" && (
-                  <div className="space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
-                    <p className="text-xs font-semibold text-stone-700">Edición básica de portada</p>
-                    <input
-                      className="input-field"
-                      value={sectionDraft.nombre}
-                      onChange={(e) => setSectionDraft((prev) => (prev ? { ...prev, nombre: e.target.value } : prev))}
-                      placeholder="Nombre interno"
-                    />
-                    <textarea
-                      className="input-field"
-                      rows={3}
-                      value={sectionDraft.items?.[0]?.descripcion ?? ic.textos.bienvenida}
-                      onChange={(e) => setSectionDraft((prev) => {
-                        if (!prev) return prev;
-                        const first = prev.items[0] ?? { id: `item-${uid()}`, titulo: "Portada", descripcion: "" };
-                        const next = { ...first, descripcion: e.target.value };
-                        return { ...prev, items: [next, ...prev.items.slice(1)] };
-                      })}
-                      placeholder="Texto de bienvenida"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="overflow-auto p-4">
-                {editorToast && (
-                  <div
-                    className={`mb-3 inline-flex rounded-lg px-3 py-1.5 text-xs font-semibold ${editorToast.type === "ok" ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-700"}`}
-                  >
-                    {editorToast.text}
-                  </div>
-                )}
-                <p className="mb-2 text-xs text-stone-500">Canvas de edición ({editorViewport})</p>
-                {renderSectionCanvas(sectionDraft, false)}
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
