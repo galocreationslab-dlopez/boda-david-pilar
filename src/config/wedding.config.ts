@@ -123,6 +123,7 @@ export type SeccionDiseno = {
   id: string;
   nombre: string;
   titulo: string;
+  subtituloInterno?: string;
   tipo: TipoSeccionDiseno;
   paletaId: string;
   usarPaletaGlobal?: boolean;
@@ -305,6 +306,7 @@ export const weddingConfig: WeddingConfig = {
         id: "sec-historia",
         nombre: "Historia",
         titulo: "Nuestra historia",
+        subtituloInterno: "El camino hasta aquí",
         tipo: "historia",
         paletaId: "paleta-clasica",
         usarPaletaGlobal: true,

@@ -58,6 +58,7 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
   ],
   historia: [
     { key: "historia.tituloSeccion", label: "Título sección (colapsable)", defaultRole: "tituloSeccion" },
+    { key: "historia.tituloInterno", label: "Título interno historia", defaultRole: "titulo" },
     { key: "historia.fondoSeccion", label: "Fondo sección", defaultRole: "fondoSeccion" },
     { key: "historia.card", label: "Fondo item", defaultRole: "fondoSubseccion" },
     { key: "historia.imagen", label: "Borde imagen", defaultRole: "bordes" },
@@ -293,6 +294,10 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
                       icono: evento.icono,
                     })))
               : (sec.items ?? []),
+      subtituloInterno:
+        sec.tipo === "historia"
+          ? (sec.subtituloInterno || "El camino hasta aquí")
+          : sec.subtituloInterno,
     }));
   }
 
@@ -833,6 +838,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       case "portada.cuentaAtrasLeyendas":
       case "portada.ctaTexto":
       case "historia.tituloSeccion":
+      case "historia.tituloInterno":
       case "historia.fecha":
       case "historia.titulo":
       case "historia.descripcion":
@@ -1398,8 +1404,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 selectedComponentKey={designMode ? selectedDesignComponentKey as HistoriaComponentKey | null : null}
                 onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                 componentStyles={componentStyles}
-                sectionTitle={section.titulo || "El camino hasta aquí"}
-                onEditSectionTitle={(value) => patchEditingSectionDraft({ titulo: value })}
+                sectionInternalTitle={section.subtituloInterno || "El camino hasta aquí"}
+                onEditSectionInternalTitle={(value) => patchEditingSectionDraft({ subtituloInterno: value })}
                 onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                 onEditTexto={(itemId, field, value) => {
                   if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });
@@ -2172,8 +2178,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               selectedComponentKey={designMode ? selectedDesignComponentKey as HistoriaComponentKey | null : null}
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
-                              sectionTitle={sec.titulo || "El camino hasta aquí"}
-                              onEditSectionTitle={(value) => patchEditingSectionDraft({ titulo: value })}
+                              sectionInternalTitle={sec.subtituloInterno || "El camino hasta aquí"}
+                              onEditSectionInternalTitle={(value) => patchEditingSectionDraft({ subtituloInterno: value })}
                               onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                               onEditTexto={(itemId, field, value) => {
                                 if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });

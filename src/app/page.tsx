@@ -47,6 +47,7 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
   ],
   historia: [
     { key: "historia.tituloSeccion", defaultRole: "tituloSeccion" },
+    { key: "historia.tituloInterno", defaultRole: "titulo" },
     { key: "historia.fondoSeccion", defaultRole: "fondoSeccion" },
     { key: "historia.card", defaultRole: "fondoSubseccion" },
     { key: "historia.imagen", defaultRole: "bordes" },
@@ -93,6 +94,7 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
     case "portada.cuentaAtrasLeyendas":
     case "portada.ctaTexto":
     case "historia.tituloSeccion":
+    case "historia.tituloInterno":
     case "historia.fecha":
     case "historia.titulo":
     case "historia.descripcion":
@@ -246,7 +248,11 @@ export default async function PaginaPrincipal() {
                   sectionStyle={componentStyles["historia.fondoSeccion"]}
                   titleStyle={componentStyles["historia.tituloSeccion"]}
                 >
-                  <SeccionHistoria eventos={config.historia} componentStyles={componentStyles} />
+                  <SeccionHistoria
+                    eventos={config.historia}
+                    componentStyles={componentStyles}
+                    sectionInternalTitle={section.source?.subtituloInterno || "El camino hasta aquí"}
+                  />
                 </SeccionColapsable>
               )}
 

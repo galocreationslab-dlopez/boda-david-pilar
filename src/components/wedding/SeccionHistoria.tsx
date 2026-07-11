@@ -13,6 +13,7 @@ import type { CSSProperties } from "react";
 
 export type HistoriaComponentKey =
   | "historia.tituloSeccion"
+  | "historia.tituloInterno"
   | "historia.card"
   | "historia.fecha"
   | "historia.titulo"
@@ -28,8 +29,8 @@ type Props = {
   selectedComponentKey?: HistoriaComponentKey | null;
   onSelectComponent?: (key: HistoriaComponentKey) => void;
   componentStyles?: Partial<Record<HistoriaComponentKey, CSSProperties>>;
-  sectionTitle?: string;
-  onEditSectionTitle?: (value: string) => void;
+  sectionInternalTitle?: string;
+  onEditSectionInternalTitle?: (value: string) => void;
   onEditTexto?: (id: string, field: "fecha" | "titulo" | "descripcion", value: string) => void;
   onRequestEditImagen?: (id: string) => void;
   onSelectItem?: (id: string) => void;
@@ -50,8 +51,8 @@ export function SeccionHistoria({
   selectedComponentKey,
   onSelectComponent,
   componentStyles,
-  sectionTitle,
-  onEditSectionTitle,
+  sectionInternalTitle,
+  onEditSectionInternalTitle,
   onEditTexto,
   onRequestEditImagen,
   onSelectItem,
@@ -91,20 +92,20 @@ export function SeccionHistoria({
         <div className="text-center mb-10">
           <h2
             className="section-title"
-            style={styleFor("historia.tituloSeccion")}
+            style={styleFor("historia.tituloInterno")}
             contentEditable={!designMode && editable}
             suppressContentEditableWarning={true}
             onClick={() => {
               if (designMode) {
-                select("historia.tituloSeccion");
+                select("historia.tituloInterno");
               }
             }}
             onBlur={(event) => {
               if (!editable || designMode) return;
-              onEditSectionTitle?.(event.currentTarget.textContent ?? "");
+              onEditSectionInternalTitle?.(event.currentTarget.textContent ?? "");
             }}
           >
-            {sectionTitle || "El camino hasta aquí"}
+            {sectionInternalTitle || "El camino hasta aquí"}
           </h2>
           <OrnamentoDivisor />
         </div>
@@ -135,6 +136,20 @@ export function SeccionHistoria({
                     onRequestEditImagen?.(item.id);
                   }}
                 >
+                  {!designMode && editable && (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-2 z-10 rounded border border-white/60 bg-black/40 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onSelectItem?.(item.id);
+                        onRequestEditImagen?.(item.id);
+                      }}
+                    >
+                      Cambiar imagen
+                    </button>
+                  )}
                   <Image
                     src={resolveImageSrc(item.imagen)}
                     alt={item.titulo}
@@ -234,6 +249,20 @@ export function SeccionHistoria({
                   onRequestEditImagen?.(evento.id);
                 }}
               >
+                {!designMode && editable && (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-2 z-10 rounded border border-white/60 bg-black/40 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onSelectItem?.(evento.id);
+                      onRequestEditImagen?.(evento.id);
+                    }}
+                  >
+                    Cambiar imagen
+                  </button>
+                )}
                 <Image
                   src={resolveImageSrc(evento.imagen)}
                   alt={evento.titulo}
@@ -326,6 +355,20 @@ export function SeccionHistoria({
                   onRequestEditImagen?.(evento.id);
                 }}
               >
+                {!designMode && editable && (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-2 z-10 rounded border border-white/60 bg-black/40 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onSelectItem?.(evento.id);
+                      onRequestEditImagen?.(evento.id);
+                    }}
+                  >
+                    Cambiar imagen
+                  </button>
+                )}
                 <Image
                   src={resolveImageSrc(evento.imagen)}
                   alt={evento.titulo}

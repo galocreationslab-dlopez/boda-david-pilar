@@ -66,7 +66,21 @@ export function SeccionGaleria({
           <div className={galleryGridClass}>
             {media.map((item) => (
               <article key={item.id} className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm" style={styleFor("galeria.card")} onClick={() => select("galeria.card")}>
-                <div className="aspect-[4/3] bg-stone-100" style={styleFor("galeria.imagen")} onClick={(event) => { event.stopPropagation(); select("galeria.imagen"); }}>
+                <div className="relative aspect-[4/3] bg-stone-100" style={styleFor("galeria.imagen")} onClick={(event) => { event.stopPropagation(); select("galeria.imagen"); }}>
+                  {!designMode && editable && (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-2 z-10 rounded border border-white/60 bg-black/40 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onSelectItem?.(item.id);
+                        onRequestEditImagen?.(item.id);
+                      }}
+                    >
+                      Cambiar imagen
+                    </button>
+                  )}
                   {item.tipo === "video" ? (
                     <video className="h-full w-full object-cover" controls src={item.url_publica ?? undefined} />
                   ) : (
