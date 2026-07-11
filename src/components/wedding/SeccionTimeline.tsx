@@ -156,7 +156,7 @@ function buildTimelinePoints(
 ): PuntoTimeline[] {
   if (timeline.length === 0) return PUNTOS_FALLBACK;
 
-  return timeline.slice(0, 3).map((item) => {
+  return timeline.map((item) => {
     const mapaLink = inferMapLink(item, localizaciones);
     const fallbackQuery = `${item.titulo} ${item.descripcion}`.trim();
     const icono = normalizeIcon(item.icono);
@@ -187,6 +187,7 @@ export function SeccionTimeline({
 }: Props) {
   const puntos = buildTimelinePoints(timeline, localizaciones);
   const showCurvedLine = puntos.length === 3;
+  const showStraightLine = puntos.length > 1 && puntos.length !== 3;
   const forceMobile = viewport === "movil";
 
   const styleFor = (key: TimelineComponentKey, base: CSSProperties = {}): CSSProperties => ({
@@ -348,8 +349,23 @@ export function SeccionTimeline({
               </svg>
             )}
 
-            {/* Los 3 puntos */}
-            <div className="relative z-10 grid grid-cols-3 gap-4">
+            {showStraightLine && (
+              <div
+                className="absolute left-[8%] right-[8%] top-[92px] h-px"
+                style={{
+                  borderTop: "2px dashed var(--bronze-pale)",
+                  zIndex: 0,
+                }}
+                aria-hidden="true"
+              />
+            )}
+
+            <div
+              className="relative z-10 grid gap-4"
+              style={{
+                gridTemplateColumns: `repeat(${Math.max(puntos.length, 1)}, minmax(0, 1fr))`,
+              }}
+            >
               {puntos.map((punto) => (
                 <div key={punto.id} className="flex flex-col items-center gap-4">
 

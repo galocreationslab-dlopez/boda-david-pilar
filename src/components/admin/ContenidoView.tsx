@@ -264,6 +264,8 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [loadingResources, setLoadingResources] = useState(false);
   const [uploadingHistoriaId, setUploadingHistoriaId] = useState<string | null>(null);
 
+  const recursosDriveConfigured = Boolean(config.drive.recursosWeb.folderId.trim());
+
   const selectedSection = useMemo(
     () => sections.find((section) => section.id === selectedSectionId) ?? sections[0],
     [sections, selectedSectionId],
@@ -379,6 +381,19 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     patchSelectedItems((items) => items.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)));
   };
 
+  const moveSelectedItem = (itemId: string, direction: "up" | "down") => {
+    patchSelectedItems((items) => {
+      const index = items.findIndex((item) => item.id === itemId);
+      if (index < 0) return items;
+      const target = direction === "up" ? index - 1 : index + 1;
+      if (target < 0 || target >= items.length) return items;
+      const next = [...items];
+      const [moved] = next.splice(index, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+  };
+
   const uploadHistoriaImage = async (itemId: string, file: File) => {
     setUploadingHistoriaId(itemId);
     try {
@@ -475,6 +490,12 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
           }`}
         >
           {msg.text}
+        </div>
+      )}
+
+      {!recursosDriveConfigured && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Falta configurar la carpeta de Google Drive para recursos web. Hazlo en Datos Boda antes de subir imágenes nuevas.
         </div>
       )}
 
@@ -614,16 +635,32 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
               {selectedSection.tipo === "historia" && (
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold text-stone-700">Historia</h3>
-                  {selectedSection.items.map((item) => (
+                  {selectedSection.items.map((item, index) => (
                     <div key={item.id} className="rounded-2xl border border-stone-200 p-4 space-y-3">
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-semibold text-stone-700">{item.titulo || "(sin titulo)"}</p>
-                        <button
-                          onClick={() => patchSelectedItems((items) => items.filter((current) => current.id !== item.id))}
-                          className="text-xs text-red-500 hover:text-red-700"
-                        >
-                          Eliminar
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => moveSelectedItem(item.id, "up")}
+                            disabled={index === 0}
+                            className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => moveSelectedItem(item.id, "down")}
+                            disabled={index === selectedSection.items.length - 1}
+                            className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            onClick={() => patchSelectedItems((items) => items.filter((current) => current.id !== item.id))}
+                            className="text-xs text-red-500 hover:text-red-700"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div>
@@ -659,7 +696,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                 type="file"
                                 accept="image/*"
                                 className="hidden"
-                                disabled={uploadingHistoriaId === item.id}
+                                disabled={uploadingHistoriaId === item.id || !recursosDriveConfigured}
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
@@ -701,16 +738,32 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
               {selectedSection.tipo === "timeline" && (
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold text-stone-700">Timeline</h3>
-                  {selectedSection.items.map((item) => (
+                  {selectedSection.items.map((item, index) => (
                     <div key={item.id} className="rounded-2xl border border-stone-200 p-4 space-y-3">
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-semibold text-stone-700">{item.hora || "--:--"} {item.titulo || "(sin titulo)"}</p>
-                        <button
-                          onClick={() => patchSelectedItems((items) => items.filter((current) => current.id !== item.id))}
-                          className="text-xs text-red-500 hover:text-red-700"
-                        >
-                          Eliminar
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => moveSelectedItem(item.id, "up")}
+                            disabled={index === 0}
+                            className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => moveSelectedItem(item.id, "down")}
+                            disabled={index === selectedSection.items.length - 1}
+                            className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            onClick={() => patchSelectedItems((items) => items.filter((current) => current.id !== item.id))}
+                            className="text-xs text-red-500 hover:text-red-700"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div>

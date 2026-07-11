@@ -42,6 +42,7 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
   const [nombreConjunto, setNombreConjunto] = useState(config.nombreConjunto ?? `${config.novia.nombre} & ${config.novio.nombre}`);
   const [inicialesConjuntas, setInicialesConjuntas] = useState(config.inicialesConjuntas ?? `${config.iniciales.novia}&${config.iniciales.novio}`);
   const [fechaFormateada, setFechaFormateada] = useState(config.fechaFormateada ?? "");
+  const [drive, setDrive] = useState(config.drive);
 
   const [ubicaciones, setUbicaciones] = useState<Array<Localizacion & { fechaHoraTexto?: string }>>(
     (config.localizaciones ?? []).map((loc) => ({
@@ -108,6 +109,7 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
         inicialesConjuntas,
         fechaFormateada,
         localizaciones,
+        drive,
       };
 
       const res = await fetch(`/api/admin/${inviteCode}/config`, {
@@ -223,6 +225,103 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
             </div>
           </div>
         ))}
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-6 space-y-4">
+        <h2 className="text-base font-semibold text-stone-700">Google Drive</h2>
+        <p className="text-sm text-stone-500">Define aquí la carpeta donde se guardan los recursos de la web y las subidas privadas de invitados.</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="label-field">Ruta visible recursos web</label>
+            <input
+              className="input-field"
+              value={drive.recursosWeb.folderPath}
+              onChange={(e) =>
+                setDrive((current) => ({
+                  ...current,
+                  recursosWeb: { ...current.recursosWeb, folderPath: e.target.value },
+                }))
+              }
+              placeholder="Recursos de la web"
+            />
+          </div>
+          <div>
+            <label className="label-field">ID carpeta recursos web</label>
+            <input
+              className="input-field font-mono"
+              value={drive.recursosWeb.folderId}
+              onChange={(e) =>
+                setDrive((current) => ({
+                  ...current,
+                  recursosWeb: { ...current.recursosWeb, folderId: e.target.value },
+                }))
+              }
+              placeholder="0B..."
+            />
+          </div>
+          <div>
+            <label className="label-field">Shared Drive ID recursos web</label>
+            <input
+              className="input-field font-mono"
+              value={drive.recursosWeb.sharedDriveId ?? ""}
+              onChange={(e) =>
+                setDrive((current) => ({
+                  ...current,
+                  recursosWeb: {
+                    ...current.recursosWeb,
+                    sharedDriveId: e.target.value || undefined,
+                  },
+                }))
+              }
+              placeholder="Opcional"
+            />
+          </div>
+          <div>
+            <label className="label-field">ID carpeta subidas invitados</label>
+            <input
+              className="input-field font-mono"
+              value={drive.invitados.folderId}
+              onChange={(e) =>
+                setDrive((current) => ({
+                  ...current,
+                  invitados: { ...current.invitados, folderId: e.target.value },
+                }))
+              }
+              placeholder="0B..."
+            />
+          </div>
+          <div>
+            <label className="label-field">Ruta visible subidas invitados</label>
+            <input
+              className="input-field"
+              value={drive.invitados.folderPath}
+              onChange={(e) =>
+                setDrive((current) => ({
+                  ...current,
+                  invitados: { ...current.invitados, folderPath: e.target.value },
+                }))
+              }
+              placeholder="Subidas de invitados"
+            />
+          </div>
+          <div>
+            <label className="label-field">Shared Drive ID invitados</label>
+            <input
+              className="input-field font-mono"
+              value={drive.invitados.sharedDriveId ?? ""}
+              onChange={(e) =>
+                setDrive((current) => ({
+                  ...current,
+                  invitados: {
+                    ...current.invitados,
+                    sharedDriveId: e.target.value || undefined,
+                  },
+                }))
+              }
+              placeholder="Opcional"
+            />
+          </div>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-6">
