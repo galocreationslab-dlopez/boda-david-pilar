@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { label: "Datos Boda", segment: "datos" },
   { label: "Invitaciones",  segment: "invitaciones" },
   { label: "Diseño", segment: "configuracion" },
+  { label: "Contenido", segment: "contenido" },
 ];
 
 export default function AdminNav({ inviteCode }: { inviteCode: string }) {
