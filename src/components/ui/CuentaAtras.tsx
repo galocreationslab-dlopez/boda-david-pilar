@@ -67,6 +67,7 @@ function UnidadTiempo({
         onClick={onValueClick}
         aria-live="polite"
         aria-atomic="true"
+        suppressHydrationWarning
       >
         {String(valor).padStart(2, "0")}
       </span>
