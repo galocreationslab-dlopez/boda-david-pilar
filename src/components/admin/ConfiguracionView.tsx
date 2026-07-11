@@ -272,7 +272,27 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
                     descripcion: config.textos.bienvenida,
                   },
                 ])
-          : (sec.items ?? []),
+          : sec.tipo === "historia"
+            ? (sec.items?.length
+                ? sec.items
+                : config.historia.map((evento) => ({
+                    id: evento.id,
+                    titulo: evento.titulo,
+                    descripcion: evento.descripcion,
+                    hora: evento.fecha,
+                    imagen: evento.imagen,
+                  })))
+            : sec.tipo === "timeline"
+              ? (sec.items?.length
+                  ? sec.items
+                  : config.timeline.map((evento) => ({
+                      id: evento.id,
+                      titulo: evento.titulo,
+                      descripcion: evento.descripcion,
+                      hora: evento.hora,
+                      icono: evento.icono,
+                    })))
+              : (sec.items ?? []),
     }));
   }
 
@@ -1131,17 +1151,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const requestInlineImageEdit = (itemId: string) => {
     if (!editingSectionDraft) return;
     setSelectedDraftItemId(itemId);
-
-    const selectedItem = editingSectionDraft.items.find((item) => item.id === itemId);
-    const useUrl = window.confirm("Editar imagen: Aceptar para pegar URL. Cancelar para subir archivo.");
-
-    if (useUrl) {
-      const nextUrl = window.prompt("Pega la URL pública de la imagen", selectedItem?.imagen ?? "");
-      if (nextUrl === null) return;
-      patchEditingSectionItem(itemId, { imagen: nextUrl.trim() });
-      return;
-    }
-
     setInlineImageTargetItemId(itemId);
     inlineImageFileInputRef.current?.click();
   };
@@ -1389,6 +1398,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 selectedComponentKey={designMode ? selectedDesignComponentKey as HistoriaComponentKey | null : null}
                 onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                 componentStyles={componentStyles}
+                sectionTitle={section.titulo || "El camino hasta aquí"}
+                onEditSectionTitle={(value) => patchEditingSectionDraft({ titulo: value })}
                 onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                 onEditTexto={(itemId, field, value) => {
                   if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });
@@ -2161,6 +2172,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               selectedComponentKey={designMode ? selectedDesignComponentKey as HistoriaComponentKey | null : null}
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
+                              sectionTitle={sec.titulo || "El camino hasta aquí"}
+                              onEditSectionTitle={(value) => patchEditingSectionDraft({ titulo: value })}
                               onSelectItem={(itemId) => setSelectedDraftItemId(itemId)}
                               onEditTexto={(itemId, field, value) => {
                                 if (field === "fecha") patchEditingSectionItem(itemId, { hora: value });

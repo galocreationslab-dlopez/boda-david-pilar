@@ -12,6 +12,7 @@ import type { EventoHistoria } from "@/config/wedding.config";
 import type { CSSProperties } from "react";
 
 export type HistoriaComponentKey =
+  | "historia.tituloSeccion"
   | "historia.card"
   | "historia.fecha"
   | "historia.titulo"
@@ -27,6 +28,8 @@ type Props = {
   selectedComponentKey?: HistoriaComponentKey | null;
   onSelectComponent?: (key: HistoriaComponentKey) => void;
   componentStyles?: Partial<Record<HistoriaComponentKey, CSSProperties>>;
+  sectionTitle?: string;
+  onEditSectionTitle?: (value: string) => void;
   onEditTexto?: (id: string, field: "fecha" | "titulo" | "descripcion", value: string) => void;
   onRequestEditImagen?: (id: string) => void;
   onSelectItem?: (id: string) => void;
@@ -47,6 +50,8 @@ export function SeccionHistoria({
   selectedComponentKey,
   onSelectComponent,
   componentStyles,
+  sectionTitle,
+  onEditSectionTitle,
   onEditTexto,
   onRequestEditImagen,
   onSelectItem,
@@ -84,7 +89,23 @@ export function SeccionHistoria({
       <div className="container-wedding">
         {/* Cabecera */}
         <div className="text-center mb-10">
-          <h2 className="section-title">El camino hasta aquí</h2>
+          <h2
+            className="section-title"
+            style={styleFor("historia.tituloSeccion")}
+            contentEditable={!designMode && editable}
+            suppressContentEditableWarning={true}
+            onClick={() => {
+              if (designMode) {
+                select("historia.tituloSeccion");
+              }
+            }}
+            onBlur={(event) => {
+              if (!editable || designMode) return;
+              onEditSectionTitle?.(event.currentTarget.textContent ?? "");
+            }}
+          >
+            {sectionTitle || "El camino hasta aquí"}
+          </h2>
           <OrnamentoDivisor />
         </div>
 
@@ -100,7 +121,20 @@ export function SeccionHistoria({
               onClick={() => select("historia.card")}
             >
               {item.imagen && (
-                <div className="relative h-48 w-full" style={styleFor("historia.imagen")} onClick={(event) => { event.stopPropagation(); select("historia.imagen"); }}>
+                <div
+                  className="relative h-48 w-full"
+                  style={styleFor("historia.imagen")}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (designMode) {
+                      select("historia.imagen");
+                      return;
+                    }
+                    if (!editable) return;
+                    onSelectItem?.(item.id);
+                    onRequestEditImagen?.(item.id);
+                  }}
+                >
                   <Image
                     src={resolveImageSrc(item.imagen)}
                     alt={item.titulo}
@@ -186,7 +220,20 @@ export function SeccionHistoria({
           >
             {/* Imagen — izquierda o derecha según config */}
             {evento.imagen && evento.lado === "izquierda" && (
-              <div className="relative min-h-full w-2/5 flex-shrink-0" style={styleFor("historia.imagen")} onClick={(event) => { event.stopPropagation(); select("historia.imagen"); }}>
+              <div
+                className="relative min-h-full w-2/5 flex-shrink-0"
+                style={styleFor("historia.imagen")}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (designMode) {
+                    select("historia.imagen");
+                    return;
+                  }
+                  if (!editable) return;
+                  onSelectItem?.(evento.id);
+                  onRequestEditImagen?.(evento.id);
+                }}
+              >
                 <Image
                   src={resolveImageSrc(evento.imagen)}
                   alt={evento.titulo}
@@ -265,7 +312,20 @@ export function SeccionHistoria({
 
             {/* Imagen — derecha */}
             {evento.imagen && evento.lado === "derecha" && (
-              <div className="relative min-h-full w-2/5 flex-shrink-0" style={styleFor("historia.imagen")} onClick={(event) => { event.stopPropagation(); select("historia.imagen"); }}>
+              <div
+                className="relative min-h-full w-2/5 flex-shrink-0"
+                style={styleFor("historia.imagen")}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (designMode) {
+                    select("historia.imagen");
+                    return;
+                  }
+                  if (!editable) return;
+                  onSelectItem?.(evento.id);
+                  onRequestEditImagen?.(evento.id);
+                }}
+              >
                 <Image
                   src={resolveImageSrc(evento.imagen)}
                   alt={evento.titulo}
