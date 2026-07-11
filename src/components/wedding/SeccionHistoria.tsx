@@ -137,18 +137,26 @@ export function SeccionHistoria({
                   }}
                 >
                   {!designMode && editable && (
-                    <button
-                      type="button"
-                      className="absolute right-2 top-2 z-10 rounded border border-white/60 bg-black/40 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onSelectItem?.(item.id);
-                        onRequestEditImagen?.(item.id);
-                      }}
-                    >
-                      Cambiar imagen
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="absolute inset-0 z-20"
+                        aria-label="Cambiar imagen"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onSelectItem?.(item.id);
+                          onRequestEditImagen?.(item.id);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="pointer-events-none absolute right-2 top-2 z-30 rounded border border-white/70 bg-black/50 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
+                        tabIndex={-1}
+                      >
+                        Cambiar imagen
+                      </button>
+                    </>
                   )}
                   <Image
                     src={resolveImageSrc(item.imagen)}
@@ -250,18 +258,26 @@ export function SeccionHistoria({
                 }}
               >
                 {!designMode && editable && (
-                  <button
-                    type="button"
-                    className="absolute right-2 top-2 z-10 rounded border border-white/60 bg-black/40 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onSelectItem?.(evento.id);
-                      onRequestEditImagen?.(evento.id);
-                    }}
-                  >
-                    Cambiar imagen
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="absolute inset-0 z-20"
+                      aria-label="Cambiar imagen"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onSelectItem?.(evento.id);
+                        onRequestEditImagen?.(evento.id);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="pointer-events-none absolute right-2 top-2 z-30 rounded border border-white/70 bg-black/50 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
+                      tabIndex={-1}
+                    >
+                      Cambiar imagen
+                    </button>
+                  </>
                 )}
                 <Image
                   src={resolveImageSrc(evento.imagen)}
@@ -356,18 +372,26 @@ export function SeccionHistoria({
                 }}
               >
                 {!designMode && editable && (
-                  <button
-                    type="button"
-                    className="absolute right-2 top-2 z-10 rounded border border-white/60 bg-black/40 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onSelectItem?.(evento.id);
-                      onRequestEditImagen?.(evento.id);
-                    }}
-                  >
-                    Cambiar imagen
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="absolute inset-0 z-20"
+                      aria-label="Cambiar imagen"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onSelectItem?.(evento.id);
+                        onRequestEditImagen?.(evento.id);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="pointer-events-none absolute right-2 top-2 z-30 rounded border border-white/70 bg-black/50 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
+                      tabIndex={-1}
+                    >
+                      Cambiar imagen
+                    </button>
+                  </>
                 )}
                 <Image
                   src={resolveImageSrc(evento.imagen)}

@@ -68,18 +68,26 @@ export function SeccionGaleria({
               <article key={item.id} className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm" style={styleFor("galeria.card")} onClick={() => select("galeria.card")}>
                 <div className="relative aspect-[4/3] bg-stone-100" style={styleFor("galeria.imagen")} onClick={(event) => { event.stopPropagation(); select("galeria.imagen"); }}>
                   {!designMode && editable && (
-                    <button
-                      type="button"
-                      className="absolute right-2 top-2 z-10 rounded border border-white/60 bg-black/40 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onSelectItem?.(item.id);
-                        onRequestEditImagen?.(item.id);
-                      }}
-                    >
-                      Cambiar imagen
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="absolute inset-0 z-20"
+                        aria-label="Cambiar imagen"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onSelectItem?.(item.id);
+                          onRequestEditImagen?.(item.id);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="pointer-events-none absolute right-2 top-2 z-30 rounded border border-white/70 bg-black/50 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
+                        tabIndex={-1}
+                      >
+                        Cambiar imagen
+                      </button>
+                    </>
                   )}
                   {item.tipo === "video" ? (
                     <video className="h-full w-full object-cover" controls src={item.url_publica ?? undefined} />
