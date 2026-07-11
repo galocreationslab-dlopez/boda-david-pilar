@@ -131,6 +131,10 @@ export type SeccionDiseno = {
   visible: boolean;
   perfiles: string[];
   items: ItemSeccionDiseno[];
+  galeriaConfig?: {
+    mostrarSeleccionNovios: boolean;
+    mostrarSubidasPorMi: boolean;
+  };
 };
 
 export type SeparadorDiseno = {

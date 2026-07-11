@@ -217,6 +217,50 @@ export default async function PaginaPrincipal() {
     ? visibleSections.map((s) => ({ id: s.id, tipo: s.tipo, titulo: s.titulo || s.nombre, source: s }))
     : fallbackSections;
 
+  const getPortadaConfigForSection = (section?: SeccionDiseno) => {
+    const welcome = section?.items?.[0]?.descripcion?.trim();
+    if (!welcome) return config;
+    return {
+      ...config,
+      textos: {
+        ...config.textos,
+        bienvenida: welcome,
+      },
+    };
+  };
+
+  const getHistoriaForSection = (section?: SeccionDiseno) => {
+    const items = section?.items ?? [];
+    if (items.length === 0) return config.historia;
+    return items.map((item, index) => ({
+      id: item.id,
+      fecha: item.hora || `Momento ${index + 1}`,
+      titulo: item.titulo || "",
+      descripcion: item.descripcion || "",
+      imagen: item.imagen,
+      lado: index % 2 === 0 ? "derecha" as const : "izquierda" as const,
+    }));
+  };
+
+  const getTimelineForSection = (section?: SeccionDiseno) => {
+    const items = section?.items ?? [];
+    if (items.length === 0) return config.timeline;
+    return items.map((item) => ({
+      id: item.id,
+      hora: item.hora || "",
+      titulo: item.titulo || "",
+      descripcion: item.descripcion || "",
+      icono: (item.icono as (typeof config.timeline)[number]["icono"]) || "rings",
+    }));
+  };
+
+  const getGalleryMediaForSection = (section?: SeccionDiseno) => {
+    if (section?.galeriaConfig?.mostrarSeleccionNovios === false) {
+      return [];
+    }
+    return galleryMedia;
+  };
+
   return (
     <>
       <NavegacionPublica config={config} />
@@ -235,7 +279,7 @@ export default async function PaginaPrincipal() {
             <div key={section.id} style={getSectionThemeVars(section.source)}>
               {section.tipo === "portada" && (
                 <SeccionColapsable id={anchorId} abiertaPorDefecto={true} ocultarCabecera={true}>
-                  <MainWithInvite config={config} componentStyles={componentStyles} />
+                  <MainWithInvite config={getPortadaConfigForSection(section.source)} componentStyles={componentStyles} />
                 </SeccionColapsable>
               )}
 
@@ -249,7 +293,7 @@ export default async function PaginaPrincipal() {
                   titleStyle={componentStyles["historia.tituloSeccion"]}
                 >
                   <SeccionHistoria
-                    eventos={config.historia}
+                    eventos={getHistoriaForSection(section.source)}
                     componentStyles={componentStyles}
                     sectionInternalTitle={section.source?.subtituloInterno || "El camino hasta aquí"}
                   />
@@ -265,7 +309,7 @@ export default async function PaginaPrincipal() {
                   sectionStyle={componentStyles["galeria.fondoSeccion"]}
                   titleStyle={componentStyles["galeria.tituloSeccion"]}
                 >
-                  <SeccionGaleria media={galleryMedia} componentStyles={componentStyles} />
+                  <SeccionGaleria media={getGalleryMediaForSection(section.source)} componentStyles={componentStyles} />
                 </SeccionColapsable>
               )}
 
@@ -278,7 +322,7 @@ export default async function PaginaPrincipal() {
                   sectionStyle={componentStyles["timeline.fondoSeccion"]}
                   titleStyle={componentStyles["timeline.tituloSeccion"]}
                 >
-                  <SeccionTimeline localizaciones={config.localizaciones} timeline={config.timeline} componentStyles={componentStyles} />
+                  <SeccionTimeline localizaciones={config.localizaciones} timeline={getTimelineForSection(section.source)} componentStyles={componentStyles} />
                 </SeccionColapsable>
               )}
 

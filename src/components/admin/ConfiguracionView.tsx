@@ -365,10 +365,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [selectedDesignComponentKey, setSelectedDesignComponentKey] = useState<SectionComponentKey | null>(null);
   const [sectionEditMode, setSectionEditMode] = useState<"diseno">("diseno");
   const [newCustomRoleName, setNewCustomRoleName] = useState("");
-  const [renamingSectionId, setRenamingSectionId] = useState<string | null>(null);
-  const [renamingValue, setRenamingValue] = useState("");
-  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
-  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
 
   const [paletasCollapsed, setPaletasCollapsed] = useState(true);
   const [separadorCollapsed, setSeparadorCollapsed] = useState(true);
@@ -574,84 +570,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       ...p,
       coloresExtra: (p.coloresExtra ?? []).filter((c) => c.id !== colorId),
     }));
-  };
-
-  const updateSection = (sectionId: string, patch: Partial<SeccionDiseno>) => {
-    setSecciones((prev) => prev.map((s) => (s.id === sectionId ? { ...s, ...patch } : s)));
-  };
-
-  const patchSectionMeta = (sectionId: string, patch: Partial<SeccionDiseno>) => {
-    if (sectionDrafts[sectionId]) {
-      setSectionDrafts((prev) => ({
-        ...prev,
-        [sectionId]: {
-          ...prev[sectionId],
-          ...patch,
-        },
-      }));
-      return;
-    }
-    updateSection(sectionId, patch);
-  };
-
-  const addSection = () => {
-    const paletaId = paletaActiva?.id ?? paletas[0]?.id ?? "";
-    const next = defaultSection(paletaId, "portada");
-    setSecciones((prev) => [...prev, next]);
-    setSelectedSectionId(next.id);
-  };
-
-  const cloneSection = (sectionId: string) => {
-    const base = secciones.find((s) => s.id === sectionId);
-    if (!base) return;
-    const clone: SeccionDiseno = {
-      ...base,
-      id: `sec-${uid()}`,
-      nombre: `${base.nombre} copia`,
-      items: [...(base.items ?? [])].map((item) => ({ ...item, id: `item-${uid()}` })),
-    };
-    setSecciones((prev) => [...prev, clone]);
-    setSelectedSectionId(clone.id);
-  };
-
-  const removeSection = (sectionId: string) => {
-    if (!confirm("Eliminar esta seccion?")) return;
-    setSecciones((prev) => {
-      const next = prev.filter((s) => s.id !== sectionId);
-      if (selectedSectionId === sectionId) {
-        setSelectedSectionId(next[0]?.id ?? "");
-      }
-      return next;
-    });
-    setSectionDrafts((prev) => {
-      const clone = { ...prev };
-      delete clone[sectionId];
-      return clone;
-    });
-    if (editingSectionId === sectionId) {
-      setEditingSectionId(null);
-    }
-  };
-
-  const moveSectionBefore = (draggedSectionId: string, targetSectionId: string) => {
-    if (draggedSectionId === targetSectionId) return;
-
-    setSecciones((prev) => {
-      const draggedIndex = prev.findIndex((s) => s.id === draggedSectionId);
-      const targetIndex = prev.findIndex((s) => s.id === targetSectionId);
-      if (draggedIndex < 0 || targetIndex < 0) return prev;
-      const next = [...prev];
-      const [dragged] = next.splice(draggedIndex, 1);
-      const insertAt = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
-      next.splice(insertAt, 0, dragged);
-      return next;
-    });
-  };
-
-  const formatPerfilesLabel = (perfiles: string[] | undefined) => {
-    if (!perfiles || perfiles.length === 0) return "Todos";
-    if (perfiles.length <= 2) return perfiles.join(", ");
-    return `${perfiles.slice(0, 2).join(", ")} +${perfiles.length - 2}`;
   };
 
   const getPaletteBySection = useCallback((section: SeccionDiseno): TemaPaleta => {
@@ -1407,7 +1325,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             <section className="rounded-2xl border border-stone-200 bg-white p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-stone-700">Panel de secciones</h2>
-                <button onClick={addSection} className="rounded-md border border-stone-300 px-2 py-1 text-xs text-stone-600">+ Anadir</button>
+                <span className="text-[11px] text-stone-500">Gestion estructural en Contenido</span>
               </div>
 
               <div className="space-y-2">
@@ -1415,7 +1333,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   const secDraft = sectionDrafts[sec.id] ?? sec;
                   const secDirty = isSectionDirty(sec.id);
                   const secEditing = editingSectionId === sec.id;
-                  const secPerfiles = secDraft.perfiles ?? [];
 
                   return (
                     <article
@@ -1423,110 +1340,15 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       ref={(node) => {
                         sectionCardRefs.current[sec.id] = node;
                       }}
-                      className={`rounded-xl border p-2 ${selectedSectionId === sec.id ? "border-amber-400 bg-amber-50/40" : "border-stone-200 bg-stone-50"} ${dragOverSectionId === sec.id ? "ring-2 ring-amber-300" : ""}`}
+                      className={`rounded-xl border p-2 ${selectedSectionId === sec.id ? "border-amber-400 bg-amber-50/40" : "border-stone-200 bg-stone-50"}`}
                       onClick={() => selectSectionFromPanel(sec.id)}
-                      onDragOver={(event) => {
-                        if (!draggingSectionId || draggingSectionId === sec.id) return;
-                        event.preventDefault();
-                        setDragOverSectionId(sec.id);
-                      }}
-                      onDragLeave={() => {
-                        if (dragOverSectionId === sec.id) setDragOverSectionId(null);
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        if (!draggingSectionId) return;
-                        moveSectionBefore(draggingSectionId, sec.id);
-                        setDragOverSectionId(null);
-                        setDraggingSectionId(null);
-                      }}
                     >
                       <div className="mb-2 flex items-center justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-1">
-                          {renamingSectionId === sec.id ? (
-                            <input
-                              autoFocus
-                              className="input-field h-7 w-[170px] text-xs"
-                              value={renamingValue}
-                              onClick={(event) => event.stopPropagation()}
-                              onChange={(event) => setRenamingValue(event.target.value)}
-                              onBlur={() => {
-                                patchSectionMeta(sec.id, { nombre: renamingValue.trim() || "Sección" });
-                                setRenamingSectionId(null);
-                              }}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  patchSectionMeta(sec.id, { nombre: renamingValue.trim() || "Sección" });
-                                  setRenamingSectionId(null);
-                                }
-                                if (event.key === "Escape") {
-                                  setRenamingSectionId(null);
-                                }
-                              }}
-                            />
-                          ) : (
-                            <p className="truncate text-xs font-semibold text-stone-700">{secDraft.nombre || "Seccion"}</p>
-                          )}
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setRenamingSectionId(sec.id);
-                              setRenamingValue(secDraft.nombre || "");
-                            }}
-                            className="rounded border border-stone-300 bg-white px-1.5 py-0.5 text-[11px] text-stone-600"
-                            title="Renombrar sección"
-                            aria-label="Renombrar sección"
-                          >
-                            ✎
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <span
-                            draggable={true}
-                            onDragStart={(event) => {
-                              event.stopPropagation();
-                              event.dataTransfer.setData("text/plain", sec.id);
-                              event.dataTransfer.effectAllowed = "move";
-                              setDraggingSectionId(sec.id);
-                            }}
-                            onDragEnd={() => {
-                              setDraggingSectionId(null);
-                              setDragOverSectionId(null);
-                            }}
-                            className="cursor-grab rounded border border-stone-300 bg-white px-1.5 py-0.5 text-[11px] text-stone-500 active:cursor-grabbing"
-                            title="Arrastrar para reordenar"
-                            aria-label="Arrastrar para reordenar"
-                          >
-                            ⋮⋮
-                          </span>
-                        </div>
+                        <p className="truncate text-xs font-semibold text-stone-700">{secDraft.nombre || "Seccion"}</p>
+                        <span className="text-[11px] text-stone-500">{secDraft.tipo}</span>
                       </div>
 
                       <div className="mb-2">
-                        <details className="rounded border border-stone-200 bg-white px-2 py-1 text-[11px] text-stone-600" onClick={(event) => event.stopPropagation()}>
-                          <summary className="cursor-pointer list-none select-none">
-                            Visible para: {formatPerfilesLabel(secPerfiles)} ▾
-                          </summary>
-                          <div className="mt-2 grid grid-cols-2 gap-1">
-                            {PROFILE_OPTIONS.map((role) => (
-                              <label key={role} className="inline-flex items-center gap-1 text-[11px]">
-                                <input
-                                  type="checkbox"
-                                  checked={secPerfiles.includes(role)}
-                                  onChange={(event) => {
-                                    const next = event.target.checked
-                                      ? [...secPerfiles, role]
-                                      : secPerfiles.filter((item) => item !== role);
-                                    patchSectionMeta(sec.id, { perfiles: next });
-                                  }}
-                                />
-                                <span className="capitalize">{role}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </details>
                         <p className="mt-1 text-[11px] text-stone-500">
                           Paleta: {(secDraft.usarPaletaGlobal ?? true)
                             ? `Global (${paletaActiva?.nombre ?? "sin nombre"})`
@@ -1566,13 +1388,11 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           <button
                             onClick={(e) => { e.stopPropagation(); startSectionEditing(sec.id); }}
                             className="rounded border border-stone-300 bg-white px-1.5 py-0.5 text-[11px]"
-                            title="Editar sección"
+                            title="Editar diseno"
                           >
-                            Editar
+                            Editar diseno
                           </button>
                         )}
-                        <button onClick={(e) => { e.stopPropagation(); cloneSection(sec.id); }} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">Clonar</button>
-                        <button onClick={(e) => { e.stopPropagation(); removeSection(sec.id); }} className="rounded border border-red-200 px-1.5 py-0.5 text-[11px] text-red-600">Eliminar</button>
                       </div>
                     </article>
                   );
@@ -1589,14 +1409,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     <span className="rounded border border-stone-300 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
                       Editando: {editingSectionDraft.nombre || "Sección"}
                     </span>
-                    <label className="inline-flex items-center gap-1 rounded border border-stone-300 px-2 py-1 text-xs text-stone-600">
-                      <input
-                        type="checkbox"
-                        checked={editingSectionDraft.visible}
-                        onChange={(e) => patchEditingSectionDraft({ visible: e.target.checked })}
-                      />
-                      Visible
-                    </label>
                   </div>
 
                   <div className="space-y-2">
