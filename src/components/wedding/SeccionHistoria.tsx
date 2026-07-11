@@ -173,6 +173,48 @@ export function SeccionHistoria({
                   />
                 </div>
               )}
+              {!item.imagen && (
+                <div
+                  className="relative h-48 w-full"
+                  style={styleFor("historia.imagen", { backgroundColor: "var(--cream)" })}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (designMode) {
+                      select("historia.imagen");
+                      return;
+                    }
+                    if (!editable) return;
+                    onSelectItem?.(item.id);
+                    onRequestEditImagen?.(item.id);
+                  }}
+                >
+                  {!designMode && editable && (
+                    <>
+                      <button
+                        type="button"
+                        className="absolute inset-0 z-20"
+                        aria-label="Cambiar imagen"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onSelectItem?.(item.id);
+                          onRequestEditImagen?.(item.id);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="pointer-events-none absolute right-2 top-2 z-30 rounded border border-white/70 bg-black/50 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
+                        tabIndex={-1}
+                      >
+                        Cambiar imagen
+                      </button>
+                    </>
+                  )}
+                  <div className="flex h-full w-full items-center justify-center text-xs text-stone-500">
+                    Sin imagen
+                  </div>
+                </div>
+              )}
               <div className="space-y-3 p-6 text-left">
                 <p
                   className="smallcaps text-xs tracking-widest"
@@ -412,10 +454,41 @@ export function SeccionHistoria({
             {/* Placeholder si no hay imagen */}
             {!evento.imagen && (
               <div
-                className="flex w-2/5 flex-shrink-0 items-center justify-center"
-                style={{ backgroundColor: "var(--cream)" }}
-                aria-hidden="true"
+                className="relative flex w-2/5 flex-shrink-0 items-center justify-center"
+                style={styleFor("historia.imagen", { backgroundColor: "var(--cream)" })}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (designMode) {
+                    select("historia.imagen");
+                    return;
+                  }
+                  if (!editable) return;
+                  onSelectItem?.(evento.id);
+                  onRequestEditImagen?.(evento.id);
+                }}
               >
+                {!designMode && editable && (
+                  <>
+                    <button
+                      type="button"
+                      className="absolute inset-0 z-20"
+                      aria-label="Cambiar imagen"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onSelectItem?.(evento.id);
+                        onRequestEditImagen?.(evento.id);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="pointer-events-none absolute right-2 top-2 z-30 rounded border border-white/70 bg-black/50 px-2 py-1 text-[11px] text-white backdrop-blur-sm"
+                      tabIndex={-1}
+                    >
+                      Cambiar imagen
+                    </button>
+                  </>
+                )}
                 <div style={{ opacity: 0.15 }}>
                   {/* Sello decorativo de fondo */}
                   <svg width="120" height="120" viewBox="0 0 1254 1254" fill="var(--bronze)">
