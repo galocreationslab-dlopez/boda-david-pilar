@@ -251,6 +251,7 @@ export default async function PaginaPrincipal() {
       titulo: item.titulo || "",
       descripcion: item.descripcion || "",
       icono: (item.icono as (typeof config.timeline)[number]["icono"]) || "rings",
+      enlaceMaps: item.enlaceMaps || "",
     }));
   };
 
