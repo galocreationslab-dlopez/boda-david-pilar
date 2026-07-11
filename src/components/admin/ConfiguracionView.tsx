@@ -55,8 +55,6 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
     { key: "portada.cuentaAtrasLeyendas", label: "Leyendas cuenta atrás", defaultRole: "textoSecundario" },
     { key: "portada.ctaFondo", label: "Botón CTA - Fondo", defaultRole: "fondoBoton" },
     { key: "portada.ctaTexto", label: "Botón CTA - Texto", defaultRole: "textoBoton" },
-    { key: "portada.adminCtaFondo", label: "Botón admin - Fondo", defaultRole: "fondoBoton" },
-    { key: "portada.adminCtaTexto", label: "Botón admin - Texto", defaultRole: "textoBoton" },
   ],
   historia: [
     { key: "historia.tituloSeccion", label: "Título sección (colapsable)", defaultRole: "tituloSeccion" },
@@ -109,6 +107,8 @@ function normalizeLegacyRole(role: string): TemaColorRole {
 function normalizeLegacyComponentKey(key: string): string {
   if (key === "portada.sello") return "portada.logo";
   if (key === "portada.cta") return "portada.ctaFondo";
+  if (key === "portada.adminCtaFondo") return "portada.ctaFondo";
+  if (key === "portada.adminCtaTexto") return "portada.ctaTexto";
   return key;
 }
 
@@ -411,6 +411,11 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const paletaActivaResolvedColors = useMemo(
     () => (paletaActiva ? resolvePaletteToThemeColors(paletaActiva) : ic.tema.colores),
     [ic.tema.colores, paletaActiva],
+  );
+
+  const paletaActivaRoleColors = useMemo(
+    () => (paletaActiva ? resolvePaletteRoleColors(paletaActiva) : null),
+    [paletaActiva],
   );
 
   const paletaSwatches = useMemo(
@@ -807,7 +812,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       case "portada.cuentaAtras":
       case "portada.cuentaAtrasLeyendas":
       case "portada.ctaTexto":
-      case "portada.adminCtaTexto":
       case "historia.tituloSeccion":
       case "historia.fecha":
       case "historia.titulo":
@@ -831,7 +835,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       case "galeria.imagen":
         return { borderColor: color };
       case "portada.ctaFondo":
-      case "portada.adminCtaFondo":
         return { backgroundColor: color, borderColor: color };
       default:
         return {};
@@ -930,16 +933,17 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const getSectionThemeVars = (section: SeccionDiseno): CSSProperties => {
     const palette = getPaletteBySection(section);
     const resolved = palette ? resolvePaletteToThemeColors(palette) : ic.tema.colores;
+    const roles = palette ? resolvePaletteRoleColors(palette) : null;
     return {
       ["--bronze" as string]: resolved.bronze,
       ["--bronze-light" as string]: resolved.bronzeLight,
-      ["--bronze-pale" as string]: resolved.bronzeLight,
+      ["--bronze-pale" as string]: roles?.nexosTransicionesBordes ?? resolved.bronzeLight,
       ["--olive" as string]: resolved.olive,
       ["--olive-muted" as string]: resolved.oliveMuted,
       ["--cream" as string]: resolved.cream,
-      ["--cream-dark" as string]: resolved.white,
+      ["--cream-dark" as string]: roles?.fondoSubseccion ?? resolved.white,
       ["--brown-dark" as string]: resolved.brownDark,
-      ["--brown-mid" as string]: resolved.oliveMuted,
+      ["--brown-mid" as string]: roles?.textoSecundario ?? resolved.oliveMuted,
       ["--white" as string]: resolved.white,
       ["--font-display" as string]: fuentes.display,
       ["--font-body" as string]: fuentes.body,
@@ -2088,13 +2092,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 style={{
                   ["--bronze" as string]: paletaActivaResolvedColors.bronze ?? "#8C6A3F",
                   ["--bronze-light" as string]: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
-                  ["--bronze-pale" as string]: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
+                  ["--bronze-pale" as string]: paletaActivaRoleColors?.nexosTransicionesBordes ?? paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
                   ["--olive" as string]: paletaActivaResolvedColors.olive ?? "#5C6B3A",
                   ["--olive-muted" as string]: paletaActivaResolvedColors.oliveMuted ?? "#8A9468",
                   ["--cream" as string]: paletaActivaResolvedColors.cream ?? "#F7F3EC",
-                  ["--cream-dark" as string]: paletaActivaResolvedColors.white ?? "#FDFAF5",
+                  ["--cream-dark" as string]: paletaActivaRoleColors?.fondoSubseccion ?? paletaActivaResolvedColors.white ?? "#FDFAF5",
                   ["--brown-dark" as string]: paletaActivaResolvedColors.brownDark ?? "#2E1F0E",
-                  ["--brown-mid" as string]: paletaActivaResolvedColors.oliveMuted ?? "#8A9468",
+                  ["--brown-mid" as string]: paletaActivaRoleColors?.textoSecundario ?? paletaActivaResolvedColors.oliveMuted ?? "#8A9468",
                   ["--white" as string]: paletaActivaResolvedColors.white ?? "#FDFAF5",
                   ["--font-display" as string]: fuentes.display,
                   ["--font-body" as string]: fuentes.body,

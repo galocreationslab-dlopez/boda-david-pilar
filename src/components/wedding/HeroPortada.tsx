@@ -22,9 +22,7 @@ export type HeroComponentKey =
   | "portada.cuentaAtras"
   | "portada.cuentaAtrasLeyendas"
   | "portada.ctaFondo"
-  | "portada.ctaTexto"
-  | "portada.adminCtaFondo"
-  | "portada.adminCtaTexto";
+  | "portada.ctaTexto";
 
 type Props = {
   config: Pick<WeddingConfig, "novia" | "novio" | "nombreConjunto" | "iniciales" | "fecha" | "fechaFormateada" | "textos">;
@@ -98,15 +96,15 @@ export function HeroPortada({
         </div>
 
         {/* Nombres */}
-        <div className="animate-fade-up delay-200" style={styleFor("portada.nombres")} onClick={(event) => { event.stopPropagation(); select("portada.nombres"); }}>
+        <div className="animate-fade-up delay-200" onClick={(event) => { event.stopPropagation(); select("portada.nombres"); }}>
           <h1
             className="font-display font-light"
-            style={{
+            style={styleFor("portada.nombres", {
               fontSize: forceMobile ? "clamp(2.8rem, 14vw, 4.2rem)" : "clamp(3.5rem, 11vw, 6rem)",
               color: "var(--white)",
               lineHeight: 1.05,
               letterSpacing: "-0.01em",
-            }}
+            })}
             contentEditable={!designMode && editable && typeof onEditNombreConjunto === "function" && Boolean(config.nombreConjunto?.trim())}
             suppressContentEditableWarning={true}
             onBlur={(event) => {
@@ -138,13 +136,13 @@ export function HeroPortada({
         </div>
 
         {/* Fecha */}
-        <div className="animate-fade-up delay-300" style={styleFor("portada.fecha")} onClick={(event) => { event.stopPropagation(); select("portada.fecha"); }}>
+        <div className="animate-fade-up delay-300" onClick={(event) => { event.stopPropagation(); select("portada.fecha"); }}>
           <div style={styleFor("portada.separador")} onClick={(event) => { event.stopPropagation(); select("portada.separador"); }}>
             <OrnamentoDivisor color={separadorColor} />
           </div>
           <p
             className="smallcaps tracking-[0.25em] text-sm mt-1"
-            style={{ color: "var(--bronze-pale)" }}
+            style={styleFor("portada.fecha", { color: "var(--bronze-pale)" })}
           >
             {config.fechaFormateada}
           </p>
@@ -166,78 +164,40 @@ export function HeroPortada({
           &ldquo;{config.textos.bienvenida}&rdquo;
         </p>
 
-        {/* CTA público y botón admin */}
+        {/* CTA */}
         {(mostrarBotonConfirmar || designMode) && (
           <div className="mt-2 flex w-full flex-col gap-2 animate-fade-in sm:w-auto">
-            {(designMode || !isAdminButton) && (
-              <div
+            <div
+              style={styleFor("portada.ctaFondo")}
+              onClick={(event) => { event.stopPropagation(); select("portada.ctaFondo"); }}
+            >
+              <button
+                type="button"
+                className="btn-primary w-full sm:w-auto"
                 style={styleFor("portada.ctaFondo")}
-                onClick={(event) => { event.stopPropagation(); select("portada.ctaFondo"); }}
+                onClick={(event) => {
+                  if (designMode) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    select("portada.ctaFondo");
+                    return;
+                  }
+                  onConfirmarClick?.();
+                }}
               >
-                <button
-                  type="button"
-                  className="btn-primary w-full sm:w-auto"
-                  style={styleFor("portada.ctaFondo")}
+                <span
+                  style={styleFor("portada.ctaTexto")}
                   onClick={(event) => {
-                    if (designMode) {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      select("portada.ctaFondo");
-                      return;
-                    }
-                    if (isAdminButton) return;
-                    onConfirmarClick?.();
+                    if (!designMode) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    select("portada.ctaTexto");
                   }}
                 >
-                  <span
-                    style={styleFor("portada.ctaTexto")}
-                    onClick={(event) => {
-                      if (!designMode) return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      select("portada.ctaTexto");
-                    }}
-                  >
-                    Confirmar asistencia
-                  </span>
-                </button>
-              </div>
-            )}
-
-            {(designMode || isAdminButton) && (
-              <div
-                style={styleFor("portada.adminCtaFondo")}
-                onClick={(event) => { event.stopPropagation(); select("portada.adminCtaFondo"); }}
-              >
-                <button
-                  type="button"
-                  className="btn-primary w-full sm:w-auto"
-                  style={styleFor("portada.adminCtaFondo")}
-                  onClick={(event) => {
-                    if (designMode) {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      select("portada.adminCtaFondo");
-                      return;
-                    }
-                    if (!isAdminButton) return;
-                    onConfirmarClick?.();
-                  }}
-                >
-                  <span
-                    style={styleFor("portada.adminCtaTexto")}
-                    onClick={(event) => {
-                      if (!designMode) return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      select("portada.adminCtaTexto");
-                    }}
-                  >
-                    {labelBotonConfirmar ?? "Panel de administración"}
-                  </span>
-                </button>
-              </div>
-            )}
+                  {labelBotonConfirmar ?? (isAdminButton ? "Panel de administración" : "Confirmar asistencia")}
+                </span>
+              </button>
+            </div>
           </div>
         )}
 

@@ -296,8 +296,6 @@ export const weddingConfig: WeddingConfig = {
           "portada.cuentaAtrasLeyendas": "textoSecundario",
           "portada.ctaFondo": "fondoBoton",
           "portada.ctaTexto": "textoBoton",
-          "portada.adminCtaFondo": "fondoBoton",
-          "portada.adminCtaTexto": "textoBoton",
         },
         visible: true,
         perfiles: ["publico"],
