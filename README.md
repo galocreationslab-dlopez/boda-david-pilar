@@ -160,3 +160,75 @@ npm run dev
 5. Subdominios dinámicos (`pareja.dominio.com`)
 
 *Nada de esto requiere reescribir el código existente si se han respetado las decisiones arquitectónicas.*
+
+---
+
+## Integración LineAlive (dev)
+
+Se ha añadido una integración simple para consumir LineAlive como API externa, sin tocar la lógica interna del SaaS.
+
+### Flujo
+
+1. Cliente web sube imagen y detail opcional.
+2. Ruta interna recibe multipart en /api/generate-animation.
+3. El backend reenvía el multipart a LINEALIVE_API_BASE_URL/generate.
+4. Se devuelve al cliente el JSON con demo_html.
+
+### Variable de entorno requerida
+
+Agregar en .env.local:
+
+LINEALIVE_API_BASE_URL=https://tu-linealive-service.com
+
+Opcional (si quieres indicar endpoint exacto en lugar de base URL):
+
+LINEALIVE_GENERATE_URL=https://tu-linealive-service.com/generate
+
+Opcional (si tu endpoint está detrás de túnel/proxy con cabecera de auth):
+
+LINEALIVE_AUTH_HEADER_NAME=X-GitHub-Token
+LINEALIVE_AUTH_HEADER_VALUE=tu_token
+
+### Endpoint interno
+
+POST /api/generate-animation
+
+Campos multipart/form-data:
+
+- image: archivo de imagen (requerido)
+- detail: string opcional
+
+Respuesta esperada:
+
+- ok
+- service
+- detail
+- message
+- demo_html
+
+### Ejemplo curl
+
+curl -X POST "http://localhost:3000/api/generate-animation" \
+    -F "image=@./mi-imagen.png" \
+    -F "detail=high"
+
+### Ejemplo Python
+
+from pathlib import Path
+import requests
+
+url = "http://localhost:3000/api/generate-animation"
+image_path = Path("mi-imagen.png")
+
+with image_path.open("rb") as f:
+        files = {"image": (image_path.name, f, "image/png")}
+        data = {"detail": "high"}
+        r = requests.post(url, files=files, data=data, timeout=120)
+        r.raise_for_status()
+        payload = r.json()
+
+print(payload.get("ok"), payload.get("message"))
+html = payload.get("demo_html", "")
+if html:
+        Path("linealive_demo.html").write_text(html, encoding="utf-8")
+
