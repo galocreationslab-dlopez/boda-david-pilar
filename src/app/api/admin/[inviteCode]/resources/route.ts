@@ -29,7 +29,7 @@ export async function GET(
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("multimedia")
-    .select("id, nombre, url_publica, mime_type, subido_por, created_at")
+    .select("id, nombre, google_drive_id, url_publica, mime_type, subido_por, created_at")
     .eq("folder_tipo", "recursos_web")
     .order("created_at", { ascending: false });
 
@@ -129,7 +129,7 @@ export async function POST(
         featured: false,
         visible_public: false,
       })
-      .select("id, nombre, url_publica, mime_type, subido_por, created_at")
+      .select("id, nombre, google_drive_id, url_publica, mime_type, subido_por, created_at")
       .single();
 
     if (error) {

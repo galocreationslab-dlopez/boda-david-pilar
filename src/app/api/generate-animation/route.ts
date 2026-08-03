@@ -28,6 +28,7 @@ export async function POST(request: Request) {
         service: result.service,
         detail: result.detail,
         message: result.message,
+        animation_html: result.animation_html,
         demo_html: result.demo_html,
       },
       { status: 200 },

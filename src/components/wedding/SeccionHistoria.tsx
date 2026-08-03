@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { EventoHistoria } from "@/config/wedding.config";
 import type { CSSProperties } from "react";
@@ -34,6 +35,7 @@ type Props = {
   onEditTexto?: (id: string, field: "fecha" | "titulo" | "descripcion", value: string) => void;
   onRequestEditImagen?: (id: string) => void;
   onSelectItem?: (id: string) => void;
+  adminInviteCode?: string;
 };
 
 function resolveImageSrc(value: string): string {
@@ -56,6 +58,7 @@ export function SeccionHistoria({
   onEditTexto,
   onRequestEditImagen,
   onSelectItem,
+  adminInviteCode,
 }: Props) {
   const [actual, setActual] = useState(0);
   const evento = eventos[actual];
@@ -75,6 +78,11 @@ export function SeccionHistoria({
     if (!designMode) return;
     onSelectComponent?.(key);
   };
+
+  const buildLineAliveSrc = (fileId: string) =>
+    adminInviteCode
+      ? `/api/admin/${encodeURIComponent(adminInviteCode)}/resources/linealive/html?fileId=${encodeURIComponent(fileId)}`
+      : `/api/linealive/html?fileId=${encodeURIComponent(fileId)}`;
 
   const anterior = () => {
     if (designMode) return;
@@ -158,19 +166,29 @@ export function SeccionHistoria({
                       </button>
                     </>
                   )}
-                  <Image
-                    src={resolveImageSrc(item.imagen)}
-                    alt={item.titulo}
-                    fill
-                    className="object-cover"
-                    sizes="100vw"
-                    onClick={() => {
-                      if (designMode) return;
-                      if (!editable) return;
-                      onSelectItem?.(item.id);
-                      onRequestEditImagen?.(item.id);
-                    }}
-                  />
+                  {item.lineAlive?.enabled && item.lineAlive.htmlDriveFileId ? (
+                    <LineAliveEmbed
+                      src={buildLineAliveSrc(item.lineAlive.htmlDriveFileId)}
+                      title={item.titulo}
+                      aspectRatio={item.lineAlive.aspectRatio}
+                      className="h-full w-full rounded-none border-0"
+                      iframeClassName="rounded-none"
+                    />
+                  ) : (
+                    <Image
+                      src={resolveImageSrc(item.imagen)}
+                      alt={item.titulo}
+                      fill
+                      className="object-cover"
+                      sizes="100vw"
+                      onClick={() => {
+                        if (designMode) return;
+                        if (!editable) return;
+                        onSelectItem?.(item.id);
+                        onRequestEditImagen?.(item.id);
+                      }}
+                    />
+                  )}
                 </div>
               )}
               {!item.imagen && (
@@ -321,19 +339,29 @@ export function SeccionHistoria({
                     </button>
                   </>
                 )}
-                <Image
-                  src={resolveImageSrc(evento.imagen)}
-                  alt={evento.titulo}
-                  fill
-                  className="object-cover"
-                  sizes="40vw"
-                  onClick={() => {
-                    if (designMode) return;
-                    if (!editable) return;
-                    onSelectItem?.(evento.id);
-                    onRequestEditImagen?.(evento.id);
-                  }}
-                />
+                {evento.lineAlive?.enabled && evento.lineAlive.htmlDriveFileId ? (
+                  <LineAliveEmbed
+                    src={buildLineAliveSrc(evento.lineAlive.htmlDriveFileId)}
+                    title={evento.titulo}
+                    aspectRatio={evento.lineAlive.aspectRatio}
+                    className="h-full w-full rounded-none border-0"
+                    iframeClassName="rounded-none"
+                  />
+                ) : (
+                  <Image
+                    src={resolveImageSrc(evento.imagen)}
+                    alt={evento.titulo}
+                    fill
+                    className="object-cover"
+                    sizes="40vw"
+                    onClick={() => {
+                      if (designMode) return;
+                      if (!editable) return;
+                      onSelectItem?.(evento.id);
+                      onRequestEditImagen?.(evento.id);
+                    }}
+                  />
+                )}
               </div>
             )}
 
@@ -435,19 +463,29 @@ export function SeccionHistoria({
                     </button>
                   </>
                 )}
-                <Image
-                  src={resolveImageSrc(evento.imagen)}
-                  alt={evento.titulo}
-                  fill
-                  className="object-cover"
-                  sizes="40vw"
-                  onClick={() => {
-                    if (designMode) return;
-                    if (!editable) return;
-                    onSelectItem?.(evento.id);
-                    onRequestEditImagen?.(evento.id);
-                  }}
-                />
+                {evento.lineAlive?.enabled && evento.lineAlive.htmlDriveFileId ? (
+                  <LineAliveEmbed
+                    src={buildLineAliveSrc(evento.lineAlive.htmlDriveFileId)}
+                    title={evento.titulo}
+                    aspectRatio={evento.lineAlive.aspectRatio}
+                    className="h-full w-full rounded-none border-0"
+                    iframeClassName="rounded-none"
+                  />
+                ) : (
+                  <Image
+                    src={resolveImageSrc(evento.imagen)}
+                    alt={evento.titulo}
+                    fill
+                    className="object-cover"
+                    sizes="40vw"
+                    onClick={() => {
+                      if (designMode) return;
+                      if (!editable) return;
+                      onSelectItem?.(evento.id);
+                      onRequestEditImagen?.(evento.id);
+                    }}
+                  />
+                )}
               </div>
             )}
 

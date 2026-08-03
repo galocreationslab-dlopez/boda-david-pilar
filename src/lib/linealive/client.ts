@@ -3,6 +3,7 @@ export type LineAliveGenerateResult = {
   service?: string;
   detail?: string;
   message?: string;
+  animation_html?: string;
   demo_html?: string;
 };
 
@@ -101,9 +102,19 @@ export async function generateLineAliveAnimation(options: {
     throw new LineAliveApiError(payload.message || "Error generando animacion en LineAlive.", response.status || 502);
   }
 
-  if (typeof payload.demo_html !== "string" || !payload.demo_html.trim()) {
-    throw new LineAliveApiError("LineAlive respondio sin demo_html. Revisa la integracion del servicio.", 502);
+  const animationHtml = typeof payload.animation_html === "string"
+    ? payload.animation_html.trim()
+    : typeof payload.demo_html === "string"
+      ? payload.demo_html.trim()
+      : "";
+
+  if (!animationHtml) {
+    throw new LineAliveApiError("LineAlive respondio sin animation_html. Revisa la integracion del servicio.", 502);
   }
 
-  return payload;
+  return {
+    ...payload,
+    animation_html: animationHtml,
+    demo_html: animationHtml,
+  };
 }

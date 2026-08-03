@@ -23,6 +23,8 @@ type DriveFile = {
   webViewLink?: string;
   webContentLink?: string;
   size?: string;
+  parents?: string[];
+  driveId?: string;
 };
 
 type DriveListResponse = {
@@ -90,13 +92,7 @@ async function getAccessTokenFromOAuthRefreshToken(): Promise<string> {
   return data.access_token;
 }
 
-async function getAccessToken(): Promise<string> {
-  // Si hay credenciales OAuth de usuario, las priorizamos para evitar problemas
-  // de cuota al subir a carpetas en "Mi unidad".
-  if (getOAuthRefreshCredentials()) {
-    return getAccessTokenFromOAuthRefreshToken();
-  }
-
+async function getAccessTokenFromServiceAccount(): Promise<string> {
   const { clientEmail, privateKey } = getServiceAccountCredentials();
   const now = Math.floor(Date.now() / 1000);
   const header = base64UrlEncode(JSON.stringify({ alg: "RS256", typ: "JWT" }));
@@ -136,6 +132,26 @@ async function getAccessToken(): Promise<string> {
 
   const data = (await response.json()) as DriveAccessToken;
   return data.access_token;
+}
+
+async function getAccessToken(): Promise<string> {
+  // Si hay credenciales OAuth de usuario, las priorizamos para evitar problemas
+  // de cuota al subir a carpetas en "Mi unidad". Si el refresh token expira o
+  // queda revocado, caemos a la cuenta de servicio para no romper operaciones
+  // de lectura/escritura ya accesibles para esa identidad.
+  if (getOAuthRefreshCredentials()) {
+    try {
+      return await getAccessTokenFromOAuthRefreshToken();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      const canFallback = /invalid_grant|invalid_client|unauthorized_client/i.test(message);
+      if (!canFallback) {
+        throw error;
+      }
+    }
+  }
+
+  return getAccessTokenFromServiceAccount();
 }
 
 function buildDriveUrl(fileId: string): string {
@@ -301,6 +317,25 @@ export async function downloadDriveFile(fileId: string): Promise<{ buffer: Buffe
     buffer: Buffer.from(arr),
     contentType: response.headers.get("content-type") || "application/octet-stream",
   };
+}
+
+export async function getDriveFileMetadata(fileId: string): Promise<DriveFile> {
+  const token = await getAccessToken();
+  const url = new URL(`${GOOGLE_DRIVE_FILES_URL}/${encodeURIComponent(fileId)}`);
+  url.searchParams.set("fields", "id,name,mimeType,parents,driveId,size");
+  url.searchParams.set("supportsAllDrives", "true");
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo consultar metadatos del archivo de Drive: ${response.status}${detail ? ` - ${detail}` : ""}`);
+  }
+
+  return (await response.json()) as DriveFile;
 }
 
 export function driveFilePublicUrl(fileId: string): string {

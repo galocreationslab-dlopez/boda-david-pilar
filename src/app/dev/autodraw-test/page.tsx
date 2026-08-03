@@ -96,9 +96,13 @@ export default function AutoDrawTestPage() {
         throw new Error(json.message || "Error al generar animacion con LineAlive.");
       }
 
-      const demoHtml = typeof json.demo_html === "string" ? json.demo_html.trim() : "";
+      const demoHtml = typeof json.animation_html === "string"
+        ? json.animation_html.trim()
+        : typeof json.demo_html === "string"
+          ? json.demo_html.trim()
+          : "";
       if (!demoHtml) {
-        throw new Error("LineAlive respondio sin demo_html. Revisa la integracion del servicio.");
+        throw new Error("LineAlive respondio sin animation_html. Revisa la integracion del servicio.");
       }
 
       setLineAliveDemoHtml(demoHtml);
