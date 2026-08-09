@@ -151,6 +151,60 @@ npm run dev
 
 ---
 
+## Hoja de ruta de mejoras (orden recomendado por versiones funcionales)
+
+Este orden prioriza entregas utilizables de extremo a extremo en cada versión, reduciendo riesgo técnico y manteniendo compatibilidad con lo ya publicado.
+
+### V1. Base de Invitación (modelo + contenido)
+
+- [ ] Renombrar el tipo de sección actual `portada` a `invitación` (manteniendo compatibilidad con datos existentes).
+- [ ] Permitir texto de invitación personalizado en esta sección, con fallback automático al texto genérico actual si no hay personalización.
+
+### V2. Personalización visual base
+
+- [ ] Permitir divisor entre secciones por imagen subida.
+- [ ] Permitir imagen de fondo global de la página (además del color actual).
+
+### V3. Interacción social
+
+- [ ] Nuevo tipo de sección `Playlist` para que invitados sugieran canciones.
+
+### V4. Experiencia de entrada tipo Sobre
+
+- [ ] Nuevo tipo de sección `Sobre` con variantes de diseño.
+- [ ] Incluir lacre con logo de la boda y animación de apertura al hacer clic.
+- [ ] Al abrirse el sobre, mostrar dentro la sección de invitación actual y debajo el resto de secciones.
+
+### V5. Nueva Portada animada
+
+- [ ] Crear un nuevo tipo de sección `Portada` dedicado a animaciones de entrada.
+- [ ] Variante 1: dos puertas de papel que se abren, cada una con su imagen configurable desde Drive (inicialmente vacías).
+- [ ] Variante 2: imagen completa con rectángulo configurable (mover y redimensionar) hacia el que se hace zoom progresivo hasta pantalla completa.
+- [ ] Variante 3: animación de impresión letra a letra de la invitación y transición al contenido final.
+
+### V6. Historia avanzada
+
+- [ ] Permitir múltiples imágenes por entrada de historia.
+- [ ] Modo `Secuencia`: imágenes temporizadas una detrás de otra.
+- [ ] Modo `Secuencia LineAlive`: generar LineAlive por imagen y encadenar reproducciones con delay configurable.
+- [ ] Modo `Collage`: colocación libre en zona de imagen + modo random para composiciones distintas en cada render.
+- [ ] Animar textos de historia como mecanografiados, sincronizables con el dibujo LineAlive.
+- [ ] Avance automático entre páginas de historia por tiempo o por fin de LineAlive + delay.
+
+### V7. Extensión LineAlive global
+
+- [ ] Añadir LineAlive a imágenes de portada en todas sus variantes.
+- [ ] Permitir que la imagen de fondo global sea también un LineAlive.
+
+### Criterio de priorización
+
+1. Primero cambios de modelo y nomenclatura con impacto transversal (`portada` -> `invitación`).
+2. Después personalización de contenido y estética base (texto, divisores, fondo) para valor inmediato.
+3. Luego nuevas capacidades funcionales independientes (`Playlist`, `Sobre`).
+4. Finalmente animaciones compuestas y sincronización avanzada (`Portada` animada, `Historia` avanzada, LineAlive global).
+
+---
+
 ## Hoja de ruta SaaS (Fase B)
 
 1. Sistema de registro de parejas (onboarding)
