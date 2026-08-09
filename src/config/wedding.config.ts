@@ -12,7 +12,19 @@ export type EventoHistoria = {
   titulo: string;
   descripcion: string;
   imagen?: string;      // ruta en /public/images/
+  lineAlive?: LineAliveAnimationAsset;
   lado: "izquierda" | "derecha";
+};
+
+export type LineAliveAnimationAsset = {
+  enabled: boolean;
+  sourceResourceId?: string;
+  sourceDriveFileId?: string;
+  htmlDriveFileId?: string;
+  htmlFileName?: string;
+  detail?: string;
+  aspectRatio?: number;
+  generatedAt?: string;
 };
 
 export type Localizacion = {
@@ -113,6 +125,7 @@ export type ItemSeccionDiseno = {
   descripcion: string;
   hora?: string;
   imagen?: string;
+  lineAlive?: LineAliveAnimationAsset;
   icono?: string;
   enlaceMaps?: string;
   filtrosImagen?: Array<"sepia" | "grayscale" | "blur">;

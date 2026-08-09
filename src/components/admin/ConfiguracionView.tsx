@@ -278,6 +278,7 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
                     descripcion: evento.descripcion,
                     hora: evento.fecha,
                     imagen: evento.imagen,
+                    lineAlive: evento.lineAlive,
                   })))
             : sec.tipo === "timeline"
               ? (sec.items?.length
@@ -959,6 +960,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       titulo: item.titulo,
       descripcion: item.descripcion,
       imagen: item.imagen,
+      lineAlive: item.lineAlive,
       lado: index % 2 === 0 ? "derecha" : "izquierda",
     }));
   };
@@ -1041,6 +1043,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 viewport={editorViewport}
                 editable={false}
                 designMode={designMode}
+                adminInviteCode={inviteCode}
                 selectedComponentKey={designMode ? activeSelectedDesignComponentKey as HistoriaComponentKey | null : null}
                 onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                 componentStyles={componentStyles}
@@ -1635,6 +1638,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               viewport={editorViewport}
                               editable={false}
                               designMode={designMode}
+                              adminInviteCode={inviteCode}
                               selectedComponentKey={designMode ? activeSelectedDesignComponentKey as HistoriaComponentKey | null : null}
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}

@@ -238,6 +238,7 @@ export default async function PaginaPrincipal() {
       titulo: item.titulo || "",
       descripcion: item.descripcion || "",
       imagen: item.imagen,
+      lineAlive: item.lineAlive,
       lado: index % 2 === 0 ? "derecha" as const : "izquierda" as const,
     }));
   };

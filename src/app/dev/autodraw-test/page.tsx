@@ -1,158 +1,216 @@
 "use client";
 
-import { ChangeEvent, useMemo, useState } from "react";
-import AutoDrawSVG, { useAutoDrawControls } from "@/components/motion/AutoDrawSVG";
+import { useMemo, useState } from "react";
 
-const SVG_EJEMPLO = `<svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Demo autodraw">
-  <rect x="20" y="20" width="600" height="320" rx="16" fill="none" stroke="#4a3728" stroke-width="3" />
-  <g data-grupo="sol">
-    <circle cx="500" cy="95" r="36" fill="none" stroke="#8c6b3f" stroke-width="4" />
-    <line x1="500" y1="40" x2="500" y2="18" stroke="#8c6b3f" stroke-width="3" />
-    <line x1="500" y1="172" x2="500" y2="150" stroke="#8c6b3f" stroke-width="3" />
-    <line x1="445" y1="95" x2="423" y2="95" stroke="#8c6b3f" stroke-width="3" />
-    <line x1="577" y1="95" x2="555" y2="95" stroke="#8c6b3f" stroke-width="3" />
-  </g>
-  <path d="M90 255 C 170 170, 270 310, 360 225" fill="none" stroke="#6b7a4f" stroke-width="6" stroke-linecap="round" />
-  <path d="M360 225 C 420 170, 470 250, 530 210" fill="none" stroke="#6b7a4f" stroke-width="6" stroke-linecap="round" />
-  <polygon points="86,268 192,268 139,316" fill="#8c6b3f" />
-  <text x="68" y="92" font-size="42" fill="#4a3728" font-family="serif">P & D</text>
-</svg>`;
+const DEFAULT_PREVIEW_ASPECT_RATIO = 16 / 9;
+
+function parseNumericDimension(value: string | null): number | null {
+  if (!value) return null;
+  const match = value.match(/([0-9]+(?:\.[0-9]+)?)/);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function detectDemoHtmlAspectRatio(demoHtml: string): number {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(demoHtml, "text/html");
+    const svg = doc.querySelector("svg");
+
+    if (!svg) {
+      return DEFAULT_PREVIEW_ASPECT_RATIO;
+    }
+
+    const viewBox = svg.getAttribute("viewBox");
+    if (viewBox) {
+      const tokens = viewBox
+        .trim()
+        .split(/[\s,]+/)
+        .map((token) => Number(token));
+
+      if (tokens.length === 4) {
+        const width = tokens[2];
+        const height = tokens[3];
+        if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+          return width / height;
+        }
+      }
+    }
+
+    const width = parseNumericDimension(svg.getAttribute("width"));
+    const height = parseNumericDimension(svg.getAttribute("height"));
+    if (width && height) {
+      return width / height;
+    }
+
+    return DEFAULT_PREVIEW_ASPECT_RATIO;
+  } catch {
+    return DEFAULT_PREVIEW_ASPECT_RATIO;
+  }
+}
+
+function getBaseFileName(fileName: string): string {
+  return fileName.replace(/\.[^.]+$/, "");
+}
 
 export default function AutoDrawTestPage() {
-  const controls = useAutoDrawControls();
-  const [svgSource, setSvgSource] = useState<string>(SVG_EJEMPLO);
-  const [sequential, setSequential] = useState(true);
-  const [staggerMs, setStaggerMs] = useState(80);
-  const [durationMs, setDurationMs] = useState(900);
-  const [strokeColorOverride, setStrokeColorOverride] = useState("#8c6b3f");
-  const [usarOverride, setUsarOverride] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [lineAliveDetail, setLineAliveDetail] = useState("");
+  const [lineAliveLoading, setLineAliveLoading] = useState(false);
+  const [lineAliveError, setLineAliveError] = useState<string | null>(null);
+  const [lineAliveDemoHtml, setLineAliveDemoHtml] = useState<string>("");
+  const [previewAspectRatio, setPreviewAspectRatio] = useState<number>(DEFAULT_PREVIEW_ASPECT_RATIO);
+  const [previewReloadKey, setPreviewReloadKey] = useState(0);
+  const [downloadBaseName, setDownloadBaseName] = useState("linealive_result");
+  const [lastRequestMs, setLastRequestMs] = useState<number | null>(null);
 
-  const sourceMode = useMemo(() => (svgSource.trim().startsWith("<") ? "inline" : "url"), [svgSource]);
+  const canGenerate = useMemo(() => !lineAliveLoading && !!imageFile, [lineAliveLoading, imageFile]);
+  const canUsePreview = useMemo(() => !!lineAliveDemoHtml, [lineAliveDemoHtml]);
 
-  const onUploadSvg = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const onGenerateLineAlive = async () => {
+    if (!imageFile) {
+      setLineAliveError("Selecciona una imagen antes de generar.");
+      return;
+    }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const value = typeof reader.result === "string" ? reader.result : "";
-      if (value.trim()) {
-        setSvgSource(value);
+    setLineAliveLoading(true);
+    setLineAliveError(null);
+    setLastRequestMs(null);
+
+    try {
+      const startedAt = performance.now();
+      const body = new FormData();
+      body.append("image", imageFile, imageFile.name);
+      if (lineAliveDetail.trim()) {
+        body.append("detail", lineAliveDetail.trim());
       }
-    };
-    reader.readAsText(file);
+
+      const response = await fetch("/api/generate-animation", {
+        method: "POST",
+        body,
+      });
+      const json = await response.json();
+
+      if (!response.ok || !json.ok) {
+        throw new Error(json.message || "Error al generar animacion con LineAlive.");
+      }
+
+      const demoHtml = typeof json.animation_html === "string"
+        ? json.animation_html.trim()
+        : typeof json.demo_html === "string"
+          ? json.demo_html.trim()
+          : "";
+      if (!demoHtml) {
+        throw new Error("LineAlive respondio sin animation_html. Revisa la integracion del servicio.");
+      }
+
+      setLineAliveDemoHtml(demoHtml);
+      setPreviewAspectRatio(detectDemoHtmlAspectRatio(demoHtml));
+      setPreviewReloadKey((current) => current + 1);
+      setDownloadBaseName(getBaseFileName(imageFile.name));
+      setLastRequestMs(Math.round(performance.now() - startedAt));
+    } catch (error) {
+      setLineAliveError(error instanceof Error ? error.message : "Error desconocido.");
+    } finally {
+      setLineAliveLoading(false);
+    }
+  };
+
+  const onReplayPreview = () => {
+    setPreviewReloadKey((current) => current + 1);
+  };
+
+  const onDownloadPreview = () => {
+    if (!lineAliveDemoHtml) return;
+    const blob = new Blob([lineAliveDemoHtml], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${downloadBaseName}_LA.html`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
-      <h1 className="section-title text-left">AutoDrawSVG Playground</h1>
+      <h1 className="section-title text-left">AutoDraw + LineAlive Playground</h1>
       <p className="mb-6 text-sm text-[var(--brown-mid)]">
-        Laboratorio de desarrollo para validar autodibujado en SVGs reales antes de integrar en portada, historia, timeline o galeria.
+        Prueba de concepto para generar animaciones SVG con LineAlive y visualizar el resultado final (demo_html) en un iframe.
       </p>
 
       <section className="grid gap-6 lg:grid-cols-[360px,1fr]">
         <aside className="card-wedding space-y-5">
-          <div>
-            <label className="label-field">Subir SVG desde archivo</label>
-            <input type="file" accept=".svg,image/svg+xml" onChange={onUploadSvg} className="input-field" />
-          </div>
-
-          <div>
-            <label className="label-field">O usar URL de /public (ejemplo: /images/mi-ilustracion.svg)</label>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="/images/mi-ilustracion.svg"
-              onChange={(event) => {
-                const value = event.target.value.trim();
-                if (value.length > 0) {
-                  setSvgSource(value);
-                }
-              }}
-            />
-          </div>
-
-          <div>
-            <label className="label-field">Secuencial</label>
-            <input
-              type="checkbox"
-              checked={sequential}
-              onChange={(event) => setSequential(event.target.checked)}
-              className="h-4 w-4"
-            />
-          </div>
-
-          <div>
-            <label className="label-field">staggerMs: {staggerMs}</label>
-            <input
-              type="range"
-              min={0}
-              max={500}
-              step={10}
-              value={staggerMs}
-              onChange={(event) => setStaggerMs(Number(event.target.value))}
-              className="w-full"
-            />
-          </div>
-
-          <div>
-            <label className="label-field">durationMs: {durationMs}</label>
-            <input
-              type="range"
-              min={150}
-              max={2500}
-              step={50}
-              value={durationMs}
-              onChange={(event) => setDurationMs(Number(event.target.value))}
-              className="w-full"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="label-field">Forzar color de stroke</label>
-            <div className="flex items-center gap-3">
+          <div className="rounded-xl border border-[#dfd7cd] bg-[#fffaf3] p-3 space-y-3">
+            <p className="text-xs text-[var(--brown-mid)]">
+              Sube una imagen (png/jpg/webp), genera la animacion y visualiza el HTML autosuficiente devuelto por LineAlive.
+            </p>
+            <div>
+              <label className="label-field">Imagen para LineAlive</label>
               <input
-                type="checkbox"
-                checked={usarOverride}
-                onChange={(event) => setUsarOverride(event.target.checked)}
-                className="h-4 w-4"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="input-field"
+                onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
               />
-              <input
-                type="color"
-                value={strokeColorOverride}
-                onChange={(event) => setStrokeColorOverride(event.target.value)}
-                className="h-9 w-14 rounded border border-[#d4cfc9]"
-              />
-              <span className="text-xs text-[var(--brown-mid)]">{strokeColorOverride}</span>
             </div>
+            <div>
+              <label className="label-field">detail (opcional)</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="high | medium | low"
+                value={lineAliveDetail}
+                onChange={(event) => setLineAliveDetail(event.target.value)}
+              />
+            </div>
+            <button type="button" className="btn-primary" onClick={onGenerateLineAlive} disabled={!canGenerate}>
+              {lineAliveLoading ? "Generando..." : "Generar con LineAlive"}
+            </button>
+            {lastRequestMs !== null && <p className="text-xs text-[var(--brown-mid)]">Tiempo de generacion: {lastRequestMs} ms</p>}
+            {lineAliveError && <p className="text-xs text-red-700">{lineAliveError}</p>}
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn-secondary" onClick={controls.restart}>
-              Repetir
+            <button type="button" className="btn-secondary" onClick={onReplayPreview} disabled={!canUsePreview}>
+              Reproducir de nuevo
             </button>
-            <button type="button" className="btn-secondary" onClick={controls.pause}>
-              Pausar
-            </button>
-            <button type="button" className="btn-primary" onClick={controls.play}>
-              Reanudar
+            <button type="button" className="btn-primary" onClick={onDownloadPreview} disabled={!canUsePreview}>
+              Descargar HTML
             </button>
           </div>
 
-          <p className="text-xs text-[var(--brown-mid)]">Modo de entrada actual: {sourceMode}</p>
+          <p className="text-xs text-[var(--brown-mid)]">
+            El archivo se descarga como <strong>{downloadBaseName}_LA.html</strong>.
+          </p>
         </aside>
 
         <article className="card-wedding min-h-[420px]">
           <div className="rounded-2xl border border-[#e4ddd4] bg-[#fffdfa] p-4">
-            <AutoDrawSVG
-              ref={controls.autoDrawRef}
-              svgSource={svgSource}
-              sequential={sequential}
-              staggerMs={staggerMs}
-              durationMs={durationMs}
-              strokeColorOverride={usarOverride ? strokeColorOverride : undefined}
-              respectReducedMotion
-            />
+            <h2 className="label-field mb-2">Preview demo_html de LineAlive</h2>
+            {lineAliveLoading ? (
+              <div className="flex h-[420px] items-center justify-center rounded-xl border border-[#ddd5cb] bg-[#f7f3ee]">
+                <p className="text-sm text-[var(--brown-mid)]">Generando preview...</p>
+              </div>
+            ) : lineAliveDemoHtml ? (
+              <div
+                className="mx-auto w-full max-w-[980px] overflow-hidden rounded-xl border border-[#ddd5cb] bg-white"
+                style={{ aspectRatio: `${previewAspectRatio}` }}
+              >
+                <iframe
+                  key={previewReloadKey}
+                  title="LineAlive Demo HTML"
+                  srcDoc={lineAliveDemoHtml}
+                  className="h-full w-full"
+                />
+              </div>
+            ) : (
+              <div className="flex h-[420px] items-center justify-center rounded-xl border border-[#ddd5cb] bg-[#f7f3ee]">
+                <p className="text-sm text-[var(--brown-mid)]">Aun no hay demo_html generado.</p>
+              </div>
+            )}
           </div>
         </article>
       </section>

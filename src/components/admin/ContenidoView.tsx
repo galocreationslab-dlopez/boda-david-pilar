@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import type {
   EventoHistoria,
   EventoTimeline,
@@ -13,6 +14,7 @@ import type {
 type ResourceItem = {
   id: string;
   nombre: string;
+  google_drive_id: string | null;
   url_publica: string | null;
   mime_type: string | null;
   subido_por: string | null;
@@ -116,6 +118,7 @@ function mapHistoriaToItems(historia: EventoHistoria[]) {
     descripcion: item.descripcion,
     hora: item.fecha,
     imagen: item.imagen,
+    lineAlive: item.lineAlive,
   }));
 }
 
@@ -239,6 +242,7 @@ function mapHistoriaItemsToConfig(items: SeccionDiseno["items"]): EventoHistoria
     titulo: item.titulo || "",
     descripcion: item.descripcion || "",
     imagen: item.imagen,
+    lineAlive: item.lineAlive,
     lado: index % 2 === 0 ? "derecha" : "izquierda",
   }));
 }
@@ -263,6 +267,8 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   const [uploadingHistoriaId, setUploadingHistoriaId] = useState<string | null>(null);
+  const [lineAliveGenerating, setLineAliveGenerating] = useState<Record<string, boolean>>({});
+  const [contextMenu, setContextMenu] = useState<{ itemId: string; x: number; y: number } | null>(null);
 
   const recursosDriveConfigured = Boolean(config.drive.recursosWeb.folderId.trim());
 
@@ -274,6 +280,16 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const resourcesForHistoria = useMemo(
     () => resources.filter((item) => item.mime_type?.startsWith("image/") || item.mime_type === null),
     [resources],
+  );
+
+  const findResourceByImageUrl = useCallback(
+    (imageUrl?: string) => resourcesForHistoria.find((item) => item.url_publica === imageUrl) ?? null,
+    [resourcesForHistoria],
+  );
+
+  const buildAdminLineAliveSrc = useCallback(
+    (fileId: string) => `/api/admin/${encodeURIComponent(inviteCode)}/resources/linealive/html?fileId=${encodeURIComponent(fileId)}`,
+    [inviteCode],
   );
 
   const showMsg = (type: "ok" | "error", text: string) => {
@@ -304,6 +320,16 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
 
     void loadResources();
   }, [inviteCode]);
+
+  useEffect(() => {
+    const closeMenu = () => setContextMenu(null);
+    window.addEventListener("click", closeMenu);
+    window.addEventListener("scroll", closeMenu, true);
+    return () => {
+      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("scroll", closeMenu, true);
+    };
+  }, []);
 
   const patchSection = (sectionId: string, patch: Partial<SeccionDiseno>) => {
     setSections((prev) => prev.map((section) => (section.id === sectionId ? { ...section, ...patch } : section)));
@@ -374,7 +400,23 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   };
 
   const updateHistoriaItem = (itemId: string, field: "titulo" | "descripcion" | "hora" | "imagen", value: string) => {
-    patchSelectedItems((items) => items.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)));
+    patchSelectedItems((items) =>
+      items.map((item) => {
+        if (item.id !== itemId) return item;
+        if (field === "imagen") {
+          return {
+            ...item,
+            imagen: value,
+            lineAlive: undefined,
+          };
+        }
+        return { ...item, [field]: value };
+      }),
+    );
+  };
+
+  const patchHistoriaItem = (itemId: string, updater: (item: SeccionDiseno["items"][number]) => SeccionDiseno["items"][number]) => {
+    patchSelectedItems((items) => items.map((item) => (item.id === itemId ? updater(item) : item)));
   };
 
   const updateTimelineItem = (itemId: string, field: "hora" | "titulo" | "descripcion" | "icono" | "enlaceMaps", value: string) => {
@@ -412,7 +454,11 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
       if (!resource?.url_publica) {
         throw new Error("La subida no devolvio una URL publica");
       }
-      updateHistoriaItem(itemId, "imagen", resource.url_publica);
+      patchHistoriaItem(itemId, (item) => ({
+        ...item,
+        imagen: resource.url_publica ?? "",
+        lineAlive: undefined,
+      }));
       setResources((prev) => [resource, ...prev]);
       showMsg("ok", "Imagen subida y asociada a la historia");
     } catch (error) {
@@ -420,6 +466,99 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     } finally {
       setUploadingHistoriaId(null);
     }
+  };
+
+  const toggleLineAliveForItem = async (item: SeccionDiseno["items"][number]) => {
+    const resource = findResourceByImageUrl(item.imagen);
+    if (!resource?.id || !resource.google_drive_id) {
+      showMsg("error", "LineAlive solo esta disponible para imagenes subidas a recursos.");
+      return;
+    }
+
+    setContextMenu(null);
+
+    if (item.lineAlive?.enabled) {
+      patchHistoriaItem(item.id, (current) => ({
+        ...current,
+        lineAlive: current.lineAlive ? { ...current.lineAlive, enabled: false } : current.lineAlive,
+      }));
+      return;
+    }
+
+    if (item.lineAlive?.htmlDriveFileId && item.lineAlive.sourceResourceId === resource.id) {
+      patchHistoriaItem(item.id, (current) => ({
+        ...current,
+        lineAlive: current.lineAlive ? { ...current.lineAlive, enabled: true } : current.lineAlive,
+      }));
+      return;
+    }
+
+    await generateLineAliveForItem(item, resource.id);
+  };
+
+  const generateLineAliveForItem = async (
+    item: SeccionDiseno["items"][number],
+    resourceId: string,
+    successMessage = "Animacion LineAlive generada. Pulsa Guardar cambios para publicarla en la web.",
+  ) => {
+    setContextMenu(null);
+
+    setLineAliveGenerating((prev) => ({ ...prev, [item.id]: true }));
+
+    try {
+      const response = await fetch(`/api/admin/${inviteCode}/resources/linealive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resourceId, detail: "medium" }),
+      });
+      const data: unknown = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((data as { error?: string }).error ?? "No se pudo generar la animacion LineAlive");
+      }
+
+      const lineAlive = (data as { lineAlive?: SeccionDiseno["items"][number]["lineAlive"] }).lineAlive;
+      if (!lineAlive?.htmlDriveFileId) {
+        throw new Error("LineAlive no devolvio el archivo HTML esperado");
+      }
+
+      patchHistoriaItem(item.id, (current) => ({
+        ...current,
+        lineAlive: { ...lineAlive, enabled: true },
+      }));
+      showMsg("ok", successMessage);
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error generando LineAlive");
+    } finally {
+      setLineAliveGenerating((prev) => ({ ...prev, [item.id]: false }));
+    }
+  };
+
+  const regenerateLineAliveForItem = async (item: SeccionDiseno["items"][number]) => {
+    const resource = findResourceByImageUrl(item.imagen);
+    if (!resource?.id || !resource.google_drive_id) {
+      showMsg("error", "LineAlive solo esta disponible para imagenes subidas a recursos.");
+      return;
+    }
+
+    await generateLineAliveForItem(item, resource.id, "Animacion LineAlive regenerada. Pulsa Guardar cambios para publicarla en la web.");
+  };
+
+  const disableLineAliveForItem = (itemId: string) => {
+    patchHistoriaItem(itemId, (current) => ({
+      ...current,
+      lineAlive: current.lineAlive ? { ...current.lineAlive, enabled: false } : current.lineAlive,
+    }));
+    setContextMenu(null);
+  };
+
+  const openHistoriaContextMenu = (event: React.MouseEvent<HTMLDivElement>, itemId: string, imageUrl?: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!findResourceByImageUrl(imageUrl ?? "")) {
+      showMsg("error", "LineAlive solo esta disponible para imagenes subidas a recursos.");
+      return;
+    }
+    setContextMenu({ itemId, x: event.clientX, y: event.clientY });
   };
 
   const handleSave = async () => {
@@ -680,12 +819,19 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                           <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                             <select
                               className="input-field"
-                              value={item.imagen ?? ""}
-                              onChange={(e) => updateHistoriaItem(item.id, "imagen", e.target.value)}
+                              value={findResourceByImageUrl(item.imagen)?.id ?? ""}
+                              onChange={(e) => {
+                                const resource = resourcesForHistoria.find((entry) => entry.id === e.target.value) ?? null;
+                                patchHistoriaItem(item.id, (current) => ({
+                                  ...current,
+                                  imagen: resource?.url_publica ?? "",
+                                  lineAlive: undefined,
+                                }));
+                              }}
                             >
                               <option value="">Sin imagen</option>
                               {resourcesForHistoria.map((resource) => (
-                                <option key={resource.id} value={resource.url_publica ?? ""}>
+                                <option key={resource.id} value={resource.id}>
                                   {resource.nombre}
                                 </option>
                               ))}
@@ -707,20 +853,48 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                               />
                             </label>
                           </div>
-                          <input
-                            className="input-field"
-                            value={item.imagen ?? ""}
-                            onChange={(e) => updateHistoriaItem(item.id, "imagen", e.target.value)}
-                            placeholder="Tambien puedes pegar URL manual"
-                          />
                           {loadingResources && <p className="text-xs text-stone-400">Cargando recursos de Drive...</p>}
                           {item.imagen && (
-                            <img
-                              src={previewSrcForAdmin(inviteCode, item.imagen)}
-                              alt="Preview historia"
-                              className="h-24 w-24 rounded-lg border border-stone-200 object-cover"
-                            />
+                            <div
+                              className="relative h-48 w-full max-w-[320px] overflow-hidden rounded-xl border border-stone-200 bg-stone-50"
+                              onContextMenu={(event) => openHistoriaContextMenu(event, item.id, item.imagen)}
+                            >
+                              {item.lineAlive?.enabled && item.lineAlive.htmlDriveFileId ? (
+                                <>
+                                  <LineAliveEmbed
+                                    src={buildAdminLineAliveSrc(item.lineAlive.htmlDriveFileId)}
+                                    title={`LineAlive ${item.titulo || item.id}`}
+                                    aspectRatio={item.lineAlive.aspectRatio}
+                                    fit="cover"
+                                    lockAspectRatio={false}
+                                    className="h-full w-full rounded-none border-0"
+                                    iframeClassName="rounded-none"
+                                    loadingLabel="Cargando LineAlive..."
+                                  />
+                                  <div
+                                    className="absolute inset-0 z-10 cursor-context-menu"
+                                    aria-hidden="true"
+                                  />
+                                </>
+                              ) : (
+                                <img
+                                  src={previewSrcForAdmin(inviteCode, item.imagen)}
+                                  alt="Preview historia"
+                                  className="h-full w-full object-cover"
+                                />
+                              )}
+                              <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/55 px-2 py-1 text-[11px] font-semibold text-white">
+                                {item.lineAlive?.enabled ? "LineAlive activo" : item.lineAlive?.htmlDriveFileId ? "LineAlive listo" : "PNG original"}
+                              </div>
+                              {lineAliveGenerating[item.id] && (
+                                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/45 text-white backdrop-blur-sm">
+                                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+                                  <p className="text-xs font-semibold tracking-wide">Generando LineAlive...</p>
+                                </div>
+                              )}
+                            </div>
                           )}
+                          <p className="text-xs text-stone-500">Clic derecho sobre la preview para activar o desactivar LineAlive.</p>
                         </div>
                       </div>
                     </div>
@@ -732,6 +906,50 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                   >
                     + Anadir entrada
                   </button>
+
+                  {contextMenu && selectedSection.items.some((entry) => entry.id === contextMenu.itemId) && (
+                    <div
+                      className="fixed z-50 w-64 rounded-xl border border-stone-200 bg-white p-2 shadow-2xl"
+                      style={{ left: contextMenu.x, top: contextMenu.y }}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {selectedSection.items
+                        .filter((entry) => entry.id === contextMenu.itemId)
+                        .map((entry) => (
+                          <div key={entry.id} className="space-y-2">
+                            <button
+                              type="button"
+                              onClick={() => void toggleLineAliveForItem(entry)}
+                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100"
+                            >
+                              <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-stone-400 text-[10px]">
+                                {entry.lineAlive?.enabled ? "✓" : ""}
+                              </span>
+                              <span>Usar LineAlive</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => disableLineAliveForItem(entry.id)}
+                              disabled={!entry.lineAlive?.htmlDriveFileId}
+                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <span>Volver a imagen original</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void regenerateLineAliveForItem(entry)}
+                              disabled={lineAliveGenerating[entry.id]}
+                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <span>Regenerar LineAlive</span>
+                            </button>
+                            <p className="px-3 pb-1 text-[11px] text-stone-500">
+                              La primera activacion genera el HTML sidecar en Drive. Despues puedes alternar o regenerar LineAlive.
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  )}
                 </div>
               )}
 

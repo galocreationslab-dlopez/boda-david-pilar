@@ -26,6 +26,7 @@ export type AutoDrawSVGProps = {
   durationMs?: number;
   sequential?: boolean;
   onComplete?: () => void;
+  onAspectRatioDetected?: (ratio: number) => void;
   respectReducedMotion?: boolean;
 };
 
@@ -134,9 +135,103 @@ function getElementLength(el: SVGGraphicsElement): number {
   return 1;
 }
 
+function getResolvedPaint(el: SVGGraphicsElement): { fill: string; stroke: string } {
+  // fill y stroke son propiedades heredables en SVG: es habitual (sobre todo en
+  // exportaciones de Illustrator) que se definan una sola vez en un <g> ancestro
+  // en vez de repetirse en cada <path>. Leer solo el atributo propio del elemento
+  // (getAttribute) rompe en ese caso: el elemento no tiene el atributo, se
+  // clasifica como "sin pintar" y nunca se anima aunque se vea perfectamente
+  // en pantalla por herencia. getComputedStyle resuelve la cascada real,
+  // incluida la herencia y el valor final de currentColor.
+  if (typeof window !== "undefined" && typeof window.getComputedStyle === "function") {
+    const computed = window.getComputedStyle(el);
+    return {
+      fill: (computed.fill || "").trim(),
+      stroke: (computed.stroke || "").trim(),
+    };
+  }
+  return {
+    fill: (el.getAttribute("fill") ?? el.style.fill ?? "").trim(),
+    stroke: (el.getAttribute("stroke") ?? el.style.stroke ?? "").trim(),
+  };
+}
+
+function parseSvgNumericValue(rawValue: string | null): number | null {
+  if (!rawValue) return null;
+  const parsed = Number.parseFloat(rawValue.trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function detectSvgAspectRatio(svgEl: SVGSVGElement): { width: number; height: number } | null {
+  const vb = svgEl.viewBox?.baseVal;
+  if (vb && Number.isFinite(vb.width) && Number.isFinite(vb.height) && vb.width > 0 && vb.height > 0) {
+    return { width: vb.width, height: vb.height };
+  }
+
+  const widthAttr = parseSvgNumericValue(svgEl.getAttribute("width"));
+  const heightAttr = parseSvgNumericValue(svgEl.getAttribute("height"));
+  if (widthAttr && heightAttr) {
+    return { width: widthAttr, height: heightAttr };
+  }
+
+  return null;
+}
+
+function normalizeViewBoxToContent(svgEl: SVGSVGElement) {
+  const graphics = Array.from(svgEl.querySelectorAll("*")) as SVGGraphicsElement[];
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const node of graphics) {
+    if (typeof node.getBBox !== "function") continue;
+    try {
+      const box = node.getBBox();
+      if (!Number.isFinite(box.x) || !Number.isFinite(box.y)) continue;
+      if (!Number.isFinite(box.width) || !Number.isFinite(box.height)) continue;
+      if (box.width <= 0 || box.height <= 0) continue;
+
+      minX = Math.min(minX, box.x);
+      minY = Math.min(minY, box.y);
+      maxX = Math.max(maxX, box.x + box.width);
+      maxY = Math.max(maxY, box.y + box.height);
+    } catch {
+      // Algunos nodos (defs/mascaras) pueden lanzar en getBBox; se ignoran.
+    }
+  }
+
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+    return;
+  }
+
+  const contentWidth = maxX - minX;
+  const contentHeight = maxY - minY;
+  if (contentWidth <= 0 || contentHeight <= 0) return;
+
+  const vb = svgEl.viewBox?.baseVal;
+  const hasValidViewBox =
+    !!vb && Number.isFinite(vb.width) && Number.isFinite(vb.height) && vb.width > 0 && vb.height > 0;
+
+  const needsNormalization =
+    !hasValidViewBox ||
+    minX < vb.x ||
+    minY < vb.y ||
+    maxX > vb.x + vb.width ||
+    maxY > vb.y + vb.height;
+
+  if (!needsNormalization) return;
+
+  // Si el SVG viene mal encuadrado desde exportacion, ajustamos el viewBox al
+  // bbox real para que nunca se recorten partes del dibujo al escalar/contener.
+  svgEl.setAttribute("viewBox", `${minX} ${minY} ${contentWidth} ${contentHeight}`);
+}
+
 function classifyElement(el: SVGGraphicsElement): { isStroke: boolean; isFill: boolean } {
-  const fillAttr = (el.getAttribute("fill") ?? el.style.fill ?? "").trim();
-  const strokeAttr = (el.getAttribute("stroke") ?? el.style.stroke ?? "").trim();
+  const resolved = getResolvedPaint(el);
+  const fillAttr = resolved.fill;
+  const strokeAttr = resolved.stroke;
 
   const fillExplicitNone = fillAttr.toLowerCase() === "none";
   const fillExplicitSolid =
@@ -267,6 +362,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     durationMs = DEFAULT_DURATION_MS,
     sequential = true,
     onComplete,
+    onAspectRatioDetected,
     respectReducedMotion = true,
   },
   ref,
@@ -277,6 +373,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
   const animationsRef = useRef<Animation[]>([]);
   const timersRef = useRef<number[]>([]);
   const [restartTick, setRestartTick] = useState(0);
+  const [detectedAspectRatio, setDetectedAspectRatio] = useState<{ width: number; height: number } | null>(null);
 
   const clearRunningAnimations = useCallback(() => {
     for (const animation of animationsRef.current) {
@@ -357,13 +454,42 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     const svgEl = containerRef.current.querySelector("svg");
     if (!svgEl) return;
 
+    normalizeViewBoxToContent(svgEl);
+
+    // Ajuste universal de encaje: muchos SVG subidos vienen con width/height
+    // absolutos muy grandes desde herramientas de diseno. Si no los normalizamos,
+    // pueden desbordar el panel y recortarse. Forzamos un comportamiento tipo
+    // "contain" para que se vea el dibujo completo dentro del espacio disponible.
+    svgEl.style.width = "auto";
+    svgEl.style.height = "auto";
+    svgEl.style.maxWidth = "100%";
+    svgEl.style.maxHeight = "100%";
+    svgEl.style.display = "block";
+    svgEl.style.objectFit = "contain";
+    svgEl.style.objectPosition = "center";
+
+    if (!svgEl.getAttribute("preserveAspectRatio")) {
+      svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    }
+
+    // Esto permite que el motor se adapte a cualquier SVG subido por cualquier boda,
+    // sin hardcodear proporciones por imagen ni por tipo de seccion en el padre.
+    const ratioBox = detectSvgAspectRatio(svgEl);
+    setDetectedAspectRatio(ratioBox);
+    if (ratioBox) {
+      onAspectRatioDetected?.(ratioBox.width / ratioBox.height);
+    }
+
     const allDrawables = Array.from(svgEl.querySelectorAll(DRAWABLE_SELECTOR)).filter(isDrawableElement);
 
     if (strokeColorOverride) {
       for (const drawable of allDrawables) {
-        const strokeValue = (drawable.getAttribute("stroke") ?? drawable.style.stroke ?? "").trim().toLowerCase();
-        if (strokeValue && strokeValue !== "none") {
-          drawable.setAttribute("stroke", strokeColorOverride);
+        const { stroke } = getResolvedPaint(drawable);
+        if (stroke && stroke.toLowerCase() !== "none") {
+          // Se aplica como estilo inline (mayor prioridad que el heredado del <g>)
+          // para que funcione tambien cuando el stroke viene por herencia y el
+          // elemento no tiene el atributo "stroke" propio, como en este logo.
+          drawable.style.stroke = strokeColorOverride;
         }
       }
     }
@@ -464,6 +590,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
   }, [
     clearRunningAnimations,
     durationMs,
+    onAspectRatioDetected,
     onComplete,
     respectReducedMotion,
     restartTick,
@@ -476,7 +603,22 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
   return (
     <div
       ref={containerRef}
-      style={{ width: "100%", display: "inline-block", lineHeight: 0 }}
+      style={{
+        width: "100%",
+        maxWidth: "100%",
+        // Altura auto por defecto: el componente no impone alto fijo.
+        // Si el padre necesita limitar alto (p. ej. panel de libro), se hace
+        // desde ese contexto y el SVG se encaja con maxWidth/maxHeight.
+        height: "auto",
+        minHeight: 0,
+        maxHeight: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        lineHeight: 0,
+        overflow: "visible",
+        aspectRatio: detectedAspectRatio ? `${detectedAspectRatio.width} / ${detectedAspectRatio.height}` : undefined,
+      }}
       dangerouslySetInnerHTML={svgMarkup ? { __html: svgMarkup } : undefined}
     />
   );
