@@ -49,6 +49,17 @@ type ResourceUploadResponse = {
   error?: string;
 };
 
+const BACKGROUND_IMAGE_ROLE = "fondoImagenGlobal";
+
+function isDriveUrl(value?: string): boolean {
+  if (!value) return false;
+  return value.includes("drive.google.com") || value.includes("drive.usercontent.google.com");
+}
+
+function isSectionBackgroundKey(key: SectionComponentKey): boolean {
+  return key === "portada.fondo" || key === "historia.fondoSeccion" || key === "timeline.fondoSeccion" || key === "galeria.fondoSeccion";
+}
+
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; label: string; defaultRole: TemaColorRole }>> = {
   invitacion: [
     { key: "portada.fondo", label: "Fondo sección", defaultRole: "fondoSeccion" },
@@ -337,13 +348,15 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
   ];
 }
 
-function buildPreviewSeparator(separador: SeparadorDiseno) {
+function buildPreviewSeparator(separador: SeparadorDiseno, resolveSrc: (src?: string) => string) {
   if (separador.modo === "sin_transicion") return null;
 
   if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
+    const src = resolveSrc(separador.imagenUrl);
+    if (!src) return null;
     return (
-      <div className="py-2">
-        <img src={separador.imagenUrl} alt="Separador" className="mx-auto max-h-24 w-full object-contain" />
+      <div className="py-3">
+        <img src={src} alt="Separador" className="mx-auto h-auto max-h-24 w-full object-contain" />
       </div>
     );
   }
@@ -535,6 +548,24 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     setMsg({ type, text });
     setTimeout(() => setMsg(null), 5000);
   };
+
+  const resolveAdminPreviewSrc = useCallback((src?: string): string => {
+    const value = src?.trim() ?? "";
+    if (!value) return "";
+    if (!isDriveUrl(value)) return value;
+    return `/api/admin/${encodeURIComponent(inviteCode)}/resources/preview?src=${encodeURIComponent(value)}`;
+  }, [inviteCode]);
+
+  const getBackgroundImageStyle = useCallback((src?: string): CSSProperties => {
+    const resolved = resolveAdminPreviewSrc(src);
+    if (!resolved) return {};
+    return {
+      backgroundImage: `url(${resolved})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+    };
+  }, [resolveAdminPreviewSrc]);
 
   const uploadDesignImage = useCallback(async (file: File): Promise<string> => {
     const formData = new FormData();
@@ -747,6 +778,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     const options = getSectionComponentOptions(section);
     return options.reduce((acc, option) => {
       const role = getComponentRoleForSection(section, option.key);
+      if (role === BACKGROUND_IMAGE_ROLE && isSectionBackgroundKey(option.key)) {
+        acc[option.key] = getBackgroundImageStyle(fondoPaginaImagen);
+        return acc;
+      }
       const color = roleColors[role];
       acc[option.key] = getComponentStyleByKey(option.key, color);
       return acc;
@@ -797,10 +832,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     return getComponentRoleForSection(editingSectionDraft, selectedComponentOption.key);
   }, [editingSectionDraft, getComponentRoleForSection, selectedComponentOption]);
 
-  const availableRoleKeys = useMemo(
-    () => (editingPalette ? getPaletteRoleKeys(editingPalette) : [...ROLE_KEYS]),
-    [editingPalette],
-  );
+  const availableRoleKeys = useMemo(() => {
+    const base = editingPalette ? getPaletteRoleKeys(editingPalette) : [...ROLE_KEYS];
+    if (selectedComponentOption && isSectionBackgroundKey(selectedComponentOption.key)) {
+      return [...base, BACKGROUND_IMAGE_ROLE];
+    }
+    return base;
+  }, [editingPalette, selectedComponentOption]);
+
+  const getRoleLabelForUI = useCallback((role: string) => {
+    if (role === BACKGROUND_IMAGE_ROLE) return "Fondo imagen global";
+    return getRoleLabel(role, editingPalette);
+  }, [editingPalette]);
 
   const addCustomRoleToEditingPalette = () => {
     if (!editingPalette) return;
@@ -1443,6 +1486,15 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         </button>
                       )}
                     </div>
+                    {separador.imagenUrl?.trim() && (
+                      <div className="mt-2 overflow-hidden rounded border border-stone-200 bg-stone-50 p-2">
+                        <img
+                          src={resolveAdminPreviewSrc(separador.imagenUrl)}
+                          alt="Preview separador"
+                          className="mx-auto h-auto max-h-20 w-full object-contain"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t border-stone-200 pt-2">
@@ -1479,6 +1531,15 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         </button>
                       )}
                     </div>
+                    {fondoPaginaImagen.trim() && (
+                      <div className="mt-2 overflow-hidden rounded border border-stone-200 bg-stone-50 p-2">
+                        <img
+                          src={resolveAdminPreviewSrc(fondoPaginaImagen)}
+                          alt="Preview fondo"
+                          className="mx-auto h-auto max-h-24 w-full object-cover"
+                        />
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -1629,7 +1690,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       <p className="font-semibold uppercase tracking-wide">Depuración selección</p>
                       <p>Componente activo: {selectedComponentOption?.label ?? "(ninguno)"}</p>
                       <p>Clave: {selectedComponentOption?.key ?? "-"}</p>
-                      <p>Rol activo: {selectedComponentRole ? getRoleLabel(selectedComponentRole, editingPalette) : "-"}</p>
+                      <p>Rol activo: {selectedComponentRole ? getRoleLabelForUI(selectedComponentRole) : "-"}</p>
                     </div>
 
                     {selectedComponentRole && editingPalette && (
@@ -1645,7 +1706,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             }}
                           >
                             {availableRoleKeys.map((role) => (
-                              <option key={role} value={role}>{getRoleLabel(role, editingPalette)}</option>
+                              <option key={role} value={role}>{getRoleLabelForUI(role)}</option>
                             ))}
                           </select>
                           <p className="mt-1 text-[11px] text-stone-500">
@@ -1654,15 +1715,19 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         </div>
                         <div className="rounded border border-stone-200 bg-white p-2">
                           <label className="mb-1 block text-[11px] font-semibold text-stone-600">Color del rol</label>
-                          <select
-                            className="input-field h-8 w-full text-xs"
-                            value={editingPaletteRoleMap?.[selectedComponentRole] ?? ""}
-                            onChange={(event) => applySwatchToRoleInEditingSection(selectedComponentRole, event.target.value)}
-                          >
-                            {editingPaletteSwatches.map((swatch) => (
-                              <option key={swatch.id} value={swatch.id}>{swatch.label}</option>
-                            ))}
-                          </select>
+                          {selectedComponentRole === BACKGROUND_IMAGE_ROLE ? (
+                            <p className="text-[11px] text-stone-500">Este rol usa la imagen de fondo global cargada, no una muestra de color.</p>
+                          ) : (
+                            <select
+                              className="input-field h-8 w-full text-xs"
+                              value={editingPaletteRoleMap?.[selectedComponentRole] ?? ""}
+                              onChange={(event) => applySwatchToRoleInEditingSection(selectedComponentRole, event.target.value)}
+                            >
+                              {editingPaletteSwatches.map((swatch) => (
+                                <option key={swatch.id} value={swatch.id}>{swatch.label}</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1685,9 +1750,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           </button>
                         </div>
                         <div className="grid gap-1 sm:grid-cols-2">
-                          {availableRoleKeys.map((role) => (
+                          {availableRoleKeys.filter((role) => role !== BACKGROUND_IMAGE_ROLE).map((role) => (
                             <label key={role} className="grid grid-cols-[1fr_130px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
-                              <span className="text-[11px] text-stone-700">{getRoleLabel(role, editingPalette)}</span>
+                              <span className="text-[11px] text-stone-700">{getRoleLabelForUI(role)}</span>
                               <select
                                 className="h-7 rounded border border-stone-300 bg-white px-1 text-[11px] text-stone-700"
                                 value={editingPaletteRoleMap[role] ?? "cream"}
@@ -1727,7 +1792,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               className="min-h-[560px] overflow-auto rounded-xl border"
               style={{
                 backgroundColor: paletaActivaResolvedColors.cream ?? "#F7F3EC",
-                backgroundImage: fondoPaginaImagen.trim() ? `url(${fondoPaginaImagen.trim()})` : undefined,
+                backgroundImage: fondoPaginaImagen.trim() ? `url(${resolveAdminPreviewSrc(fondoPaginaImagen)})` : undefined,
                 backgroundSize: fondoPaginaImagen.trim() ? "cover" : undefined,
                 backgroundPosition: fondoPaginaImagen.trim() ? "center" : undefined,
                 backgroundRepeat: fondoPaginaImagen.trim() ? "no-repeat" : undefined,
@@ -1863,7 +1928,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           </SeccionColapsable>
                         )}
 
-                        {!isLast && buildPreviewSeparator(separador)}
+                        {!isLast && buildPreviewSeparator(separador, resolveAdminPreviewSrc)}
                       </div>
                     );
                   })}
