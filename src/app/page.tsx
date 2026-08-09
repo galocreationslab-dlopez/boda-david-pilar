@@ -16,7 +16,7 @@ import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
 import type { GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
 import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
-import type { SeparadorDiseno, TipoSeccionDiseno, SeccionDiseno, TemaColorRole, TemaPaleta } from "@/config/wedding.config";
+import { DEFAULT_TEXTO_INVITACION, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
 import type { CSSProperties } from "react";
 
 type SectionComponentKey =
@@ -32,6 +32,19 @@ type SectionComponentKey =
   | "galeria.fondoSeccion";
 
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; defaultRole: TemaColorRole }>> = {
+  invitacion: [
+    { key: "portada.fondo", defaultRole: "fondoSeccion" },
+    { key: "portada.logo", defaultRole: "logo" },
+    { key: "portada.nombres", defaultRole: "titulo" },
+    { key: "portada.separador", defaultRole: "nexosTransicionesBordes" },
+    { key: "portada.fecha", defaultRole: "textoSecundario" },
+    { key: "portada.bienvenida", defaultRole: "textoPrincipal" },
+    { key: "portada.faltan", defaultRole: "textoSecundario" },
+    { key: "portada.cuentaAtras", defaultRole: "titulo" },
+    { key: "portada.cuentaAtrasLeyendas", defaultRole: "textoSecundario" },
+    { key: "portada.ctaFondo", defaultRole: "fondoBoton" },
+    { key: "portada.ctaTexto", defaultRole: "textoBoton" },
+  ],
   portada: [
     { key: "portada.fondo", defaultRole: "fondoSeccion" },
     { key: "portada.logo", defaultRole: "logo" },
@@ -207,19 +220,20 @@ export default async function PaginaPrincipal() {
   });
 
   const fallbackSections: Array<{ id: string; tipo: TipoSeccionDiseno; titulo: string; source?: SeccionDiseno }> = [
-    { id: "sec-portada-fallback", tipo: "portada", titulo: "Invitacion" },
+    { id: "sec-invitacion-fallback", tipo: "invitacion", titulo: "Invitacion" },
     { id: "sec-historia-fallback", tipo: "historia", titulo: "Nuestra historia" },
     { id: "sec-galeria-fallback", tipo: "galeria", titulo: "Galeria" },
     { id: "sec-timeline-fallback", tipo: "timeline", titulo: "El gran dia" },
   ];
 
+  const normalizeSectionType = (tipo: TipoSeccionDiseno): TipoSeccionDiseno => (tipo === "portada" ? "invitacion" : tipo);
+
   const orderedSections = visibleSections.length > 0
-    ? visibleSections.map((s) => ({ id: s.id, tipo: s.tipo, titulo: s.titulo || s.nombre, source: s }))
+    ? visibleSections.map((s) => ({ id: s.id, tipo: normalizeSectionType(s.tipo), titulo: s.titulo || s.nombre, source: s }))
     : fallbackSections;
 
-  const getPortadaConfigForSection = (section?: SeccionDiseno) => {
-    const welcome = section?.items?.[0]?.descripcion?.trim();
-    if (!welcome) return config;
+  const getInvitacionConfigForSection = (section?: SeccionDiseno) => {
+    const welcome = section?.items?.[0]?.descripcion?.trim() || DEFAULT_TEXTO_INVITACION;
     return {
       ...config,
       textos: {
@@ -270,8 +284,8 @@ export default async function PaginaPrincipal() {
         {orderedSections.map((section, index) => {
           const componentStyles = getSectionComponentStyles(section.source);
           const isLast = index === orderedSections.length - 1;
-          const anchorId = section.tipo === "portada"
-            ? "portada"
+          const anchorId = section.tipo === "invitacion"
+            ? "invitacion"
             : section.tipo === "historia"
             ? "historia"
             : section.tipo === "galeria"
@@ -279,9 +293,9 @@ export default async function PaginaPrincipal() {
             : "timeline";
           return (
             <div key={section.id} style={getSectionThemeVars(section.source)}>
-              {section.tipo === "portada" && (
+              {section.tipo === "invitacion" && (
                 <SeccionColapsable id={anchorId} abiertaPorDefecto={true} ocultarCabecera={true}>
-                  <MainWithInvite config={getPortadaConfigForSection(section.source)} componentStyles={componentStyles} />
+                  <MainWithInvite config={getInvitacionConfigForSection(section.source)} componentStyles={componentStyles} />
                 </SeccionColapsable>
               )}
 

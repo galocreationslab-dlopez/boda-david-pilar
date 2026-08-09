@@ -117,7 +117,11 @@ export type TemaPaleta = {
   roleLabels?: Partial<Record<string, string>>;
 };
 
-export type TipoSeccionDiseno = "portada" | "historia" | "timeline" | "galeria";
+// `portada` se mantiene por compatibilidad con configuraciones antiguas.
+export type TipoSeccionDiseno = "invitacion" | "portada" | "historia" | "timeline" | "galeria";
+
+export const DEFAULT_TEXTO_INVITACION =
+  "Con mucha alegría os invitamos a compartir con nosotros el día más especial de nuestras vidas.";
 
 export type ItemSeccionDiseno = {
   id: string;
@@ -229,8 +233,7 @@ export const weddingConfig: WeddingConfig = {
   hora: "12:00",
 
   textos: {
-    bienvenida:
-      "Con mucha alegría os invitamos a compartir con nosotros el día más especial de nuestras vidas.",
+    bienvenida: DEFAULT_TEXTO_INVITACION,
     confirmacionLimite: "6 de febrero de 2027",
   },
 
@@ -296,10 +299,10 @@ export const weddingConfig: WeddingConfig = {
     },
     secciones: [
       {
-        id: "sec-portada",
-        nombre: "Portada",
+        id: "sec-invitacion",
+        nombre: "Invitacion",
         titulo: "Invitación",
-        tipo: "portada",
+        tipo: "invitacion",
         paletaId: "paleta-clasica",
         usarPaletaGlobal: true,
         componentRoles: {

@@ -8,6 +8,7 @@ import { SeccionHistoria, type HistoriaComponentKey } from "@/components/wedding
 import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding/SeccionTimeline";
 import { SeccionGaleria, type GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
+import { DEFAULT_TEXTO_INVITACION } from "@/config/wedding.config";
 import {
   ROLE_KEYS,
   buildPaletteSwatches,
@@ -42,6 +43,19 @@ type SectionComponentKey =
   | "galeria.fondoSeccion";
 
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; label: string; defaultRole: TemaColorRole }>> = {
+  invitacion: [
+    { key: "portada.fondo", label: "Fondo sección", defaultRole: "fondoSeccion" },
+    { key: "portada.logo", label: "Logo", defaultRole: "logo" },
+    { key: "portada.nombres", label: "Nombres novios", defaultRole: "titulo" },
+    { key: "portada.separador", label: "Separadores", defaultRole: "nexosTransicionesBordes" },
+    { key: "portada.fecha", label: "Fecha boda", defaultRole: "textoSecundario" },
+    { key: "portada.bienvenida", label: "Texto invitación", defaultRole: "textoPrincipal" },
+    { key: "portada.faltan", label: "Texto 'Faltan'", defaultRole: "textoSecundario" },
+    { key: "portada.cuentaAtras", label: "Cuenta atrás", defaultRole: "titulo" },
+    { key: "portada.cuentaAtrasLeyendas", label: "Leyendas cuenta atrás", defaultRole: "textoSecundario" },
+    { key: "portada.ctaFondo", label: "Botón CTA - Fondo", defaultRole: "fondoBoton" },
+    { key: "portada.ctaTexto", label: "Botón CTA - Texto", defaultRole: "textoBoton" },
+  ],
   portada: [
     { key: "portada.fondo", label: "Fondo sección", defaultRole: "fondoSeccion" },
     { key: "portada.logo", label: "Logo", defaultRole: "logo" },
@@ -91,6 +105,14 @@ function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<strin
     acc[option.key] = option.defaultRole;
     return acc;
   }, {} as Partial<Record<string, TemaColorRole>>);
+}
+
+function normalizeSectionType(tipo: TipoSeccionDiseno): TipoSeccionDiseno {
+  return tipo === "portada" ? "invitacion" : tipo;
+}
+
+function isInvitationType(tipo: TipoSeccionDiseno): boolean {
+  return tipo === "invitacion" || tipo === "portada";
 }
 
 function normalizeLegacyRole(role: string): TemaColorRole {
@@ -227,11 +249,11 @@ function buildInitialSeparador(config: WeddingConfig): SeparadorDiseno {
   };
 }
 
-function defaultSection(paletaId: string, tipo: TipoSeccionDiseno = "portada"): SeccionDiseno {
+function defaultSection(paletaId: string, tipo: TipoSeccionDiseno = "invitacion"): SeccionDiseno {
   return {
     id: `sec-${uid()}`,
-    nombre: tipo === "portada" ? "Portada" : "Nueva seccion",
-    titulo: tipo === "portada" ? "Invitacion" : "Titulo",
+    nombre: isInvitationType(tipo) ? "Invitacion" : "Nueva seccion",
+    titulo: isInvitationType(tipo) ? "Invitacion" : "Titulo",
     tipo,
     paletaId,
     usarPaletaGlobal: true,
@@ -247,10 +269,11 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
   if (Array.isArray(fromConfig) && fromConfig.length > 0) {
     return fromConfig.map((sec) => ({
       ...sec,
+      tipo: normalizeSectionType(sec.tipo),
       paletaId: sec.paletaId || paletaId,
       usarPaletaGlobal: sec.usarPaletaGlobal ?? true,
       componentRoles: {
-        ...getDefaultComponentRoles(sec.tipo),
+        ...getDefaultComponentRoles(normalizeSectionType(sec.tipo)),
         ...Object.entries(sec.componentRoles ?? {}).reduce((acc, [rawKey, rawRole]) => {
           if (!rawRole) return acc;
           acc[normalizeLegacyComponentKey(rawKey)] = normalizeLegacyRole(rawRole);
@@ -259,14 +282,14 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
       },
       perfiles: sec.perfiles?.length ? sec.perfiles : ["publico"],
       items:
-        sec.tipo === "portada"
+        isInvitationType(sec.tipo)
           ? (sec.items?.length
               ? sec.items
               : [
                   {
                     id: `item-${uid()}`,
-                    titulo: "Bienvenida",
-                    descripcion: config.textos.bienvenida,
+                    titulo: "Invitacion",
+                    descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION,
                   },
                 ])
           : sec.tipo === "historia"
@@ -299,7 +322,7 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
   }
 
   return [
-    defaultSection(paletaId, "portada"),
+    defaultSection(paletaId, "invitacion"),
     defaultSection(paletaId, "historia"),
     defaultSection(paletaId, "galeria"),
     defaultSection(paletaId, "timeline"),
@@ -834,10 +857,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   };
 
   const setPortadaWelcomeText = (text: string) => {
-    if (!editingSectionDraft || editingSectionDraft.tipo !== "portada") return;
+    if (!editingSectionDraft || !isInvitationType(editingSectionDraft.tipo)) return;
     const currentFirst = editingSectionDraft.items[0] ?? {
       id: `item-${uid()}`,
-      titulo: "Bienvenida",
+      titulo: "Invitacion",
       descripcion: "",
     };
     const nextFirst = { ...currentFirst, descripcion: text };
@@ -845,13 +868,12 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   };
 
   const getPortadaConfig = (section: SeccionDiseno): WeddingConfig => {
-    const welcome = section.items?.[0]?.descripcion?.trim();
-    if (!welcome) return ic;
+    const welcome = section.items?.[0]?.descripcion?.trim() || DEFAULT_TEXTO_INVITACION;
     return {
       ...ic,
       textos: {
         ...ic.textos,
-        bienvenida: welcome || ic.textos.bienvenida,
+        bienvenida: welcome,
       },
     };
   };
@@ -860,8 +882,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     setSaving(true);
     try {
       const seccionesConPendientes = secciones.map((sec) => sectionDrafts[sec.id] ?? sec);
-      const seccionPortada = seccionesConPendientes.find((sec) => sec.tipo === "portada");
-      const bienvenidaPortada = seccionPortada?.items?.[0]?.descripcion;
+      const seccionInvitacion = seccionesConPendientes.find((sec) => isInvitationType(sec.tipo));
+      const bienvenidaInvitacion = seccionInvitacion?.items?.[0]?.descripcion?.trim() || DEFAULT_TEXTO_INVITACION;
       const colors = paletaActivaResolvedColors;
       const payload: Record<string, unknown> = {
         tema: {
@@ -877,12 +899,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         logo: logoUrl,
       };
 
-      if (typeof bienvenidaPortada === "string") {
-        payload.textos = {
-          ...ic.textos,
-          bienvenida: bienvenidaPortada,
-        };
-      }
+      payload.textos = {
+        ...ic.textos,
+        bienvenida: bienvenidaInvitacion,
+      };
 
       const res = await fetch(`/api/admin/${inviteCode}/config`, {
         method: "POST",
@@ -1010,7 +1030,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
           style={{ ...themeVars, transform: `scale(${scale})`, transformOrigin: "top left", width }}
           className={`${editable ? "pointer-events-auto" : "pointer-events-none"} ${compact ? "absolute inset-0" : ""}`}
         >
-          {section.tipo === "portada" && (
+          {isInvitationType(section.tipo) && (
             <SeccionColapsable id={`canvas-${section.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
               <MainWithInvite
                 config={getPortadaConfig(section)}
@@ -1604,7 +1624,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         style={sectionThemeVars}
                         className={`relative ${!hasAnySectionInEditMode && selectedSectionId === sec.id ? "ring-1 ring-amber-300" : ""}`}
                       >
-                        {sec.tipo === "portada" && (
+                        {isInvitationType(sec.tipo) && (
                           <SeccionColapsable id={`preview-${sec.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
                             <MainWithInvite
                               config={getPortadaConfig(sec)}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
+import { DEFAULT_TEXTO_INVITACION } from "@/config/wedding.config";
 import type {
   EventoHistoria,
   EventoTimeline,
@@ -24,11 +25,19 @@ type ResourceItem = {
 const ICONO_OPTIONS: EventoTimeline["icono"][] = ["rings", "cocktail", "fork", "cake", "music", "car", "iglesia", "finca"];
 const PROFILE_OPTIONS = ["publico", "familia", "amigos", "vip", "admin"] as const;
 const SECTION_TYPES: Array<{ value: TipoSeccionDiseno; label: string }> = [
-  { value: "portada", label: "Portada" },
+  { value: "invitacion", label: "Invitacion" },
   { value: "historia", label: "Historia" },
   { value: "timeline", label: "Timeline" },
   { value: "galeria", label: "Galeria" },
 ];
+
+function normalizeSectionType(tipo: TipoSeccionDiseno): TipoSeccionDiseno {
+  return tipo === "portada" ? "invitacion" : tipo;
+}
+
+function isInvitationType(tipo: TipoSeccionDiseno): boolean {
+  return tipo === "invitacion" || tipo === "portada";
+}
 
 function uid() {
   return Math.random().toString(36).slice(2);
@@ -47,7 +56,7 @@ function previewSrcForAdmin(inviteCode: string, src: string): string {
 }
 
 function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<string, TemaColorRole>> {
-  if (tipo === "portada") {
+  if (isInvitationType(tipo)) {
     return {
       "portada.fondo": "fondoSeccion",
       "portada.logo": "logo",
@@ -98,14 +107,14 @@ function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<strin
 }
 
 function sectionTitleByType(tipo: TipoSeccionDiseno): string {
-  if (tipo === "portada") return "Invitacion";
+  if (isInvitationType(tipo)) return "Invitacion";
   if (tipo === "historia") return "Nuestra historia";
   if (tipo === "timeline") return "El gran dia";
   return "Galeria";
 }
 
 function sectionNameByType(tipo: TipoSeccionDiseno): string {
-  if (tipo === "portada") return "Portada";
+  if (isInvitationType(tipo)) return "Invitacion";
   if (tipo === "historia") return "Historia";
   if (tipo === "timeline") return "Timeline";
   return "Galeria";
@@ -138,19 +147,19 @@ function buildInitialSections(config: WeddingConfig): SeccionDiseno[] {
   const fallback: SeccionDiseno[] = [
     {
       id: `sec-${uid()}`,
-      nombre: "Portada",
+      nombre: "Invitacion",
       titulo: "Invitacion",
-      tipo: "portada",
+      tipo: "invitacion",
       paletaId,
       usarPaletaGlobal: true,
       visible: true,
       perfiles: ["publico"],
-      componentRoles: getDefaultComponentRoles("portada"),
+      componentRoles: getDefaultComponentRoles("invitacion"),
       items: [
         {
           id: `item-${uid()}`,
-          titulo: "Bienvenida",
-          descripcion: config.textos.bienvenida,
+          titulo: "Invitacion",
+          descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION,
         },
       ],
     },
@@ -202,29 +211,31 @@ function buildInitialSections(config: WeddingConfig): SeccionDiseno[] {
   }
 
   return config.diseno.secciones.map((section) => {
+    const tipoNormalizado = normalizeSectionType(section.tipo);
     const baseItems = section.items ?? [];
     const hasItems = baseItems.length > 0;
 
     return {
       ...section,
-      nombre: section.nombre || sectionNameByType(section.tipo),
-      titulo: section.titulo || sectionTitleByType(section.tipo),
+      tipo: tipoNormalizado,
+      nombre: section.nombre || sectionNameByType(tipoNormalizado),
+      titulo: section.titulo || sectionTitleByType(tipoNormalizado),
       paletaId: section.paletaId || paletaId,
       usarPaletaGlobal: section.usarPaletaGlobal ?? true,
       visible: section.visible ?? true,
       perfiles: section.perfiles?.length ? section.perfiles : ["publico"],
       componentRoles: {
-        ...getDefaultComponentRoles(section.tipo),
+        ...getDefaultComponentRoles(tipoNormalizado),
         ...(section.componentRoles ?? {}),
       },
       items:
         hasItems
           ? baseItems
-          : section.tipo === "portada"
-            ? [{ id: `item-${uid()}`, titulo: "Bienvenida", descripcion: config.textos.bienvenida }]
-            : section.tipo === "historia"
+          : isInvitationType(tipoNormalizado)
+            ? [{ id: `item-${uid()}`, titulo: "Invitacion", descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION }]
+            : tipoNormalizado === "historia"
               ? mapHistoriaToItems(config.historia)
-              : section.tipo === "timeline"
+              : tipoNormalizado === "timeline"
                 ? mapTimelineToItems(config.timeline)
                 : [],
       galeriaConfig: {
@@ -263,7 +274,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [msg, setMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [sections, setSections] = useState<SeccionDiseno[]>(initialSections);
   const [selectedSectionId, setSelectedSectionId] = useState<string>(initialSections[0]?.id ?? "");
-  const [newSectionType, setNewSectionType] = useState<TipoSeccionDiseno>("historia");
+  const [newSectionType, setNewSectionType] = useState<TipoSeccionDiseno>("invitacion");
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   const [uploadingHistoriaId, setUploadingHistoriaId] = useState<string | null>(null);
@@ -352,8 +363,8 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
       perfiles: ["publico"],
       componentRoles: getDefaultComponentRoles(newSectionType),
       items:
-        newSectionType === "portada"
-          ? [{ id: `item-${uid()}`, titulo: "Bienvenida", descripcion: config.textos.bienvenida }]
+        isInvitationType(newSectionType)
+          ? [{ id: `item-${uid()}`, titulo: "Invitacion", descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION }]
           : [],
       galeriaConfig: {
         mostrarSeleccionNovios: true,
@@ -564,11 +575,11 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const handleSave = async () => {
     setSaving(true);
     try {
-      const firstPortada = sections.find((section) => section.tipo === "portada");
+      const firstInvitation = sections.find((section) => isInvitationType(section.tipo));
       const firstHistoria = sections.find((section) => section.tipo === "historia");
       const firstTimeline = sections.find((section) => section.tipo === "timeline");
 
-      const bienvenida = firstPortada?.items?.[0]?.descripcion ?? config.textos.bienvenida;
+      const bienvenida = firstInvitation?.items?.[0]?.descripcion?.trim() || DEFAULT_TEXTO_INVITACION;
       const historia = firstHistoria ? mapHistoriaItemsToConfig(firstHistoria.items) : config.historia;
       const timeline = firstTimeline ? mapTimelineItemsToConfig(firstTimeline.items) : config.timeline;
 
@@ -702,8 +713,8 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         nombre: sectionNameByType(tipo),
                         titulo: sectionTitleByType(tipo),
                         items:
-                          tipo === "portada"
-                            ? [{ id: `item-${uid()}`, titulo: "Bienvenida", descripcion: config.textos.bienvenida }]
+                          isInvitationType(tipo)
+                            ? [{ id: `item-${uid()}`, titulo: "Invitacion", descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION }]
                             : [],
                       });
                     }}
@@ -753,17 +764,17 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                 </p>
               </div>
 
-              {selectedSection.tipo === "portada" && (
+              {isInvitationType(selectedSection.tipo) && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-stone-700">Contenido de portada</h3>
+                  <h3 className="text-sm font-semibold text-stone-700">Contenido de invitacion</h3>
                   <div>
-                    <label className="label-field">Texto de bienvenida</label>
+                    <label className="label-field">Texto de invitacion (si se deja vacio, se usa el texto generico)</label>
                     <textarea
                       rows={4}
                       className="input-field"
                       value={selectedSection.items?.[0]?.descripcion ?? ""}
                       onChange={(e) => {
-                        const first = selectedSection.items?.[0] ?? { id: `item-${uid()}`, titulo: "Bienvenida", descripcion: "" };
+                        const first = selectedSection.items?.[0] ?? { id: `item-${uid()}`, titulo: "Invitacion", descripcion: "" };
                         patchSection(selectedSection.id, { items: [{ ...first, descripcion: e.target.value }, ...selectedSection.items.slice(1)] });
                       }}
                     />

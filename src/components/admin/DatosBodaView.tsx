@@ -188,7 +188,7 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
             <input className="input-field" value={fechaFormateada} onChange={(e) => setFechaFormateada(e.target.value)} placeholder="6 de marzo de 2027" />
           </div>
           <div className="md:col-span-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
-            El texto de bienvenida se edita desde Diseño de la web, dentro de la sección Portada.
+            El texto de invitacion se edita desde Diseño de la web, dentro de la sección Invitacion.
           </div>
         </div>
       </section>
