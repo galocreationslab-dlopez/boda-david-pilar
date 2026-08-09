@@ -138,6 +138,17 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
 
 function renderSeparador(separador: SeparadorDiseno | undefined) {
   if (!separador || separador.modo === "sin_transicion") return null;
+  if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
+    return (
+      <div className="py-2" aria-hidden="true">
+        <img
+          src={separador.imagenUrl}
+          alt=""
+          className="mx-auto block max-h-28 w-full object-contain"
+        />
+      </div>
+    );
+  }
   if (separador.grafico === "ornamento") return <OrnamentoDivisor className="my-0" />;
   if (separador.grafico === "linea_doble") {
     return (
@@ -161,6 +172,7 @@ export default async function PaginaPrincipal() {
   const config = await getWeddingConfig();
   const galleryMedia = await getFeaturedGalleryMedia();
   const separador = config.diseno?.separador;
+  const fondoPaginaImagen = config.diseno?.fondoPaginaImagen?.trim();
   const paletas = config.tema.paletas ?? [];
   const paletaGlobal = paletas.find((p) => p.id === config.tema.paletaActivaId) ?? paletas[0];
 
@@ -278,7 +290,17 @@ export default async function PaginaPrincipal() {
   };
 
   return (
-    <>
+    <div
+      style={fondoPaginaImagen
+        ? {
+            backgroundImage: `url(${fondoPaginaImagen})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            backgroundAttachment: "fixed",
+          }
+        : undefined}
+    >
       <NavegacionPublica config={config} />
       <main>
         {orderedSections.map((section, index) => {
@@ -348,6 +370,6 @@ export default async function PaginaPrincipal() {
         })}
       </main>
       <PieDePagina config={config} />
-    </>
+    </div>
   );
 }

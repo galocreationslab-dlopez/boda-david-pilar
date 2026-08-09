@@ -42,6 +42,13 @@ type SectionComponentKey =
   | "galeria.tituloSeccion"
   | "galeria.fondoSeccion";
 
+type ResourceUploadResponse = {
+  resource?: {
+    url_publica?: string | null;
+  };
+  error?: string;
+};
+
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; label: string; defaultRole: TemaColorRole }>> = {
   invitacion: [
     { key: "portada.fondo", label: "Fondo sección", defaultRole: "fondoSeccion" },
@@ -246,6 +253,7 @@ function buildInitialSeparador(config: WeddingConfig): SeparadorDiseno {
   return {
     modo: config.diseno?.separador?.modo ?? "suave",
     grafico: config.diseno?.separador?.grafico ?? "ornamento",
+    imagenUrl: config.diseno?.separador?.imagenUrl ?? "",
   };
 }
 
@@ -332,6 +340,14 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
 function buildPreviewSeparator(separador: SeparadorDiseno) {
   if (separador.modo === "sin_transicion") return null;
 
+  if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
+    return (
+      <div className="py-2">
+        <img src={separador.imagenUrl} alt="Separador" className="mx-auto max-h-24 w-full object-contain" />
+      </div>
+    );
+  }
+
   if (separador.grafico === "ornamento") {
     return <OrnamentoDivisor className="my-2" />;
   }
@@ -377,6 +393,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   );
 
   const [separador, setSeparador] = useState<SeparadorDiseno>(buildInitialSeparador(ic));
+  const [fondoPaginaImagen, setFondoPaginaImagen] = useState<string>(ic.diseno?.fondoPaginaImagen ?? "");
+  const [uploadingSeparadorImage, setUploadingSeparadorImage] = useState(false);
+  const [uploadingFondoImage, setUploadingFondoImage] = useState(false);
   const [secciones, setSecciones] = useState<SeccionDiseno[]>(
     buildInitialSecciones(ic, initialPaletas[0]?.id ?? ""),
   );
@@ -516,6 +535,53 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     setMsg({ type, text });
     setTimeout(() => setMsg(null), 5000);
   };
+
+  const uploadDesignImage = useCallback(async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("section", "diseno");
+
+    const response = await fetch(`/api/admin/${inviteCode}/resources`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = (await response.json().catch(() => ({}))) as ResourceUploadResponse;
+    if (!response.ok) {
+      throw new Error(data.error ?? "No se pudo subir la imagen");
+    }
+    const imageUrl = data.resource?.url_publica?.trim();
+    if (!imageUrl) {
+      throw new Error("La subida no devolvio URL publica");
+    }
+    return imageUrl;
+  }, [inviteCode]);
+
+  const handleSeparadorImageUpload = useCallback(async (file: File) => {
+    setUploadingSeparadorImage(true);
+    try {
+      const imageUrl = await uploadDesignImage(file);
+      setSeparador((prev) => ({ ...prev, grafico: "imagen", imagenUrl: imageUrl }));
+      showMsg("ok", "Imagen de separador subida y asignada.");
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error subiendo imagen del separador");
+    } finally {
+      setUploadingSeparadorImage(false);
+    }
+  }, [uploadDesignImage]);
+
+  const handleFondoImageUpload = useCallback(async (file: File) => {
+    setUploadingFondoImage(true);
+    try {
+      const imageUrl = await uploadDesignImage(file);
+      setFondoPaginaImagen(imageUrl);
+      showMsg("ok", "Imagen de fondo subida y asignada.");
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error subiendo imagen de fondo");
+    } finally {
+      setUploadingFondoImage(false);
+    }
+  }, [uploadDesignImage]);
 
   const updatePaleta = (paletteId: string, updater: (current: TemaPaleta) => TemaPaleta) => {
     setPaletas((prev) => prev.map((p) => (p.id === paletteId ? updater(p) : p)));
@@ -894,6 +960,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         },
         diseno: {
           separador,
+          fondoPaginaImagen,
           secciones: seccionesConPendientes,
         },
         logo: logoUrl,
@@ -922,7 +989,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     } finally {
       setSaving(false);
     }
-  }, [fuentes, ic.textos, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador]);
+  }, [fondoPaginaImagen, fuentes, ic.textos, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador]);
 
   const handleReset = async () => {
     if (!confirm("Restaurar todos los valores al diseno original? Esta accion no se puede deshacer.")) return;
@@ -1330,7 +1397,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   <div>
                     <p className="mb-1 text-[11px] text-stone-500">Grafico</p>
                     <div className="grid grid-cols-2 gap-1">
-                      {(["ornamento", "linea_doble", "onda_fina", "puntos"] as const).map((grafico) => (
+                      {(["ornamento", "linea_doble", "onda_fina", "puntos", "imagen"] as const).map((grafico) => (
                         <button
                           key={grafico}
                           onClick={() => setSeparador((prev) => ({ ...prev, grafico }))}
@@ -1339,6 +1406,78 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           {grafico.replace("_", " ")}
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-[11px] text-stone-500">Imagen separador (URL o subida)</p>
+                    <input
+                      className="input-field h-8 text-xs"
+                      value={separador.imagenUrl ?? ""}
+                      placeholder="https://..."
+                      onChange={(e) => setSeparador((prev) => ({ ...prev, imagenUrl: e.target.value }))}
+                    />
+                    <div className="mt-1 flex items-center gap-2">
+                      <label className="inline-flex cursor-pointer items-center rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-700 hover:bg-stone-50">
+                        {uploadingSeparadorImage ? "Subiendo..." : "Subir imagen"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingSeparadorImage}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              void handleSeparadorImageUpload(file);
+                            }
+                            e.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                      {separador.imagenUrl?.trim() && (
+                        <button
+                          onClick={() => setSeparador((prev) => ({ ...prev, imagenUrl: "" }))}
+                          className="rounded border border-red-200 px-2 py-1 text-[11px] text-red-600"
+                        >
+                          Limpiar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-stone-200 pt-2">
+                    <p className="mb-1 text-[11px] text-stone-500">Fondo global de pagina (URL o subida)</p>
+                    <input
+                      className="input-field h-8 text-xs"
+                      value={fondoPaginaImagen}
+                      placeholder="https://..."
+                      onChange={(e) => setFondoPaginaImagen(e.target.value)}
+                    />
+                    <div className="mt-1 flex items-center gap-2">
+                      <label className="inline-flex cursor-pointer items-center rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-700 hover:bg-stone-50">
+                        {uploadingFondoImage ? "Subiendo..." : "Subir imagen"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingFondoImage}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              void handleFondoImageUpload(file);
+                            }
+                            e.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                      {fondoPaginaImagen.trim() && (
+                        <button
+                          onClick={() => setFondoPaginaImagen("")}
+                          className="rounded border border-red-200 px-2 py-1 text-[11px] text-red-600"
+                        >
+                          Limpiar
+                        </button>
+                      )}
                     </div>
                   </div>
                 </>
@@ -1588,6 +1727,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               className="min-h-[560px] overflow-auto rounded-xl border"
               style={{
                 backgroundColor: paletaActivaResolvedColors.cream ?? "#F7F3EC",
+                backgroundImage: fondoPaginaImagen.trim() ? `url(${fondoPaginaImagen.trim()})` : undefined,
+                backgroundSize: fondoPaginaImagen.trim() ? "cover" : undefined,
+                backgroundPosition: fondoPaginaImagen.trim() ? "center" : undefined,
+                backgroundRepeat: fondoPaginaImagen.trim() ? "no-repeat" : undefined,
                 borderColor: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
                 color: paletaActivaResolvedColors.brownDark ?? "#2E1F0E",
               }}

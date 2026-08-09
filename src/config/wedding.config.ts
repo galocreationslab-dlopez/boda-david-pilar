@@ -156,7 +156,8 @@ export type SeccionDiseno = {
 
 export type SeparadorDiseno = {
   modo: "sin_transicion" | "suave" | "onda" | "corte";
-  grafico: "ornamento" | "linea_doble" | "onda_fina" | "puntos";
+  grafico: "ornamento" | "linea_doble" | "onda_fina" | "puntos" | "imagen";
+  imagenUrl?: string;
 };
 
 export type WeddingConfig = {
@@ -193,6 +194,7 @@ export type WeddingConfig = {
 
   diseno?: {
     separador?: SeparadorDiseno;
+    fondoPaginaImagen?: string;
     secciones?: SeccionDiseno[];
   };
 
