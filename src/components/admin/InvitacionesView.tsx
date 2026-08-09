@@ -9,7 +9,7 @@ type Nec = {
   alergias?: string | null;
 };
 type Asistente = { id: string; nombre: string; edad: number|null; tipo_persona: string; estado_asistencia: string; transporte: string[]; necesidades: Nec; comentarios: string|null };
-type Invitacion = { id: string; invite_code: string; nombre_visible: string; tipo_invitacion: string; estado: string; nombre1?: string | null; nombre2?: string | null; adultos_estimados: number; adolescentes_estimados: number; ninos_estimados: number; bebes_estimados: number; created_at: string; asistentes: Asistente[] };
+type Invitacion = { id: string; invite_code: string; nombre_visible: string; tipo_invitacion: string; estado: string; nombre1?: string | null; nombre2?: string | null; texto_invitacion_personalizado?: string | null; adultos_estimados: number; adolescentes_estimados: number; ninos_estimados: number; bebes_estimados: number; created_at: string; asistentes: Asistente[] };
 
 const ESTADO_BADGE: Record<string,string> = {
   confirmada:"bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -145,15 +145,19 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted,
   const [inv, setInv] = useState(initInv);
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ nombre_visible: inv.nombre_visible, tipo_invitacion: inv.tipo_invitacion, estado: inv.estado, nombre1: inv.nombre1 ?? "", nombre2: inv.nombre2 ?? "", adultos_estimados: inv.adultos_estimados, ninos_estimados: inv.ninos_estimados, bebes_estimados: inv.bebes_estimados, adolescentes_estimados: inv.adolescentes_estimados });
+  const [form, setForm] = useState({ nombre_visible: inv.nombre_visible, tipo_invitacion: inv.tipo_invitacion, estado: inv.estado, nombre1: inv.nombre1 ?? "", nombre2: inv.nombre2 ?? "", texto_invitacion_personalizado: inv.texto_invitacion_personalizado ?? "", adultos_estimados: inv.adultos_estimados, ninos_estimados: inv.ninos_estimados, bebes_estimados: inv.bebes_estimados, adolescentes_estimados: inv.adolescentes_estimados });
   const [savingInv, setSavingInv] = useState(false);
   const [addingA, setAddingA] = useState(false);
 
   const saveInv = async () => {
     setSavingInv(true);
-    const res = await fetch(`/api/admin/${adminCode}/invitaciones/${inv.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const payload = {
+      ...form,
+      texto_invitacion_personalizado: form.texto_invitacion_personalizado.trim() || null,
+    };
+    const res = await fetch(`/api/admin/${adminCode}/invitaciones/${inv.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     setSavingInv(false);
-    if (res.ok) { setInv((i) => ({ ...i, ...form })); setEditing(false); }
+    if (res.ok) { setInv((i) => ({ ...i, ...payload })); setEditing(false); }
   };
   const delInv = async () => {
     if (!confirm(`Eliminar invitacion &quot;${inv.nombre_visible}&quot; y todos sus asistentes?`)) return;
@@ -202,6 +206,16 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted,
             <div><label className="label-field">Adultos est.</label><input type="number" min="0" className="input-field" value={form.adultos_estimados} onChange={(e) => setForm((f) => ({ ...f, adultos_estimados: Number(e.target.value) }))} /></div>
             <div><label className="label-field">Ninos est.</label><input type="number" min="0" className="input-field" value={form.ninos_estimados} onChange={(e) => setForm((f) => ({ ...f, ninos_estimados: Number(e.target.value) }))} /></div>
             <div><label className="label-field">Bebes est.</label><input type="number" min="0" className="input-field" value={form.bebes_estimados} onChange={(e) => setForm((f) => ({ ...f, bebes_estimados: Number(e.target.value) }))} /></div>
+            <div className="sm:col-span-3">
+              <label className="label-field">Texto de invitacion personalizado</label>
+              <textarea
+                rows={4}
+                className="input-field"
+                placeholder="Si se deja vacio, se usara el texto generico"
+                value={form.texto_invitacion_personalizado}
+                onChange={(e) => setForm((f) => ({ ...f, texto_invitacion_personalizado: e.target.value }))}
+              />
+            </div>
           </div>
           <div className="flex gap-2 mt-3">
             <button onClick={saveInv} disabled={savingInv} className="rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">{savingInv?"Guardando...":"Guardar"}</button>

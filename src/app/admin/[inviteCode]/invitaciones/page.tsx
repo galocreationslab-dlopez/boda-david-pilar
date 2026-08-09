@@ -14,6 +14,7 @@ async function getData() {
       id,
       invite_code,
       nombre_visible,
+      texto_invitacion_personalizado,
       tipo_invitacion,
       estado,
       adultos_estimados,

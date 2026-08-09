@@ -9,6 +9,7 @@ import type { CSSProperties } from "react";
 type InvitacionAPI = {
   invitacion: {
     tipo_invitacion?: string;
+    texto_invitacion_personalizado?: string | null;
   } | null;
   personas: unknown[];
 };
@@ -146,10 +147,21 @@ export default function MainWithInvite({
   const mostrarBoton =
     hasInviteCode && !loading && valid && Boolean(invitacion) && (esAdmin || estaEnPlazo);
 
+  const personalizedWelcome = invitacion?.texto_invitacion_personalizado?.trim();
+  const heroConfig = personalizedWelcome
+    ? {
+        ...config,
+        textos: {
+          ...config.textos,
+          bienvenida: personalizedWelcome,
+        },
+      }
+    : config;
+
   return (
     <div>
       <HeroPortada
-        config={config}
+        config={heroConfig}
         viewport={viewport}
         mostrarBotonConfirmar={mostrarBoton}
         labelBotonConfirmar={esAdmin ? "Panel de administración" : undefined}

@@ -43,7 +43,7 @@ export async function GET(
 
     const { data: invitacion, error } = await supabase
       .from("invitaciones")
-      .select("id, invite_code, nombre_visible, tipo_invitacion, nombre1, nombre2, estado, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
+      .select("id, invite_code, nombre_visible, tipo_invitacion, nombre1, nombre2, estado, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados, texto_invitacion_personalizado")
       .eq("invite_code", inviteCode)
       .maybeSingle();
 

@@ -15,7 +15,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (!(await validateAdminCode(inviteCode))) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const body = await req.json();
-  const allowed = ["nombre_visible", "tipo_invitacion", "estado", "nombre1", "nombre2",
+  const allowed = ["nombre_visible", "tipo_invitacion", "estado", "nombre1", "nombre2", "texto_invitacion_personalizado",
     "adultos_estimados", "adolescentes_estimados", "ninos_estimados", "bebes_estimados"];
   const patch: Record<string, string | number | null> = {};
   if (typeof body === "object" && body !== null) {
