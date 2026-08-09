@@ -171,6 +171,8 @@ export function SeccionHistoria({
                       src={buildLineAliveSrc(item.lineAlive.htmlDriveFileId)}
                       title={item.titulo}
                       aspectRatio={item.lineAlive.aspectRatio}
+                      fit="cover"
+                      lockAspectRatio={false}
                       className="h-full w-full rounded-none border-0"
                       iframeClassName="rounded-none"
                     />
@@ -344,6 +346,8 @@ export function SeccionHistoria({
                     src={buildLineAliveSrc(evento.lineAlive.htmlDriveFileId)}
                     title={evento.titulo}
                     aspectRatio={evento.lineAlive.aspectRatio}
+                    fit="cover"
+                    lockAspectRatio={false}
                     className="h-full w-full rounded-none border-0"
                     iframeClassName="rounded-none"
                   />
@@ -468,6 +472,8 @@ export function SeccionHistoria({
                     src={buildLineAliveSrc(evento.lineAlive.htmlDriveFileId)}
                     title={evento.titulo}
                     aspectRatio={evento.lineAlive.aspectRatio}
+                    fit="cover"
+                    lockAspectRatio={false}
                     className="h-full w-full rounded-none border-0"
                     iframeClassName="rounded-none"
                   />

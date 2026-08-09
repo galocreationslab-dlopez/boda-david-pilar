@@ -51,6 +51,7 @@ export async function generateLineAliveAnimation(options: {
   image: File;
   detail?: string;
 }): Promise<LineAliveGenerateResult> {
+  const generateUrl = resolveGenerateUrl();
   const formData = new FormData();
   formData.append("image", options.image, options.image.name);
   if (options.detail?.trim()) {
@@ -66,7 +67,7 @@ export async function generateLineAliveAnimation(options: {
 
   let response: Response;
   try {
-    response = await fetch(resolveGenerateUrl(), {
+    response = await fetch(generateUrl, {
       method: "POST",
       headers,
       body: formData,
@@ -85,15 +86,23 @@ export async function generateLineAliveAnimation(options: {
     payload = JSON.parse(rawBody) as LineAliveGenerateResult;
   } catch {
     const contentType = response.headers.get("content-type") || "sin-content-type";
+    const servedBy = response.headers.get("x-served-by") || "";
     const isHtml = /<html|<!doctype html/i.test(rawBody);
+    const looksLikeCodespacesTunnel =
+      generateUrl.includes(".app.github.dev") &&
+      response.status === 404 &&
+      rawBody.trim().length === 0 &&
+      /tunnels/i.test(servedBy);
     const hint = isHtml
       ? " La URL parece devolver HTML (posible login/proxy), no JSON de /generate."
+      : looksLikeCodespacesTunnel
+        ? " El dominio app.github.dev parece no enrutar al servicio (codespace apagado, puerto no publicado o URL desactualizada)."
       : "";
     const detail = rawBody
       ? ` Respuesta: ${rawBody.slice(0, 180)}`
       : " Respuesta vacia del upstream.";
     throw new LineAliveApiError(
-      `Respuesta invalida de LineAlive (status ${response.status}, content-type ${contentType}).${hint}${detail}`,
+      `Respuesta invalida de LineAlive en ${generateUrl} (status ${response.status}, content-type ${contentType}).${hint}${detail}`,
       502,
     );
   }

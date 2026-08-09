@@ -5,11 +5,54 @@ import { getWeddingConfig } from "@/lib/wedding-config-server";
 import { detectLineAliveAspectRatioFromHtml } from "@/lib/linealive/utils";
 import { generateLineAliveAnimation } from "@/lib/linealive/client";
 import { downloadDriveFile, ensureDriveSubfolder, getDriveFileMetadata, uploadFileToDrive } from "@/lib/google-drive";
+import sharp from "sharp";
 
 export const runtime = "nodejs";
 
 function getBaseFileName(fileName: string): string {
   return fileName.replace(/\.[^.]+$/, "");
+}
+
+function normalizeImageName(fileName: string): string {
+  const base = getBaseFileName(fileName).trim() || "image";
+  return `${base}_la.jpg`;
+}
+
+async function optimizeImageForLineAlive(input: {
+  buffer: Buffer;
+  contentType: string;
+  fileName: string;
+}): Promise<{ buffer: Buffer; contentType: string; fileName: string }> {
+  const MAX_DIMENSION = 1600;
+  const MAX_BYTES = 450_000;
+
+  try {
+    const instance = sharp(input.buffer, { failOn: "none", sequentialRead: true });
+    const metadata = await instance.metadata();
+    const width = metadata.width ?? 0;
+    const height = metadata.height ?? 0;
+    const shouldResize = width > MAX_DIMENSION || height > MAX_DIMENSION;
+    const shouldCompress = input.buffer.byteLength > MAX_BYTES;
+
+    if (!shouldResize && !shouldCompress) {
+      return input;
+    }
+
+    const processed = await instance
+      .rotate()
+      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toBuffer();
+
+    return {
+      buffer: processed,
+      contentType: "image/jpeg",
+      fileName: normalizeImageName(input.fileName),
+    };
+  } catch {
+    // Si falla el optimizador, mantenemos el flujo original para no bloquear la generación.
+    return input;
+  }
 }
 
 async function ensureLineAliveFolder(parentFolderId: string, sharedDriveId?: string): Promise<{ folderId: string; effectiveSharedDriveId?: string }> {
@@ -79,8 +122,14 @@ export async function POST(
       return NextResponse.json({ error: "No se pudo localizar la carpeta de origen en Drive" }, { status: 500 });
     }
 
+    const preparedImage = await optimizeImageForLineAlive({
+      buffer: sourceFile.buffer,
+      contentType: resource.mime_type || sourceFile.contentType,
+      fileName: resource.nombre,
+    });
+
     const generated = await generateLineAliveAnimation({
-      image: new File([new Uint8Array(sourceFile.buffer)], resource.nombre, { type: resource.mime_type || sourceFile.contentType }),
+      image: new File([new Uint8Array(preparedImage.buffer)], preparedImage.fileName, { type: preparedImage.contentType }),
       detail: detail || undefined,
     });
 
