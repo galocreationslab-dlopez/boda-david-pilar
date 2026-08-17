@@ -140,7 +140,7 @@ export function HeroPortada({
         {/* Fecha */}
         <div className="animate-fade-up delay-300" onClick={(event) => { event.stopPropagation(); select("portada.fecha"); }}>
           <div style={styleFor("portada.separador")} onClick={(event) => { event.stopPropagation(); select("portada.separador"); }}>
-            {headerDivider ?? <OrnamentoDivisor color={separadorColor} />}
+            {headerDivider !== undefined ? headerDivider : <OrnamentoDivisor color={separadorColor} />}
           </div>
           <p
             className="smallcaps tracking-[0.25em] text-sm mt-1"

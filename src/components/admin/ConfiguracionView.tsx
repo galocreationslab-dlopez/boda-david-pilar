@@ -386,11 +386,14 @@ function buildPreviewSeparator(
   roleColors?: Partial<Record<string, string>> | null,
 ) {
   if (separador.modo === "sin_transicion" || separador.grafico === "ninguno") return null;
+  const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
+  const separatorColor = roleColors?.[separador.imagenColorRole ?? "nexosTransicionesBordes"]
+    ?? roleColors?.nexosTransicionesBordes
+    ?? "#C4964A";
 
   if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
     const src = resolveSrc(separador.imagenUrl);
     if (!src) return null;
-    const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
     const tintRole = separador.imagenColorRole ?? "nexosTransicionesBordes";
     const tintColor = roleColors?.[tintRole] ?? roleColors?.nexosTransicionesBordes ?? "#C4964A";
     const tintMode = separador.tintMode ?? "original";
@@ -434,27 +437,35 @@ function buildPreviewSeparator(
   }
 
   if (separador.grafico === "ornamento") {
-    return <OrnamentoDivisor className="my-2" />;
+    return (
+      <div className="mx-auto overflow-hidden" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }}>
+        <OrnamentoDivisor className="my-2" color={separatorColor} />
+      </div>
+    );
   }
 
   if (separador.grafico === "linea_doble") {
     return (
-      <div className="px-4 py-2">
-        <div className="h-px" style={{ backgroundColor: "var(--bronze-pale)" }} />
-        <div className="mt-1 h-px" style={{ backgroundColor: "var(--bronze-light)" }} />
+      <div className="mx-auto px-4 py-2" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }}>
+        <div className="h-px" style={{ backgroundColor: separatorColor }} />
+        <div className="mt-1 h-px" style={{ backgroundColor: separatorColor, opacity: 0.7 }} />
       </div>
     );
   }
 
   if (separador.grafico === "onda_fina") {
-    return <SeparadorSeccion colorHacia="var(--cream)" />;
+    return (
+      <div className="mx-auto overflow-hidden" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }}>
+        <SeparadorSeccion colorHacia={separatorColor} />
+      </div>
+    );
   }
 
   return (
-    <div className="flex items-center justify-center gap-2 py-3" aria-hidden="true">
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze-light)" }} />
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze)" }} />
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze-light)" }} />
+    <div className="mx-auto flex items-center justify-center gap-2 overflow-hidden py-3" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }} aria-hidden="true">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor }} />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor, opacity: 0.7 }} />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor }} />
     </div>
   );
 }
@@ -1828,6 +1839,59 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             {grafico.replace("_", " ")}
                           </button>
                         ))}
+                      </div>
+                      <div className="mt-2 space-y-2 rounded border border-stone-200 bg-stone-50 p-2">
+                        <label className="block text-[11px] text-stone-600">
+                          Ancho maximo: {getSeparatorImageSize(sectionInternalSeparator).maxWidthPx}px
+                          <input
+                            type="range"
+                            min={40}
+                            max={640}
+                            step={1}
+                            value={getSeparatorImageSize(sectionInternalSeparator).maxWidthPx}
+                            className="w-full"
+                            onChange={(event) => patchEditingSectionDraft({
+                              separadorInterno: {
+                                ...sectionInternalSeparator,
+                                imagenMaxWidthPx: clampSeparatorSize(Number(event.target.value), DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
+                              },
+                            })}
+                          />
+                        </label>
+                        <label className="block text-[11px] text-stone-600">
+                          Alto maximo: {getSeparatorImageSize(sectionInternalSeparator).maxHeightPx}px
+                          <input
+                            type="range"
+                            min={8}
+                            max={160}
+                            step={1}
+                            value={getSeparatorImageSize(sectionInternalSeparator).maxHeightPx}
+                            className="w-full"
+                            onChange={(event) => patchEditingSectionDraft({
+                              separadorInterno: {
+                                ...sectionInternalSeparator,
+                                imagenMaxHeightPx: clampSeparatorSize(Number(event.target.value), DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
+                              },
+                            })}
+                          />
+                        </label>
+                        <label className="block text-[11px] text-stone-600">
+                          Color del separador
+                          <select
+                            className="input-field mt-1 h-8 w-full text-xs"
+                            value={sectionInternalSeparator.imagenColorRole ?? "nexosTransicionesBordes"}
+                            onChange={(event) => patchEditingSectionDraft({
+                              separadorInterno: {
+                                ...sectionInternalSeparator,
+                                imagenColorRole: event.target.value as TemaColorRole,
+                              },
+                            })}
+                          >
+                            {separadorRoleKeys.map((role) => (
+                              <option key={role} value={role}>{getRoleLabel(role, paletaActiva)}</option>
+                            ))}
+                          </select>
+                        </label>
                       </div>
                       {sectionInternalSeparator.grafico === "imagen" && (
                         <div className="mt-2 space-y-2">

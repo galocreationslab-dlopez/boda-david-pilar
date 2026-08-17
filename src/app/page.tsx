@@ -165,10 +165,13 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
 
 function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Partial<Record<string, string>> | null) {
   if (!separador || separador.modo === "sin_transicion" || separador.grafico === "ninguno") return null;
+  const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
+  const separatorColor = roleColors?.[separador.imagenColorRole ?? "nexosTransicionesBordes"]
+    ?? roleColors?.nexosTransicionesBordes
+    ?? "#C4964A";
   if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
     const src = resolvePublicImageSrc(separador.imagenUrl);
     if (!src) return null;
-    const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
     const tintRole = separador.imagenColorRole ?? "nexosTransicionesBordes";
     const tintColor = roleColors?.[tintRole] ?? roleColors?.nexosTransicionesBordes ?? "#C4964A";
     const tintMode = separador.tintMode ?? "original";
@@ -211,21 +214,33 @@ function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Pa
     );
   }
 
-  if (separador.grafico === "ornamento") return <OrnamentoDivisor className="my-0" />;
-  if (separador.grafico === "linea_doble") {
+  if (separador.grafico === "ornamento") {
     return (
-      <div className="px-4 py-2" aria-hidden="true">
-        <div className="h-px" style={{ backgroundColor: "var(--bronze-pale)" }} />
-        <div className="mt-1 h-px" style={{ backgroundColor: "var(--bronze-light)" }} />
+      <div className="mx-auto overflow-hidden" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }}>
+        <OrnamentoDivisor className="my-0" color={separatorColor} />
       </div>
     );
   }
-  if (separador.grafico === "onda_fina") return <SeparadorSeccion colorHacia="var(--cream)" />;
+  if (separador.grafico === "linea_doble") {
+    return (
+      <div className="mx-auto px-4 py-2" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }} aria-hidden="true">
+        <div className="h-px" style={{ backgroundColor: separatorColor }} />
+        <div className="mt-1 h-px" style={{ backgroundColor: separatorColor, opacity: 0.7 }} />
+      </div>
+    );
+  }
+  if (separador.grafico === "onda_fina") {
+    return (
+      <div className="mx-auto overflow-hidden" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }}>
+        <SeparadorSeccion colorHacia={separatorColor} />
+      </div>
+    );
+  }
   return (
-    <div className="flex items-center justify-center gap-2 py-3" aria-hidden="true">
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze-light)" }} />
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze)" }} />
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze-light)" }} />
+    <div className="mx-auto flex items-center justify-center gap-2 overflow-hidden py-3" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }} aria-hidden="true">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor }} />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor, opacity: 0.7 }} />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor }} />
     </div>
   );
 }

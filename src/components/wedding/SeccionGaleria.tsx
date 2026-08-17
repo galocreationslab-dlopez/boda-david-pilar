@@ -59,7 +59,7 @@ export function SeccionGaleria({
         <div className="text-center mb-14">
           <p className="section-subtitle">galería</p>
           <h2 className="section-title">Momentos compartidos</h2>
-          {headerDivider ?? <OrnamentoDivisor />}
+          {headerDivider !== undefined ? headerDivider : <OrnamentoDivisor />}
         </div>
 
         {media.length === 0 ? (

@@ -117,7 +117,7 @@ export function SeccionHistoria({
           >
             {sectionInternalTitle || "El camino hasta aquí"}
           </h2>
-          {headerDivider ?? <OrnamentoDivisor />}
+          {headerDivider !== undefined ? headerDivider : <OrnamentoDivisor />}
         </div>
 
         <div className={forceMobile ? "space-y-6" : "space-y-6 md:hidden"}>

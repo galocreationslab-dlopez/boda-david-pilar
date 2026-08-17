@@ -212,7 +212,7 @@ export function SeccionTimeline({
         {/* Cabecera */}
         <div className="text-center mb-14">
           <h2 className="section-title">6 de marzo de 2027</h2>
-          {headerDivider ?? <OrnamentoDivisor />}
+          {headerDivider !== undefined ? headerDivider : <OrnamentoDivisor />}
         </div>
 
         {/* ── Timeline móvil (vertical) ── */}
