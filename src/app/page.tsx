@@ -370,7 +370,11 @@ export default async function PaginaPrincipal() {
             <div key={section.id} style={getSectionThemeVars(section.source)}>
               {section.tipo === "invitacion" && (
                 <SeccionColapsable id={anchorId} abiertaPorDefecto={true} ocultarCabecera={true}>
-                  <MainWithInvite config={getInvitacionConfigForSection(section.source)} componentStyles={componentStyles} />
+                  <MainWithInvite
+                    config={getInvitacionConfigForSection(section.source)}
+                    componentStyles={componentStyles}
+                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors)}
+                  />
                 </SeccionColapsable>
               )}
 
@@ -387,6 +391,7 @@ export default async function PaginaPrincipal() {
                     eventos={getHistoriaForSection(section.source)}
                     componentStyles={componentStyles}
                     sectionInternalTitle={section.source?.subtituloInterno || "El camino hasta aquí"}
+                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors)}
                   />
                 </SeccionColapsable>
               )}
@@ -400,7 +405,11 @@ export default async function PaginaPrincipal() {
                   sectionStyle={componentStyles["galeria.fondoSeccion"]}
                   titleStyle={componentStyles["galeria.tituloSeccion"]}
                 >
-                  <SeccionGaleria media={getGalleryMediaForSection(section.source)} componentStyles={componentStyles} />
+                  <SeccionGaleria
+                    media={getGalleryMediaForSection(section.source)}
+                    componentStyles={componentStyles}
+                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors)}
+                  />
                 </SeccionColapsable>
               )}
 
@@ -413,7 +422,12 @@ export default async function PaginaPrincipal() {
                   sectionStyle={componentStyles["timeline.fondoSeccion"]}
                   titleStyle={componentStyles["timeline.tituloSeccion"]}
                 >
-                  <SeccionTimeline localizaciones={config.localizaciones} timeline={getTimelineForSection(section.source)} componentStyles={componentStyles} />
+                  <SeccionTimeline
+                    localizaciones={config.localizaciones}
+                    timeline={getTimelineForSection(section.source)}
+                    componentStyles={componentStyles}
+                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors)}
+                  />
                 </SeccionColapsable>
               )}
 

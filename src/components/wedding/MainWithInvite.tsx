@@ -58,6 +58,7 @@ type Props = {
   selectedComponentKey?: HeroComponentKey | null;
   onSelectComponent?: (key: HeroComponentKey) => void;
   componentStyles?: Partial<Record<HeroComponentKey, CSSProperties>>;
+  headerDivider?: React.ReactNode;
   onEditNombreConjunto?: (value: string) => void;
   onEditBienvenida?: (value: string) => void;
 };
@@ -70,6 +71,7 @@ export default function MainWithInvite({
   selectedComponentKey,
   onSelectComponent,
   componentStyles,
+  headerDivider,
   onEditNombreConjunto,
   onEditBienvenida,
 }: Props) {
@@ -172,6 +174,7 @@ export default function MainWithInvite({
         selectedComponentKey={selectedComponentKey}
         onSelectComponent={onSelectComponent}
         componentStyles={componentStyles}
+        headerDivider={headerDivider}
         onEditNombreConjunto={onEditNombreConjunto}
         onEditBienvenida={onEditBienvenida}
       />

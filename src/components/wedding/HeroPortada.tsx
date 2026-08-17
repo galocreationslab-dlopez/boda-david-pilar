@@ -9,7 +9,7 @@ import { SelloNupcial } from "@/components/ui/SelloNupcial";
 import { CuentaAtras } from "@/components/ui/CuentaAtras";
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { WeddingConfig } from "@/config/wedding.config";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 export type HeroComponentKey =
   | "portada.fondo"
@@ -36,6 +36,7 @@ type Props = {
   selectedComponentKey?: HeroComponentKey | null;
   onSelectComponent?: (key: HeroComponentKey) => void;
   componentStyles?: Partial<Record<HeroComponentKey, CSSProperties>>;
+  headerDivider?: ReactNode;
   onEditNombreConjunto?: (value: string) => void;
   onEditBienvenida?: (value: string) => void;
 };
@@ -52,6 +53,7 @@ export function HeroPortada({
   selectedComponentKey,
   onSelectComponent,
   componentStyles,
+  headerDivider,
   onEditNombreConjunto,
   onEditBienvenida,
 }: Props) {
@@ -138,7 +140,7 @@ export function HeroPortada({
         {/* Fecha */}
         <div className="animate-fade-up delay-300" onClick={(event) => { event.stopPropagation(); select("portada.fecha"); }}>
           <div style={styleFor("portada.separador")} onClick={(event) => { event.stopPropagation(); select("portada.separador"); }}>
-            <OrnamentoDivisor color={separadorColor} />
+            {headerDivider ?? <OrnamentoDivisor color={separadorColor} />}
           </div>
           <p
             className="smallcaps tracking-[0.25em] text-sm mt-1"

@@ -145,6 +145,7 @@ export type SeccionDiseno = {
   paletaId: string;
   usarPaletaGlobal?: boolean;
   componentRoles?: Partial<Record<string, TemaColorRole>>;
+  separadorInterno?: SeparadorDiseno;
   visible: boolean;
   perfiles: string[];
   items: ItemSeccionDiseno[];
