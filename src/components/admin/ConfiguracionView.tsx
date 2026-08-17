@@ -1221,6 +1221,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 selectedComponentKey={designMode ? activeSelectedDesignComponentKey as HeroComponentKey | null : null}
                 onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                 componentStyles={componentStyles}
+                headerDivider={renderSectionHeaderSeparatorPreview(section, sectionRoleColors)}
                 onEditBienvenida={setPortadaWelcomeText}
               />
             </SeccionColapsable>
@@ -2064,6 +2065,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     const designMode = sectionIsBeingEdited && sectionEditMode === "diseno";
                     const sectionThemeVars = getSectionThemeVars(sec);
                     const componentStyles = getSectionComponentStyles(sec);
+                    const sectionPalette = getPaletteBySection(sec);
+                    const sectionRoleColors = sectionPalette ? resolvePaletteRoleColors(sectionPalette) : null;
                     return (
                       <div
                         key={sec.id}
@@ -2083,6 +2086,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               selectedComponentKey={designMode ? activeSelectedDesignComponentKey as HeroComponentKey | null : null}
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
+                              headerDivider={renderSectionHeaderSeparatorPreview(sec, sectionRoleColors)}
                               onEditBienvenida={setPortadaWelcomeText}
                             />
                           </SeccionColapsable>
@@ -2112,6 +2116,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
                               sectionInternalTitle={sec.subtituloInterno || "El camino hasta aquí"}
+                              headerDivider={renderSectionHeaderSeparatorPreview(sec, sectionRoleColors)}
                             />
                           </SeccionColapsable>
                         )}
@@ -2138,6 +2143,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               selectedComponentKey={designMode ? activeSelectedDesignComponentKey as GaleriaComponentKey | null : null}
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
+                              headerDivider={renderSectionHeaderSeparatorPreview(sec, sectionRoleColors)}
                             />
                           </SeccionColapsable>
                         )}
@@ -2165,6 +2171,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               selectedComponentKey={designMode ? activeSelectedDesignComponentKey as TimelineComponentKey | null : null}
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
+                              headerDivider={renderSectionHeaderSeparatorPreview(sec, sectionRoleColors)}
                             />
                           </SeccionColapsable>
                         )}
