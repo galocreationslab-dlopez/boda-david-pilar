@@ -366,7 +366,7 @@ function buildPreviewSeparator(
   resolveSrc: (src?: string) => string,
   roleColors?: Partial<Record<string, string>> | null,
 ) {
-  if (separador.modo === "sin_transicion") return null;
+  if (separador.modo === "sin_transicion" || separador.grafico === "ninguno") return null;
 
   if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
     const src = resolveSrc(separador.imagenUrl);

@@ -164,8 +164,7 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
 }
 
 function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Partial<Record<string, string>> | null) {
-  if (!separador || separador.modo === "sin_transicion") return null;
-  if (separador.grafico === "ninguno") return null;
+  if (!separador || separador.modo === "sin_transicion" || separador.grafico === "ninguno") return null;
   if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
     const src = resolvePublicImageSrc(separador.imagenUrl);
     if (!src) return null;
