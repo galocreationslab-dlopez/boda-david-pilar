@@ -19,6 +19,33 @@ import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/the
 import { DEFAULT_TEXTO_INVITACION, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
 import type { CSSProperties } from "react";
 
+const DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX = 252;
+const DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX = 16;
+
+function isDriveUrl(value?: string): boolean {
+  if (!value) return false;
+  return value.includes("drive.google.com") || value.includes("drive.usercontent.google.com");
+}
+
+function resolvePublicImageSrc(src?: string): string {
+  const value = src?.trim() ?? "";
+  if (!value) return "";
+  if (!isDriveUrl(value)) return value;
+  return `/api/resources/preview?src=${encodeURIComponent(value)}`;
+}
+
+function clampSeparatorSize(value: number | undefined, fallback: number, min: number, max: number): number {
+  const parsed = Number.isFinite(value) ? Number(value) : fallback;
+  return Math.max(min, Math.min(max, Math.round(parsed)));
+}
+
+function getSeparatorImageSize(separador: SeparadorDiseno): { maxWidthPx: number; maxHeightPx: number } {
+  return {
+    maxWidthPx: clampSeparatorSize(separador.imagenMaxWidthPx, DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
+    maxHeightPx: clampSeparatorSize(separador.imagenMaxHeightPx, DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
+  };
+}
+
 type SectionComponentKey =
   | HeroComponentKey
   | HistoriaComponentKey
@@ -136,8 +163,55 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
   }
 }
 
-function renderSeparador(separador: SeparadorDiseno | undefined) {
+function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Partial<Record<string, string>> | null) {
   if (!separador || separador.modo === "sin_transicion") return null;
+  if (separador.grafico === "ninguno") return null;
+  if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
+    const src = resolvePublicImageSrc(separador.imagenUrl);
+    if (!src) return null;
+    const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
+    const tintRole = separador.imagenColorRole ?? "nexosTransicionesBordes";
+    const tintColor = roleColors?.[tintRole] ?? roleColors?.nexosTransicionesBordes ?? "#C4964A";
+    const tintMode = separador.tintMode ?? "original";
+
+    if (tintMode === "paleta") {
+      return (
+        <div className="py-3" aria-hidden="true">
+          <div
+            className="mx-auto"
+            style={{
+              width: `min(100%, ${maxWidthPx}px)`,
+              height: `${maxHeightPx}px`,
+              backgroundColor: tintColor,
+              WebkitMaskImage: `url(${src})`,
+              WebkitMaskRepeat: "no-repeat",
+              WebkitMaskPosition: "center",
+              WebkitMaskSize: "contain",
+              maskImage: `url(${src})`,
+              maskRepeat: "no-repeat",
+              maskPosition: "center",
+              maskSize: "contain",
+            }}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="py-3" aria-hidden="true">
+        <img
+          src={src}
+          alt=""
+          className="mx-auto block h-auto w-auto object-contain"
+          style={{
+            maxWidth: `${maxWidthPx}px`,
+            maxHeight: `${maxHeightPx}px`,
+          }}
+        />
+      </div>
+    );
+  }
+
   if (separador.grafico === "ornamento") return <OrnamentoDivisor className="my-0" />;
   if (separador.grafico === "linea_doble") {
     return (
@@ -278,11 +352,13 @@ export default async function PaginaPrincipal() {
   };
 
   return (
-    <>
+    <div>
       <NavegacionPublica config={config} />
       <main>
         {orderedSections.map((section, index) => {
           const componentStyles = getSectionComponentStyles(section.source);
+          const sectionPalette = section.source ? getPaletteBySection(section.source) : paletaGlobal;
+          const sectionRoleColors = sectionPalette ? resolvePaletteRoleColors(sectionPalette) : null;
           const isLast = index === orderedSections.length - 1;
           const anchorId = section.tipo === "invitacion"
             ? "invitacion"
@@ -342,12 +418,12 @@ export default async function PaginaPrincipal() {
                 </SeccionColapsable>
               )}
 
-              {!isLast && renderSeparador(separador)}
+              {!isLast && renderSeparador(separador, sectionRoleColors)}
             </div>
           );
         })}
       </main>
       <PieDePagina config={config} />
-    </>
+    </div>
   );
 }

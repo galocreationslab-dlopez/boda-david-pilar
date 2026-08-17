@@ -42,6 +42,33 @@ type SectionComponentKey =
   | "galeria.tituloSeccion"
   | "galeria.fondoSeccion";
 
+type ResourceUploadResponse = {
+  resource?: {
+    url_publica?: string | null;
+  };
+  error?: string;
+};
+
+const DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX = 252;
+const DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX = 16;
+
+function isDriveUrl(value?: string): boolean {
+  if (!value) return false;
+  return value.includes("drive.google.com") || value.includes("drive.usercontent.google.com");
+}
+
+function clampSeparatorSize(value: number | undefined, fallback: number, min: number, max: number): number {
+  const parsed = Number.isFinite(value) ? Number(value) : fallback;
+  return Math.max(min, Math.min(max, Math.round(parsed)));
+}
+
+function getSeparatorImageSize(separador: SeparadorDiseno): { maxWidthPx: number; maxHeightPx: number } {
+  return {
+    maxWidthPx: clampSeparatorSize(separador.imagenMaxWidthPx, DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
+    maxHeightPx: clampSeparatorSize(separador.imagenMaxHeightPx, DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
+  };
+}
+
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; label: string; defaultRole: TemaColorRole }>> = {
   invitacion: [
     { key: "portada.fondo", label: "Fondo sección", defaultRole: "fondoSeccion" },
@@ -245,7 +272,12 @@ function buildInitialPaletas(config: WeddingConfig): TemaPaleta[] {
 function buildInitialSeparador(config: WeddingConfig): SeparadorDiseno {
   return {
     modo: config.diseno?.separador?.modo ?? "suave",
-    grafico: config.diseno?.separador?.grafico ?? "ornamento",
+    grafico: config.diseno?.separador?.grafico ?? "ninguno",
+    imagenUrl: config.diseno?.separador?.imagenUrl ?? "",
+    imagenMaxWidthPx: clampSeparatorSize(config.diseno?.separador?.imagenMaxWidthPx, DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
+    imagenMaxHeightPx: clampSeparatorSize(config.diseno?.separador?.imagenMaxHeightPx, DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
+    tintMode: config.diseno?.separador?.tintMode ?? "original",
+    imagenColorRole: normalizeLegacyRole(config.diseno?.separador?.imagenColorRole ?? "nexosTransicionesBordes"),
   };
 }
 
@@ -329,8 +361,58 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
   ];
 }
 
-function buildPreviewSeparator(separador: SeparadorDiseno) {
+function buildPreviewSeparator(
+  separador: SeparadorDiseno,
+  resolveSrc: (src?: string) => string,
+  roleColors?: Partial<Record<string, string>> | null,
+) {
   if (separador.modo === "sin_transicion") return null;
+
+  if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
+    const src = resolveSrc(separador.imagenUrl);
+    if (!src) return null;
+    const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
+    const tintRole = separador.imagenColorRole ?? "nexosTransicionesBordes";
+    const tintColor = roleColors?.[tintRole] ?? roleColors?.nexosTransicionesBordes ?? "#C4964A";
+    const tintMode = separador.tintMode ?? "original";
+
+    if (tintMode === "paleta") {
+      return (
+        <div className="py-3">
+          <div
+            className="mx-auto"
+            style={{
+              width: `min(100%, ${maxWidthPx}px)`,
+              height: `${maxHeightPx}px`,
+              backgroundColor: tintColor,
+              WebkitMaskImage: `url(${src})`,
+              WebkitMaskRepeat: "no-repeat",
+              WebkitMaskPosition: "center",
+              WebkitMaskSize: "contain",
+              maskImage: `url(${src})`,
+              maskRepeat: "no-repeat",
+              maskPosition: "center",
+              maskSize: "contain",
+            }}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="py-3">
+        <img
+          src={src}
+          alt="Separador"
+          className="mx-auto h-auto w-auto object-contain"
+          style={{
+            maxWidth: `${maxWidthPx}px`,
+            maxHeight: `${maxHeightPx}px`,
+          }}
+        />
+      </div>
+    );
+  }
 
   if (separador.grafico === "ornamento") {
     return <OrnamentoDivisor className="my-2" />;
@@ -377,6 +459,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   );
 
   const [separador, setSeparador] = useState<SeparadorDiseno>(buildInitialSeparador(ic));
+  const [uploadingSeparadorImage, setUploadingSeparadorImage] = useState(false);
   const [secciones, setSecciones] = useState<SeccionDiseno[]>(
     buildInitialSecciones(ic, initialPaletas[0]?.id ?? ""),
   );
@@ -516,6 +599,47 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     setMsg({ type, text });
     setTimeout(() => setMsg(null), 5000);
   };
+
+  const resolveAdminPreviewSrc = useCallback((src?: string): string => {
+    const value = src?.trim() ?? "";
+    if (!value) return "";
+    if (!isDriveUrl(value)) return value;
+    return `/api/admin/${encodeURIComponent(inviteCode)}/resources/preview?src=${encodeURIComponent(value)}`;
+  }, [inviteCode]);
+
+  const uploadDesignImage = useCallback(async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("section", "diseno");
+
+    const response = await fetch(`/api/admin/${inviteCode}/resources`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = (await response.json().catch(() => ({}))) as ResourceUploadResponse;
+    if (!response.ok) {
+      throw new Error(data.error ?? "No se pudo subir la imagen");
+    }
+    const imageUrl = data.resource?.url_publica?.trim();
+    if (!imageUrl) {
+      throw new Error("La subida no devolvio URL publica");
+    }
+    return imageUrl;
+  }, [inviteCode]);
+
+  const handleSeparadorImageUpload = useCallback(async (file: File) => {
+    setUploadingSeparadorImage(true);
+    try {
+      const imageUrl = await uploadDesignImage(file);
+      setSeparador((prev) => ({ ...prev, grafico: "imagen", imagenUrl: imageUrl }));
+      showMsg("ok", "Imagen de separador subida y asignada.");
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error subiendo imagen del separador");
+    } finally {
+      setUploadingSeparadorImage(false);
+    }
+  }, [uploadDesignImage]);
 
   const updatePaleta = (paletteId: string, updater: (current: TemaPaleta) => TemaPaleta) => {
     setPaletas((prev) => prev.map((p) => (p.id === paletteId ? updater(p) : p)));
@@ -734,6 +858,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const availableRoleKeys = useMemo(
     () => (editingPalette ? getPaletteRoleKeys(editingPalette) : [...ROLE_KEYS]),
     [editingPalette],
+  );
+
+  const getRoleLabelForUI = useCallback((role: string) => getRoleLabel(role, editingPalette), [editingPalette]);
+
+  const separadorRoleKeys = useMemo(
+    () => (paletaActiva ? getPaletteRoleKeys(paletaActiva) : [...ROLE_KEYS]),
+    [paletaActiva],
+  );
+
+  const separadorSize = useMemo(
+    () => getSeparatorImageSize(separador),
+    [separador],
   );
 
   const addCustomRoleToEditingPalette = () => {
@@ -1330,7 +1466,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   <div>
                     <p className="mb-1 text-[11px] text-stone-500">Grafico</p>
                     <div className="grid grid-cols-2 gap-1">
-                      {(["ornamento", "linea_doble", "onda_fina", "puntos"] as const).map((grafico) => (
+                      {(["ninguno", "ornamento", "linea_doble", "onda_fina", "puntos", "imagen"] as const).map((grafico) => (
                         <button
                           key={grafico}
                           onClick={() => setSeparador((prev) => ({ ...prev, grafico }))}
@@ -1341,6 +1477,150 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       ))}
                     </div>
                   </div>
+
+                  <div>
+                    <p className="mb-1 text-[11px] text-stone-500">Imagen separador (URL o subida)</p>
+                    <input
+                      className="input-field h-8 text-xs"
+                      value={separador.imagenUrl ?? ""}
+                      placeholder="https://..."
+                      onChange={(e) => setSeparador((prev) => ({ ...prev, imagenUrl: e.target.value }))}
+                    />
+                    <div className="mt-1 flex items-center gap-2">
+                      <label className="inline-flex cursor-pointer items-center rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-700 hover:bg-stone-50">
+                        {uploadingSeparadorImage ? "Subiendo..." : "Subir imagen"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingSeparadorImage}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              void handleSeparadorImageUpload(file);
+                            }
+                            e.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                      {separador.imagenUrl?.trim() && (
+                        <button
+                          onClick={() => setSeparador((prev) => ({ ...prev, imagenUrl: "" }))}
+                          className="rounded border border-red-200 px-2 py-1 text-[11px] text-red-600"
+                        >
+                          Limpiar
+                        </button>
+                      )}
+                    </div>
+                    {separador.imagenUrl?.trim() && (
+                      <div className="mt-2 overflow-hidden rounded border border-stone-200 bg-stone-50 p-2">
+                        {separador.tintMode === "paleta" ? (
+                          <div
+                            className="mx-auto"
+                            style={{
+                              width: `min(100%, ${separadorSize.maxWidthPx}px)`,
+                              height: `${separadorSize.maxHeightPx}px`,
+                              backgroundColor:
+                                paletaActivaRoleColors?.[separador.imagenColorRole ?? "nexosTransicionesBordes"]
+                                ?? paletaActivaRoleColors?.nexosTransicionesBordes
+                                ?? "#C4964A",
+                              WebkitMaskImage: `url(${resolveAdminPreviewSrc(separador.imagenUrl)})`,
+                              WebkitMaskRepeat: "no-repeat",
+                              WebkitMaskPosition: "center",
+                              WebkitMaskSize: "contain",
+                              maskImage: `url(${resolveAdminPreviewSrc(separador.imagenUrl)})`,
+                              maskRepeat: "no-repeat",
+                              maskPosition: "center",
+                              maskSize: "contain",
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={resolveAdminPreviewSrc(separador.imagenUrl)}
+                            alt="Preview separador"
+                            className="mx-auto h-auto w-auto object-contain"
+                            style={{
+                              maxWidth: `${separadorSize.maxWidthPx}px`,
+                              maxHeight: `${separadorSize.maxHeightPx}px`,
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-2 space-y-2 rounded border border-stone-200 bg-stone-50 p-2">
+                      <div>
+                        <label className="mb-1 block text-[11px] text-stone-600">
+                          Ancho maximo del separador: {separadorSize.maxWidthPx}px
+                        </label>
+                        <input
+                          type="range"
+                          min={40}
+                          max={640}
+                          step={1}
+                          value={separadorSize.maxWidthPx}
+                          className="w-full"
+                          onChange={(e) => setSeparador((prev) => ({
+                            ...prev,
+                            imagenMaxWidthPx: clampSeparatorSize(Number(e.target.value), DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-stone-600">
+                          Alto maximo del separador: {separadorSize.maxHeightPx}px
+                        </label>
+                        <input
+                          type="range"
+                          min={8}
+                          max={160}
+                          step={1}
+                          value={separadorSize.maxHeightPx}
+                          className="w-full"
+                          onChange={(e) => setSeparador((prev) => ({
+                            ...prev,
+                            imagenMaxHeightPx: clampSeparatorSize(Number(e.target.value), DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
+                          }))}
+                        />
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="text-[11px] text-stone-600">
+                          Modo de color
+                          <select
+                            className="input-field mt-1 h-8 w-full text-xs"
+                            value={separador.tintMode ?? "original"}
+                            onChange={(e) => setSeparador((prev) => ({
+                              ...prev,
+                              tintMode: (e.target.value as SeparadorDiseno["tintMode"]) ?? "original",
+                            }))}
+                          >
+                            <option value="original">Color original de la imagen</option>
+                            <option value="paleta">Color de paleta (fondo transparente)</option>
+                          </select>
+                        </label>
+                        <label className="text-[11px] text-stone-600">
+                          Color del separador
+                          <select
+                            className="input-field mt-1 h-8 w-full text-xs"
+                            value={separador.imagenColorRole ?? "nexosTransicionesBordes"}
+                            disabled={(separador.tintMode ?? "original") !== "paleta"}
+                            onChange={(e) => setSeparador((prev) => ({
+                              ...prev,
+                              imagenColorRole: e.target.value as TemaColorRole,
+                            }))}
+                          >
+                            {separadorRoleKeys.map((role) => (
+                              <option key={role} value={role}>{getRoleLabel(role, paletaActiva)}</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <p className="text-[11px] text-stone-500">
+                        Para coloreado limpio usa SVG o PNG con transparencia real. Si la imagen tiene fondo opaco, ese fondo tambien se tintara.
+                      </p>
+                    </div>
+                  </div>
+
                 </>
               )}
             </section>
@@ -1490,7 +1770,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       <p className="font-semibold uppercase tracking-wide">Depuración selección</p>
                       <p>Componente activo: {selectedComponentOption?.label ?? "(ninguno)"}</p>
                       <p>Clave: {selectedComponentOption?.key ?? "-"}</p>
-                      <p>Rol activo: {selectedComponentRole ? getRoleLabel(selectedComponentRole, editingPalette) : "-"}</p>
+                      <p>Rol activo: {selectedComponentRole ? getRoleLabelForUI(selectedComponentRole) : "-"}</p>
                     </div>
 
                     {selectedComponentRole && editingPalette && (
@@ -1506,7 +1786,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                             }}
                           >
                             {availableRoleKeys.map((role) => (
-                              <option key={role} value={role}>{getRoleLabel(role, editingPalette)}</option>
+                              <option key={role} value={role}>{getRoleLabelForUI(role)}</option>
                             ))}
                           </select>
                           <p className="mt-1 text-[11px] text-stone-500">
@@ -1515,7 +1795,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         </div>
                         <div className="rounded border border-stone-200 bg-white p-2">
                           <label className="mb-1 block text-[11px] font-semibold text-stone-600">Color del rol</label>
-                          <select
+                              <select
                             className="input-field h-8 w-full text-xs"
                             value={editingPaletteRoleMap?.[selectedComponentRole] ?? ""}
                             onChange={(event) => applySwatchToRoleInEditingSection(selectedComponentRole, event.target.value)}
@@ -1548,7 +1828,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         <div className="grid gap-1 sm:grid-cols-2">
                           {availableRoleKeys.map((role) => (
                             <label key={role} className="grid grid-cols-[1fr_130px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
-                              <span className="text-[11px] text-stone-700">{getRoleLabel(role, editingPalette)}</span>
+                              <span className="text-[11px] text-stone-700">{getRoleLabelForUI(role)}</span>
                               <select
                                 className="h-7 rounded border border-stone-300 bg-white px-1 text-[11px] text-stone-700"
                                 value={editingPaletteRoleMap[role] ?? "cream"}
@@ -1720,7 +2000,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           </SeccionColapsable>
                         )}
 
-                        {!isLast && buildPreviewSeparator(separador)}
+                        {!isLast && buildPreviewSeparator(separador, resolveAdminPreviewSrc, paletaActivaRoleColors)}
                       </div>
                     );
                   })}
