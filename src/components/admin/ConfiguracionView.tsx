@@ -50,6 +50,8 @@ type ResourceUploadResponse = {
 };
 
 const BACKGROUND_IMAGE_ROLE = "fondoImagenGlobal";
+const DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX = 252;
+const DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX = 16;
 
 function isDriveUrl(value?: string): boolean {
   if (!value) return false;
@@ -58,6 +60,18 @@ function isDriveUrl(value?: string): boolean {
 
 function isSectionBackgroundKey(key: SectionComponentKey): boolean {
   return key === "portada.fondo" || key === "historia.fondoSeccion" || key === "timeline.fondoSeccion" || key === "galeria.fondoSeccion";
+}
+
+function clampSeparatorSize(value: number | undefined, fallback: number, min: number, max: number): number {
+  const parsed = Number.isFinite(value) ? Number(value) : fallback;
+  return Math.max(min, Math.min(max, Math.round(parsed)));
+}
+
+function getSeparatorImageSize(separador: SeparadorDiseno): { maxWidthPx: number; maxHeightPx: number } {
+  return {
+    maxWidthPx: clampSeparatorSize(separador.imagenMaxWidthPx, DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
+    maxHeightPx: clampSeparatorSize(separador.imagenMaxHeightPx, DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
+  };
 }
 
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; label: string; defaultRole: TemaColorRole }>> = {
@@ -265,6 +279,10 @@ function buildInitialSeparador(config: WeddingConfig): SeparadorDiseno {
     modo: config.diseno?.separador?.modo ?? "suave",
     grafico: config.diseno?.separador?.grafico ?? "ornamento",
     imagenUrl: config.diseno?.separador?.imagenUrl ?? "",
+    imagenMaxWidthPx: clampSeparatorSize(config.diseno?.separador?.imagenMaxWidthPx, DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
+    imagenMaxHeightPx: clampSeparatorSize(config.diseno?.separador?.imagenMaxHeightPx, DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
+    tintMode: config.diseno?.separador?.tintMode ?? "original",
+    imagenColorRole: normalizeLegacyRole(config.diseno?.separador?.imagenColorRole ?? "nexosTransicionesBordes"),
   };
 }
 
@@ -348,15 +366,55 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
   ];
 }
 
-function buildPreviewSeparator(separador: SeparadorDiseno, resolveSrc: (src?: string) => string) {
+function buildPreviewSeparator(
+  separador: SeparadorDiseno,
+  resolveSrc: (src?: string) => string,
+  roleColors?: Partial<Record<string, string>> | null,
+) {
   if (separador.modo === "sin_transicion") return null;
 
   if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
     const src = resolveSrc(separador.imagenUrl);
     if (!src) return null;
+    const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
+    const tintRole = separador.imagenColorRole ?? "nexosTransicionesBordes";
+    const tintColor = roleColors?.[tintRole] ?? roleColors?.nexosTransicionesBordes ?? "#C4964A";
+    const tintMode = separador.tintMode ?? "original";
+
+    if (tintMode === "paleta") {
+      return (
+        <div className="py-3">
+          <div
+            className="mx-auto"
+            style={{
+              width: `min(100%, ${maxWidthPx}px)`,
+              height: `${maxHeightPx}px`,
+              backgroundColor: tintColor,
+              WebkitMaskImage: `url(${src})`,
+              WebkitMaskRepeat: "no-repeat",
+              WebkitMaskPosition: "center",
+              WebkitMaskSize: "contain",
+              maskImage: `url(${src})`,
+              maskRepeat: "no-repeat",
+              maskPosition: "center",
+              maskSize: "contain",
+            }}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="py-3">
-        <img src={src} alt="Separador" className="mx-auto h-auto max-h-24 w-full object-contain" />
+        <img
+          src={src}
+          alt="Separador"
+          className="mx-auto h-auto w-auto object-contain"
+          style={{
+            maxWidth: `${maxWidthPx}px`,
+            maxHeight: `${maxHeightPx}px`,
+          }}
+        />
       </div>
     );
   }
@@ -844,6 +902,16 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     if (role === BACKGROUND_IMAGE_ROLE) return "Fondo imagen global";
     return getRoleLabel(role, editingPalette);
   }, [editingPalette]);
+
+  const separadorRoleKeys = useMemo(
+    () => (paletaActiva ? getPaletteRoleKeys(paletaActiva) : [...ROLE_KEYS]),
+    [paletaActiva],
+  );
+
+  const separadorSize = useMemo(
+    () => getSeparatorImageSize(separador),
+    [separador],
+  );
 
   const addCustomRoleToEditingPalette = () => {
     if (!editingPalette) return;
@@ -1488,13 +1556,111 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     </div>
                     {separador.imagenUrl?.trim() && (
                       <div className="mt-2 overflow-hidden rounded border border-stone-200 bg-stone-50 p-2">
-                        <img
-                          src={resolveAdminPreviewSrc(separador.imagenUrl)}
-                          alt="Preview separador"
-                          className="mx-auto h-auto max-h-20 w-full object-contain"
-                        />
+                        {separador.tintMode === "paleta" ? (
+                          <div
+                            className="mx-auto"
+                            style={{
+                              width: `min(100%, ${separadorSize.maxWidthPx}px)`,
+                              height: `${separadorSize.maxHeightPx}px`,
+                              backgroundColor:
+                                paletaActivaRoleColors?.[separador.imagenColorRole ?? "nexosTransicionesBordes"]
+                                ?? paletaActivaRoleColors?.nexosTransicionesBordes
+                                ?? "#C4964A",
+                              WebkitMaskImage: `url(${resolveAdminPreviewSrc(separador.imagenUrl)})`,
+                              WebkitMaskRepeat: "no-repeat",
+                              WebkitMaskPosition: "center",
+                              WebkitMaskSize: "contain",
+                              maskImage: `url(${resolveAdminPreviewSrc(separador.imagenUrl)})`,
+                              maskRepeat: "no-repeat",
+                              maskPosition: "center",
+                              maskSize: "contain",
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={resolveAdminPreviewSrc(separador.imagenUrl)}
+                            alt="Preview separador"
+                            className="mx-auto h-auto w-auto object-contain"
+                            style={{
+                              maxWidth: `${separadorSize.maxWidthPx}px`,
+                              maxHeight: `${separadorSize.maxHeightPx}px`,
+                            }}
+                          />
+                        )}
                       </div>
                     )}
+
+                    <div className="mt-2 space-y-2 rounded border border-stone-200 bg-stone-50 p-2">
+                      <div>
+                        <label className="mb-1 block text-[11px] text-stone-600">
+                          Ancho maximo del separador: {separadorSize.maxWidthPx}px
+                        </label>
+                        <input
+                          type="range"
+                          min={40}
+                          max={640}
+                          step={1}
+                          value={separadorSize.maxWidthPx}
+                          className="w-full"
+                          onChange={(e) => setSeparador((prev) => ({
+                            ...prev,
+                            imagenMaxWidthPx: clampSeparatorSize(Number(e.target.value), DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-stone-600">
+                          Alto maximo del separador: {separadorSize.maxHeightPx}px
+                        </label>
+                        <input
+                          type="range"
+                          min={8}
+                          max={160}
+                          step={1}
+                          value={separadorSize.maxHeightPx}
+                          className="w-full"
+                          onChange={(e) => setSeparador((prev) => ({
+                            ...prev,
+                            imagenMaxHeightPx: clampSeparatorSize(Number(e.target.value), DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
+                          }))}
+                        />
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="text-[11px] text-stone-600">
+                          Modo de color
+                          <select
+                            className="input-field mt-1 h-8 w-full text-xs"
+                            value={separador.tintMode ?? "original"}
+                            onChange={(e) => setSeparador((prev) => ({
+                              ...prev,
+                              tintMode: (e.target.value as SeparadorDiseno["tintMode"]) ?? "original",
+                            }))}
+                          >
+                            <option value="original">Color original de la imagen</option>
+                            <option value="paleta">Color de paleta (fondo transparente)</option>
+                          </select>
+                        </label>
+                        <label className="text-[11px] text-stone-600">
+                          Color del separador
+                          <select
+                            className="input-field mt-1 h-8 w-full text-xs"
+                            value={separador.imagenColorRole ?? "nexosTransicionesBordes"}
+                            disabled={(separador.tintMode ?? "original") !== "paleta"}
+                            onChange={(e) => setSeparador((prev) => ({
+                              ...prev,
+                              imagenColorRole: e.target.value as TemaColorRole,
+                            }))}
+                          >
+                            {separadorRoleKeys.map((role) => (
+                              <option key={role} value={role}>{getRoleLabel(role, paletaActiva)}</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <p className="text-[11px] text-stone-500">
+                        Para coloreado limpio usa SVG o PNG con transparencia real. Si la imagen tiene fondo opaco, ese fondo tambien se tintara.
+                      </p>
+                    </div>
                   </div>
 
                   <div className="border-t border-stone-200 pt-2">
@@ -1928,7 +2094,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           </SeccionColapsable>
                         )}
 
-                        {!isLast && buildPreviewSeparator(separador, resolveAdminPreviewSrc)}
+                        {!isLast && buildPreviewSeparator(separador, resolveAdminPreviewSrc, paletaActivaRoleColors)}
                       </div>
                     );
                   })}
