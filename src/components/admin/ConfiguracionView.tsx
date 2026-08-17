@@ -49,17 +49,12 @@ type ResourceUploadResponse = {
   error?: string;
 };
 
-const BACKGROUND_IMAGE_ROLE = "fondoImagenGlobal";
 const DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX = 252;
 const DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX = 16;
 
 function isDriveUrl(value?: string): boolean {
   if (!value) return false;
   return value.includes("drive.google.com") || value.includes("drive.usercontent.google.com");
-}
-
-function isSectionBackgroundKey(key: SectionComponentKey): boolean {
-  return key === "portada.fondo" || key === "historia.fondoSeccion" || key === "timeline.fondoSeccion" || key === "galeria.fondoSeccion";
 }
 
 function clampSeparatorSize(value: number | undefined, fallback: number, min: number, max: number): number {
@@ -277,7 +272,7 @@ function buildInitialPaletas(config: WeddingConfig): TemaPaleta[] {
 function buildInitialSeparador(config: WeddingConfig): SeparadorDiseno {
   return {
     modo: config.diseno?.separador?.modo ?? "suave",
-    grafico: config.diseno?.separador?.grafico ?? "ornamento",
+    grafico: config.diseno?.separador?.grafico ?? "ninguno",
     imagenUrl: config.diseno?.separador?.imagenUrl ?? "",
     imagenMaxWidthPx: clampSeparatorSize(config.diseno?.separador?.imagenMaxWidthPx, DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
     imagenMaxHeightPx: clampSeparatorSize(config.diseno?.separador?.imagenMaxHeightPx, DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
@@ -464,9 +459,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   );
 
   const [separador, setSeparador] = useState<SeparadorDiseno>(buildInitialSeparador(ic));
-  const [fondoPaginaImagen, setFondoPaginaImagen] = useState<string>(ic.diseno?.fondoPaginaImagen ?? "");
   const [uploadingSeparadorImage, setUploadingSeparadorImage] = useState(false);
-  const [uploadingFondoImage, setUploadingFondoImage] = useState(false);
   const [secciones, setSecciones] = useState<SeccionDiseno[]>(
     buildInitialSecciones(ic, initialPaletas[0]?.id ?? ""),
   );
@@ -614,17 +607,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     return `/api/admin/${encodeURIComponent(inviteCode)}/resources/preview?src=${encodeURIComponent(value)}`;
   }, [inviteCode]);
 
-  const getBackgroundImageStyle = useCallback((src?: string): CSSProperties => {
-    const resolved = resolveAdminPreviewSrc(src);
-    if (!resolved) return {};
-    return {
-      backgroundImage: `url(${resolved})`,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      backgroundRepeat: "no-repeat",
-    };
-  }, [resolveAdminPreviewSrc]);
-
   const uploadDesignImage = useCallback(async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
@@ -656,19 +638,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       showMsg("error", error instanceof Error ? error.message : "Error subiendo imagen del separador");
     } finally {
       setUploadingSeparadorImage(false);
-    }
-  }, [uploadDesignImage]);
-
-  const handleFondoImageUpload = useCallback(async (file: File) => {
-    setUploadingFondoImage(true);
-    try {
-      const imageUrl = await uploadDesignImage(file);
-      setFondoPaginaImagen(imageUrl);
-      showMsg("ok", "Imagen de fondo subida y asignada.");
-    } catch (error) {
-      showMsg("error", error instanceof Error ? error.message : "Error subiendo imagen de fondo");
-    } finally {
-      setUploadingFondoImage(false);
     }
   }, [uploadDesignImage]);
 
@@ -836,10 +805,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     const options = getSectionComponentOptions(section);
     return options.reduce((acc, option) => {
       const role = getComponentRoleForSection(section, option.key);
-      if (role === BACKGROUND_IMAGE_ROLE && isSectionBackgroundKey(option.key)) {
-        acc[option.key] = getBackgroundImageStyle(fondoPaginaImagen);
-        return acc;
-      }
       const color = roleColors[role];
       acc[option.key] = getComponentStyleByKey(option.key, color);
       return acc;
@@ -890,18 +855,12 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     return getComponentRoleForSection(editingSectionDraft, selectedComponentOption.key);
   }, [editingSectionDraft, getComponentRoleForSection, selectedComponentOption]);
 
-  const availableRoleKeys = useMemo(() => {
-    const base = editingPalette ? getPaletteRoleKeys(editingPalette) : [...ROLE_KEYS];
-    if (selectedComponentOption && isSectionBackgroundKey(selectedComponentOption.key)) {
-      return [...base, BACKGROUND_IMAGE_ROLE];
-    }
-    return base;
-  }, [editingPalette, selectedComponentOption]);
+  const availableRoleKeys = useMemo(
+    () => (editingPalette ? getPaletteRoleKeys(editingPalette) : [...ROLE_KEYS]),
+    [editingPalette],
+  );
 
-  const getRoleLabelForUI = useCallback((role: string) => {
-    if (role === BACKGROUND_IMAGE_ROLE) return "Fondo imagen global";
-    return getRoleLabel(role, editingPalette);
-  }, [editingPalette]);
+  const getRoleLabelForUI = useCallback((role: string) => getRoleLabel(role, editingPalette), [editingPalette]);
 
   const separadorRoleKeys = useMemo(
     () => (paletaActiva ? getPaletteRoleKeys(paletaActiva) : [...ROLE_KEYS]),
@@ -1071,7 +1030,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         },
         diseno: {
           separador,
-          fondoPaginaImagen,
           secciones: seccionesConPendientes,
         },
         logo: logoUrl,
@@ -1100,7 +1058,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     } finally {
       setSaving(false);
     }
-  }, [fondoPaginaImagen, fuentes, ic.textos, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador]);
+  }, [fuentes, ic.textos, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador]);
 
   const handleReset = async () => {
     if (!confirm("Restaurar todos los valores al diseno original? Esta accion no se puede deshacer.")) return;
@@ -1508,7 +1466,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   <div>
                     <p className="mb-1 text-[11px] text-stone-500">Grafico</p>
                     <div className="grid grid-cols-2 gap-1">
-                      {(["ornamento", "linea_doble", "onda_fina", "puntos", "imagen"] as const).map((grafico) => (
+                      {(["ninguno", "ornamento", "linea_doble", "onda_fina", "puntos", "imagen"] as const).map((grafico) => (
                         <button
                           key={grafico}
                           onClick={() => setSeparador((prev) => ({ ...prev, grafico }))}
@@ -1663,50 +1621,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     </div>
                   </div>
 
-                  <div className="border-t border-stone-200 pt-2">
-                    <p className="mb-1 text-[11px] text-stone-500">Fondo global de pagina (URL o subida)</p>
-                    <input
-                      className="input-field h-8 text-xs"
-                      value={fondoPaginaImagen}
-                      placeholder="https://..."
-                      onChange={(e) => setFondoPaginaImagen(e.target.value)}
-                    />
-                    <div className="mt-1 flex items-center gap-2">
-                      <label className="inline-flex cursor-pointer items-center rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-700 hover:bg-stone-50">
-                        {uploadingFondoImage ? "Subiendo..." : "Subir imagen"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          disabled={uploadingFondoImage}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              void handleFondoImageUpload(file);
-                            }
-                            e.currentTarget.value = "";
-                          }}
-                        />
-                      </label>
-                      {fondoPaginaImagen.trim() && (
-                        <button
-                          onClick={() => setFondoPaginaImagen("")}
-                          className="rounded border border-red-200 px-2 py-1 text-[11px] text-red-600"
-                        >
-                          Limpiar
-                        </button>
-                      )}
-                    </div>
-                    {fondoPaginaImagen.trim() && (
-                      <div className="mt-2 overflow-hidden rounded border border-stone-200 bg-stone-50 p-2">
-                        <img
-                          src={resolveAdminPreviewSrc(fondoPaginaImagen)}
-                          alt="Preview fondo"
-                          className="mx-auto h-auto max-h-24 w-full object-cover"
-                        />
-                      </div>
-                    )}
-                  </div>
                 </>
               )}
             </section>
@@ -1881,19 +1795,15 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         </div>
                         <div className="rounded border border-stone-200 bg-white p-2">
                           <label className="mb-1 block text-[11px] font-semibold text-stone-600">Color del rol</label>
-                          {selectedComponentRole === BACKGROUND_IMAGE_ROLE ? (
-                            <p className="text-[11px] text-stone-500">Este rol usa la imagen de fondo global cargada, no una muestra de color.</p>
-                          ) : (
-                            <select
-                              className="input-field h-8 w-full text-xs"
-                              value={editingPaletteRoleMap?.[selectedComponentRole] ?? ""}
-                              onChange={(event) => applySwatchToRoleInEditingSection(selectedComponentRole, event.target.value)}
-                            >
-                              {editingPaletteSwatches.map((swatch) => (
-                                <option key={swatch.id} value={swatch.id}>{swatch.label}</option>
-                              ))}
-                            </select>
-                          )}
+                              <select
+                            className="input-field h-8 w-full text-xs"
+                            value={editingPaletteRoleMap?.[selectedComponentRole] ?? ""}
+                            onChange={(event) => applySwatchToRoleInEditingSection(selectedComponentRole, event.target.value)}
+                          >
+                            {editingPaletteSwatches.map((swatch) => (
+                              <option key={swatch.id} value={swatch.id}>{swatch.label}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     )}
@@ -1916,7 +1826,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           </button>
                         </div>
                         <div className="grid gap-1 sm:grid-cols-2">
-                          {availableRoleKeys.filter((role) => role !== BACKGROUND_IMAGE_ROLE).map((role) => (
+                          {availableRoleKeys.map((role) => (
                             <label key={role} className="grid grid-cols-[1fr_130px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
                               <span className="text-[11px] text-stone-700">{getRoleLabelForUI(role)}</span>
                               <select
@@ -1958,10 +1868,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               className="min-h-[560px] overflow-auto rounded-xl border"
               style={{
                 backgroundColor: paletaActivaResolvedColors.cream ?? "#F7F3EC",
-                backgroundImage: fondoPaginaImagen.trim() ? `url(${resolveAdminPreviewSrc(fondoPaginaImagen)})` : undefined,
-                backgroundSize: fondoPaginaImagen.trim() ? "cover" : undefined,
-                backgroundPosition: fondoPaginaImagen.trim() ? "center" : undefined,
-                backgroundRepeat: fondoPaginaImagen.trim() ? "no-repeat" : undefined,
                 borderColor: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
                 color: paletaActivaResolvedColors.brownDark ?? "#2E1F0E",
               }}

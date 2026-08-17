@@ -19,7 +19,6 @@ import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/the
 import { DEFAULT_TEXTO_INVITACION, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
 import type { CSSProperties } from "react";
 
-const BACKGROUND_IMAGE_ROLE = "fondoImagenGlobal";
 const DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX = 252;
 const DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX = 16;
 
@@ -164,19 +163,9 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
   }
 }
 
-function getBackgroundImageStyle(src?: string): CSSProperties {
-  const resolved = resolvePublicImageSrc(src);
-  if (!resolved) return {};
-  return {
-    backgroundImage: `url(${resolved})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
-  };
-}
-
 function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Partial<Record<string, string>> | null) {
   if (!separador || separador.modo === "sin_transicion") return null;
+  if (separador.grafico === "ninguno") return null;
   if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
     const src = resolvePublicImageSrc(separador.imagenUrl);
     if (!src) return null;
@@ -246,8 +235,6 @@ export default async function PaginaPrincipal() {
   const config = await getWeddingConfig();
   const galleryMedia = await getFeaturedGalleryMedia();
   const separador = config.diseno?.separador;
-  const fondoPaginaImagen = config.diseno?.fondoPaginaImagen?.trim();
-  const fondoPaginaImagenPublicSrc = resolvePublicImageSrc(fondoPaginaImagen);
   const paletas = config.tema.paletas ?? [];
   const paletaGlobal = paletas.find((p) => p.id === config.tema.paletaActivaId) ?? paletas[0];
 
@@ -294,10 +281,6 @@ export default async function PaginaPrincipal() {
     const options = SECTION_COMPONENT_OPTIONS[section.tipo] ?? [];
     return options.reduce((acc, option) => {
       const role = section.componentRoles?.[option.key] ?? option.defaultRole;
-      if (role === BACKGROUND_IMAGE_ROLE) {
-        acc[option.key] = getBackgroundImageStyle(fondoPaginaImagen);
-        return acc;
-      }
       const color = roleColors[role];
       acc[option.key] = getComponentStyleByKey(option.key, color);
       return acc;
@@ -369,17 +352,7 @@ export default async function PaginaPrincipal() {
   };
 
   return (
-    <div
-      style={fondoPaginaImagen
-        ? {
-            backgroundImage: fondoPaginaImagenPublicSrc ? `url(${fondoPaginaImagenPublicSrc})` : undefined,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-            backgroundAttachment: "fixed",
-          }
-        : undefined}
-    >
+    <div>
       <NavegacionPublica config={config} />
       <main>
         {orderedSections.map((section, index) => {

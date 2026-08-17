@@ -156,7 +156,7 @@ export type SeccionDiseno = {
 
 export type SeparadorDiseno = {
   modo: "sin_transicion" | "suave" | "onda" | "corte";
-  grafico: "ornamento" | "linea_doble" | "onda_fina" | "puntos" | "imagen";
+  grafico: "ninguno" | "ornamento" | "linea_doble" | "onda_fina" | "puntos" | "imagen";
   imagenUrl?: string;
   imagenMaxWidthPx?: number;
   imagenMaxHeightPx?: number;
