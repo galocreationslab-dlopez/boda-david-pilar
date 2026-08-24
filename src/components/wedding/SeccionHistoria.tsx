@@ -10,7 +10,7 @@ import Image from "next/image";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { EventoHistoria } from "@/config/wedding.config";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 export type HistoriaComponentKey =
   | "historia.tituloSeccion"
@@ -36,6 +36,7 @@ type Props = {
   onRequestEditImagen?: (id: string) => void;
   onSelectItem?: (id: string) => void;
   adminInviteCode?: string;
+  headerDivider?: ReactNode;
 };
 
 function resolveImageSrc(value: string): string {
@@ -59,6 +60,7 @@ export function SeccionHistoria({
   onRequestEditImagen,
   onSelectItem,
   adminInviteCode,
+  headerDivider,
 }: Props) {
   const [actual, setActual] = useState(0);
   const evento = eventos[actual];
@@ -115,7 +117,7 @@ export function SeccionHistoria({
           >
             {sectionInternalTitle || "El camino hasta aquí"}
           </h2>
-          <OrnamentoDivisor />
+          {headerDivider !== undefined ? headerDivider : <OrnamentoDivisor />}
         </div>
 
         <div className={forceMobile ? "space-y-6" : "space-y-6 md:hidden"}>

@@ -281,6 +281,18 @@ function buildInitialSeparador(config: WeddingConfig): SeparadorDiseno {
   };
 }
 
+function buildInitialInternalSeparator(existing?: SeparadorDiseno): SeparadorDiseno {
+  return {
+    modo: existing?.modo ?? "suave",
+    grafico: existing?.grafico ?? "ornamento",
+    imagenUrl: existing?.imagenUrl ?? "",
+    imagenMaxWidthPx: clampSeparatorSize(existing?.imagenMaxWidthPx, DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
+    imagenMaxHeightPx: clampSeparatorSize(existing?.imagenMaxHeightPx, DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
+    tintMode: existing?.tintMode ?? "original",
+    imagenColorRole: normalizeLegacyRole(existing?.imagenColorRole ?? "nexosTransicionesBordes"),
+  };
+}
+
 function defaultSection(paletaId: string, tipo: TipoSeccionDiseno = "invitacion"): SeccionDiseno {
   return {
     id: `sec-${uid()}`,
@@ -312,6 +324,13 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
           return acc;
         }, {} as Partial<Record<string, TemaColorRole>>),
       },
+      separadorInterno: sec.separadorInterno
+        ? {
+            ...buildInitialInternalSeparator(),
+            ...sec.separadorInterno,
+            imagenColorRole: normalizeLegacyRole(sec.separadorInterno.imagenColorRole ?? "nexosTransicionesBordes"),
+          }
+        : buildInitialInternalSeparator(),
       perfiles: sec.perfiles?.length ? sec.perfiles : ["publico"],
       items:
         isInvitationType(sec.tipo)
@@ -367,11 +386,14 @@ function buildPreviewSeparator(
   roleColors?: Partial<Record<string, string>> | null,
 ) {
   if (separador.modo === "sin_transicion" || separador.grafico === "ninguno") return null;
+  const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
+  const separatorColor = roleColors?.[separador.imagenColorRole ?? "nexosTransicionesBordes"]
+    ?? roleColors?.nexosTransicionesBordes
+    ?? "#C4964A";
 
   if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
     const src = resolveSrc(separador.imagenUrl);
     if (!src) return null;
-    const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
     const tintRole = separador.imagenColorRole ?? "nexosTransicionesBordes";
     const tintColor = roleColors?.[tintRole] ?? roleColors?.nexosTransicionesBordes ?? "#C4964A";
     const tintMode = separador.tintMode ?? "original";
@@ -415,27 +437,35 @@ function buildPreviewSeparator(
   }
 
   if (separador.grafico === "ornamento") {
-    return <OrnamentoDivisor className="my-2" />;
+    return (
+      <div className="mx-auto overflow-hidden" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }}>
+        <OrnamentoDivisor className="my-2" color={separatorColor} />
+      </div>
+    );
   }
 
   if (separador.grafico === "linea_doble") {
     return (
-      <div className="px-4 py-2">
-        <div className="h-px" style={{ backgroundColor: "var(--bronze-pale)" }} />
-        <div className="mt-1 h-px" style={{ backgroundColor: "var(--bronze-light)" }} />
+      <div className="mx-auto px-4 py-2" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }}>
+        <div className="h-px" style={{ backgroundColor: separatorColor }} />
+        <div className="mt-1 h-px" style={{ backgroundColor: separatorColor, opacity: 0.7 }} />
       </div>
     );
   }
 
   if (separador.grafico === "onda_fina") {
-    return <SeparadorSeccion colorHacia="var(--cream)" />;
+    return (
+      <div className="mx-auto overflow-hidden" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }}>
+        <SeparadorSeccion colorHacia={separatorColor} />
+      </div>
+    );
   }
 
   return (
-    <div className="flex items-center justify-center gap-2 py-3" aria-hidden="true">
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze-light)" }} />
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze)" }} />
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bronze-light)" }} />
+    <div className="mx-auto flex items-center justify-center gap-2 overflow-hidden py-3" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }} aria-hidden="true">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor }} />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor, opacity: 0.7 }} />
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor }} />
     </div>
   );
 }
@@ -872,6 +902,11 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     [separador],
   );
 
+  const sectionInternalSeparator = useMemo(
+    () => editingSectionDraft?.separadorInterno ?? buildInitialInternalSeparator(),
+    [editingSectionDraft],
+  );
+
   const addCustomRoleToEditingPalette = () => {
     if (!editingPalette) return;
     const trimmed = newCustomRoleName.trim();
@@ -898,6 +933,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     }));
     setNewCustomRoleName("");
     showMsg("ok", `Rol personalizado creado: ${trimmed}`);
+  };
+
+  const renderSectionHeaderSeparatorPreview = (section: SeccionDiseno, roleColors?: Partial<Record<string, string>> | null) => {
+    const separator = section.separadorInterno ?? buildInitialInternalSeparator();
+    const selected = separator.modo === "sin_transicion" || separator.grafico === "ninguno" ? null : separator;
+    if (!selected) return null;
+    const preview = buildPreviewSeparator(selected, resolveAdminPreviewSrc, roleColors);
+    return preview ? <div className="mb-2">{preview}</div> : null;
   };
 
   const getSectionThemeVars = (section: SeccionDiseno): CSSProperties => {
@@ -1157,6 +1200,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     const width = compact ? "418%" : editorViewport === "movil" ? "222%" : "161%";
     const openInCanvas = compact;
     const themeVars = getSectionThemeVars(section);
+    const sectionPalette = getPaletteBySection(section);
+    const sectionRoleColors = sectionPalette ? resolvePaletteRoleColors(sectionPalette) : null;
     const designMode = editable && sectionEditMode === "diseno";
     const componentStyles = getSectionComponentStyles(section);
 
@@ -1176,6 +1221,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 selectedComponentKey={designMode ? activeSelectedDesignComponentKey as HeroComponentKey | null : null}
                 onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                 componentStyles={componentStyles}
+                headerDivider={renderSectionHeaderSeparatorPreview(section, sectionRoleColors)}
                 onEditBienvenida={setPortadaWelcomeText}
               />
             </SeccionColapsable>
@@ -1204,6 +1250,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                 componentStyles={componentStyles}
                 sectionInternalTitle={section.subtituloInterno || "El camino hasta aquí"}
+                headerDivider={renderSectionHeaderSeparatorPreview(section, sectionRoleColors)}
               />
             </SeccionColapsable>
           )}
@@ -1230,6 +1277,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 selectedComponentKey={designMode ? activeSelectedDesignComponentKey as TimelineComponentKey | null : null}
                 onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                 componentStyles={componentStyles}
+                headerDivider={renderSectionHeaderSeparatorPreview(section, sectionRoleColors)}
               />
             </SeccionColapsable>
           )}
@@ -1255,6 +1303,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 selectedComponentKey={designMode ? activeSelectedDesignComponentKey as GaleriaComponentKey | null : null}
                 onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                 componentStyles={componentStyles}
+                headerDivider={renderSectionHeaderSeparatorPreview(section, sectionRoleColors)}
               />
             </SeccionColapsable>
           )}
@@ -1773,6 +1822,127 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       <p>Rol activo: {selectedComponentRole ? getRoleLabelForUI(selectedComponentRole) : "-"}</p>
                     </div>
 
+                    <div className="rounded border border-stone-200 bg-white p-2">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-600">Separador interno de la cabecera</p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {(["ninguno", "ornamento", "linea_doble", "onda_fina", "puntos", "imagen"] as const).map((grafico) => (
+                          <button
+                            key={grafico}
+                            type="button"
+                            onClick={() => patchEditingSectionDraft({
+                              separadorInterno: {
+                                ...(sectionInternalSeparator ?? buildInitialInternalSeparator()),
+                                grafico,
+                              },
+                            })}
+                            className={`rounded border px-2 py-1 text-[11px] ${sectionInternalSeparator.grafico === grafico ? "border-amber-600 bg-amber-50 text-amber-700" : "border-stone-200 text-stone-600"}`}
+                          >
+                            {grafico.replace("_", " ")}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-2 space-y-2 rounded border border-stone-200 bg-stone-50 p-2">
+                        <label className="block text-[11px] text-stone-600">
+                          Ancho maximo: {getSeparatorImageSize(sectionInternalSeparator).maxWidthPx}px
+                          <input
+                            type="range"
+                            min={40}
+                            max={640}
+                            step={1}
+                            value={getSeparatorImageSize(sectionInternalSeparator).maxWidthPx}
+                            className="w-full"
+                            onChange={(event) => patchEditingSectionDraft({
+                              separadorInterno: {
+                                ...sectionInternalSeparator,
+                                imagenMaxWidthPx: clampSeparatorSize(Number(event.target.value), DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX, 40, 640),
+                              },
+                            })}
+                          />
+                        </label>
+                        <label className="block text-[11px] text-stone-600">
+                          Alto maximo: {getSeparatorImageSize(sectionInternalSeparator).maxHeightPx}px
+                          <input
+                            type="range"
+                            min={8}
+                            max={160}
+                            step={1}
+                            value={getSeparatorImageSize(sectionInternalSeparator).maxHeightPx}
+                            className="w-full"
+                            onChange={(event) => patchEditingSectionDraft({
+                              separadorInterno: {
+                                ...sectionInternalSeparator,
+                                imagenMaxHeightPx: clampSeparatorSize(Number(event.target.value), DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX, 8, 160),
+                              },
+                            })}
+                          />
+                        </label>
+                        <label className="block text-[11px] text-stone-600">
+                          Color del separador
+                          <select
+                            className="input-field mt-1 h-8 w-full text-xs"
+                            value={sectionInternalSeparator.imagenColorRole ?? "nexosTransicionesBordes"}
+                            onChange={(event) => patchEditingSectionDraft({
+                              separadorInterno: {
+                                ...sectionInternalSeparator,
+                                imagenColorRole: event.target.value as TemaColorRole,
+                              },
+                            })}
+                          >
+                            {separadorRoleKeys.map((role) => (
+                              <option key={role} value={role}>{getRoleLabel(role, paletaActiva)}</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      {sectionInternalSeparator.grafico === "imagen" && (
+                        <div className="mt-2 space-y-2">
+                          <input
+                            className="input-field h-8 w-full text-xs"
+                            value={sectionInternalSeparator.imagenUrl ?? ""}
+                            placeholder="URL del separador interno"
+                            onChange={(event) => patchEditingSectionDraft({
+                              separadorInterno: {
+                                ...(sectionInternalSeparator ?? buildInitialInternalSeparator()),
+                                imagenUrl: event.target.value,
+                              },
+                            })}
+                          />
+                          {sectionInternalSeparator.imagenUrl?.trim() && (
+                            <div className="overflow-hidden rounded border border-stone-200 bg-stone-50 p-2">
+                              {sectionInternalSeparator.tintMode === "paleta" ? (
+                                <div
+                                  className="mx-auto"
+                                  style={{
+                                    width: `min(100%, ${getSeparatorImageSize(sectionInternalSeparator).maxWidthPx}px)`,
+                                    height: `${getSeparatorImageSize(sectionInternalSeparator).maxHeightPx}px`,
+                                    backgroundColor: paletaActivaRoleColors?.[sectionInternalSeparator.imagenColorRole ?? "nexosTransicionesBordes"] ?? paletaActivaRoleColors?.nexosTransicionesBordes ?? "#C4964A",
+                                    WebkitMaskImage: `url(${resolveAdminPreviewSrc(sectionInternalSeparator.imagenUrl)})`,
+                                    WebkitMaskRepeat: "no-repeat",
+                                    WebkitMaskPosition: "center",
+                                    WebkitMaskSize: "contain",
+                                    maskImage: `url(${resolveAdminPreviewSrc(sectionInternalSeparator.imagenUrl)})`,
+                                    maskRepeat: "no-repeat",
+                                    maskPosition: "center",
+                                    maskSize: "contain",
+                                  }}
+                                />
+                              ) : (
+                                <img
+                                  src={resolveAdminPreviewSrc(sectionInternalSeparator.imagenUrl)}
+                                  alt="Preview separador interno"
+                                  className="mx-auto h-auto w-auto object-contain"
+                                  style={{
+                                    maxWidth: `${getSeparatorImageSize(sectionInternalSeparator).maxWidthPx}px`,
+                                    maxHeight: `${getSeparatorImageSize(sectionInternalSeparator).maxHeightPx}px`,
+                                  }}
+                                />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     {selectedComponentRole && editingPalette && (
                       <div className="grid gap-2 sm:grid-cols-[1fr_1fr]">
                         <div className="rounded border border-stone-200 bg-white p-2">
@@ -1895,6 +2065,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     const designMode = sectionIsBeingEdited && sectionEditMode === "diseno";
                     const sectionThemeVars = getSectionThemeVars(sec);
                     const componentStyles = getSectionComponentStyles(sec);
+                    const sectionPalette = getPaletteBySection(sec);
+                    const sectionRoleColors = sectionPalette ? resolvePaletteRoleColors(sectionPalette) : null;
                     return (
                       <div
                         key={sec.id}
@@ -1914,6 +2086,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               selectedComponentKey={designMode ? activeSelectedDesignComponentKey as HeroComponentKey | null : null}
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
+                              headerDivider={renderSectionHeaderSeparatorPreview(sec, sectionRoleColors)}
                               onEditBienvenida={setPortadaWelcomeText}
                             />
                           </SeccionColapsable>
@@ -1943,6 +2116,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
                               sectionInternalTitle={sec.subtituloInterno || "El camino hasta aquí"}
+                              headerDivider={renderSectionHeaderSeparatorPreview(sec, sectionRoleColors)}
                             />
                           </SeccionColapsable>
                         )}
@@ -1969,6 +2143,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               selectedComponentKey={designMode ? activeSelectedDesignComponentKey as GaleriaComponentKey | null : null}
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
+                              headerDivider={renderSectionHeaderSeparatorPreview(sec, sectionRoleColors)}
                             />
                           </SeccionColapsable>
                         )}
@@ -1996,6 +2171,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               selectedComponentKey={designMode ? activeSelectedDesignComponentKey as TimelineComponentKey | null : null}
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
+                              headerDivider={renderSectionHeaderSeparatorPreview(sec, sectionRoleColors)}
                             />
                           </SeccionColapsable>
                         )}

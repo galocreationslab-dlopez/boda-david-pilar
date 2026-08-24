@@ -9,7 +9,7 @@
 
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { Localizacion } from "@/config/wedding.config";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 export type TimelineComponentKey =
   | "timeline.card"
@@ -30,6 +30,7 @@ type Props = {
   componentStyles?: Partial<Record<TimelineComponentKey, CSSProperties>>;
   onEditTexto?: (itemId: string, field: "hora" | "titulo" | "descripcion", value: string) => void;
   onSelectItem?: (itemId: string) => void;
+  headerDivider?: ReactNode;
 };
 
 type PuntoTimeline = {
@@ -184,6 +185,7 @@ export function SeccionTimeline({
   componentStyles,
   onEditTexto,
   onSelectItem,
+  headerDivider,
 }: Props) {
   const puntos = buildTimelinePoints(timeline, localizaciones);
   const showCurvedLine = puntos.length === 3;
@@ -210,7 +212,7 @@ export function SeccionTimeline({
         {/* Cabecera */}
         <div className="text-center mb-14">
           <h2 className="section-title">6 de marzo de 2027</h2>
-          <OrnamentoDivisor />
+          {headerDivider !== undefined ? headerDivider : <OrnamentoDivisor />}
         </div>
 
         {/* ── Timeline móvil (vertical) ── */}

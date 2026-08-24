@@ -2,7 +2,7 @@
 
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 export type GaleriaComponentKey =
   | "galeria.card"
@@ -21,6 +21,7 @@ type Props = {
   onEditTexto?: (itemId: string, value: string) => void;
   onRequestEditImagen?: (itemId: string) => void;
   onSelectItem?: (itemId: string) => void;
+  headerDivider?: ReactNode;
 };
 
 export function SeccionGaleria({
@@ -34,6 +35,7 @@ export function SeccionGaleria({
   onEditTexto,
   onRequestEditImagen,
   onSelectItem,
+  headerDivider,
 }: Props) {
   const galleryGridClass = viewport === "movil" ? "grid gap-4 grid-cols-1" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3";
 
@@ -57,7 +59,7 @@ export function SeccionGaleria({
         <div className="text-center mb-14">
           <p className="section-subtitle">galería</p>
           <h2 className="section-title">Momentos compartidos</h2>
-          <OrnamentoDivisor />
+          {headerDivider !== undefined ? headerDivider : <OrnamentoDivisor />}
         </div>
 
         {media.length === 0 ? (
