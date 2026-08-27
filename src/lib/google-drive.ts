@@ -192,6 +192,12 @@ export async function uploadFileToDrive(input: DriveUploadInput): Promise<DriveF
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
+    if (detail.includes("storageQuotaExceeded") || detail.includes("Service Accounts do not have storage quota")) {
+      throw new Error(
+        "No se pudo subir el archivo: la cuenta de servicio de Google no tiene cuota en 'Mi unidad'. " +
+        "Configura un Shared Drive (sharedDriveId) para esta carpeta o renueva las credenciales OAuth de usuario.",
+      );
+    }
     throw new Error(`No se pudo subir a Drive: ${response.status}${detail ? ` - ${detail}` : ""}`);
   }
 

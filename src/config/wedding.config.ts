@@ -118,10 +118,26 @@ export type TemaPaleta = {
 };
 
 // `portada` se mantiene por compatibilidad con configuraciones antiguas.
-export type TipoSeccionDiseno = "invitacion" | "portada" | "historia" | "timeline" | "galeria";
+export type TipoSeccionDiseno = "intro" | "invitacion" | "portada" | "historia" | "timeline" | "galeria";
 
 export const DEFAULT_TEXTO_INVITACION =
   "Con mucha alegría os invitamos a compartir con nosotros el día más especial de nuestras vidas.";
+
+export type IntroSeccionConfig = {
+  activo: boolean;
+  repetir: "siempre" | "primeraVez";
+  textoTitulo?: string;
+  textoSubtitulo?: string;
+  textoSaltar?: string;
+  lacreUrl?: string;
+  panelIzquierdoUrl?: string;
+  panelDerechoUrl?: string;
+  duracionLacreMs?: number;
+  duracionAperturaMs?: number;
+  pausaAntesDeAbrirMs?: number;
+  maxEsperaDibujoMs?: number;
+  bordeIntroPx?: number;
+};
 
 export type ItemSeccionDiseno = {
   id: string;
@@ -141,6 +157,11 @@ export type SeccionDiseno = {
   nombre: string;
   titulo: string;
   subtituloInterno?: string;
+  fondos?: {
+    seccion?: string;
+    subseccion?: string;
+  };
+  intro?: IntroSeccionConfig;
   tipo: TipoSeccionDiseno;
   paletaId: string;
   usarPaletaGlobal?: boolean;

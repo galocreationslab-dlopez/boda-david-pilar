@@ -21,6 +21,9 @@ const DEFAULT_DURATION_MS = 900;
 
 export type AutoDrawSVGProps = {
   svgSource: string;
+  direction?: "forward" | "reverse";
+  className?: string;
+  animate?: boolean;
   strokeColorOverride?: string;
   staggerMs?: number;
   durationMs?: number;
@@ -357,6 +360,9 @@ export function useAutoDrawControls() {
 export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(function AutoDrawSVG(
   {
     svgSource,
+    direction = "forward",
+    className,
+    animate = true,
     strokeColorOverride,
     staggerMs = DEFAULT_STAGGER_MS,
     durationMs = DEFAULT_DURATION_MS,
@@ -416,7 +422,6 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     let isCancelled = false;
 
     if (isInline) {
-      setSvgMarkup(svgSource);
       return () => {
         isCancelled = true;
       };
@@ -509,6 +514,15 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
       }
     }
 
+    if (!animate) {
+      for (const drawable of allDrawables) {
+        drawable.style.fillOpacity = "1";
+        drawable.style.strokeDasharray = "";
+        drawable.style.strokeDashoffset = "";
+      }
+      return;
+    }
+
     const rawUnits = collectUnits(svgEl);
     const units = applyAutomaticBatching(rawUnits, allDrawables.length);
 
@@ -539,7 +553,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
         // completa del elemento: si el mismo nodo es tambien trazo, el trazo debe
         // seguir siendo visible mientras se dibuja, aunque el relleno este oculto.
         // Usar "opacity" aqui era el bug: apagaba tambien el trazo en curso.
-        fillEl.style.fillOpacity = "0";
+        fillEl.style.fillOpacity = direction === "forward" ? "0" : "1";
       }
 
       let hasStrokeAnimation = false;
@@ -547,10 +561,12 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
       for (const strokeEl of unit.strokes) {
         const length = Math.max(1, getElementLength(strokeEl));
         strokeEl.style.strokeDasharray = `${length}`;
-        strokeEl.style.strokeDashoffset = `${length}`;
+        strokeEl.style.strokeDashoffset = direction === "forward" ? `${length}` : "0";
 
         const animation = strokeEl.animate(
-          [{ strokeDashoffset: `${length}` }, { strokeDashoffset: "0" }],
+          direction === "forward"
+            ? [{ strokeDashoffset: `${length}` }, { strokeDashoffset: "0" }]
+            : [{ strokeDashoffset: "0" }, { strokeDashoffset: `${length}` }],
           {
             duration: Math.max(120, durationMs),
             delay: Math.max(0, startDelay),
@@ -564,12 +580,15 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
 
       const fillDelay = startDelay + (hasStrokeAnimation ? Math.max(120, durationMs) : 0);
       for (const fillEl of unit.fills) {
-        const animation = fillEl.animate([{ fillOpacity: 0 }, { fillOpacity: 1 }], {
+        const animation = fillEl.animate(
+          direction === "forward" ? [{ fillOpacity: 0 }, { fillOpacity: 1 }] : [{ fillOpacity: 1 }, { fillOpacity: 0 }],
+          {
           duration: Math.max(180, Math.round(durationMs * 0.35)),
           delay: Math.max(0, fillDelay),
           easing: "ease-out",
           fill: "forwards",
-        });
+          },
+        );
         animationsRef.current.push(animation);
       }
 
@@ -589,6 +608,8 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     };
   }, [
     clearRunningAnimations,
+    animate,
+    direction,
     durationMs,
     onAspectRatioDetected,
     onComplete,
@@ -598,11 +619,13 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     staggerMs,
     strokeColorOverride,
     svgMarkup,
+    svgSource,
   ]);
 
   return (
     <div
       ref={containerRef}
+      className={className}
       style={{
         width: "100%",
         maxWidth: "100%",
@@ -619,7 +642,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
         overflow: "visible",
         aspectRatio: detectedAspectRatio ? `${detectedAspectRatio.width} / ${detectedAspectRatio.height}` : undefined,
       }}
-      dangerouslySetInnerHTML={svgMarkup ? { __html: svgMarkup } : undefined}
+      dangerouslySetInnerHTML={isInline ? { __html: svgSource } : svgMarkup ? { __html: svgMarkup } : undefined}
     />
   );
 });

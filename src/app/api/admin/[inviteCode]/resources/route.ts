@@ -4,10 +4,10 @@ import { validateAdminCode } from "@/lib/admin-auth";
 import { ensureDriveSubfolder, uploadFileToDrive, driveFilePublicUrl, deleteFileFromDrive, makeDriveFilePublic } from "@/lib/google-drive";
 import { getWeddingConfig } from "@/lib/wedding-config-server";
 
-type ResourceSection = "historia" | "timeline" | "general";
+type ResourceSection = "historia" | "timeline" | "intro" | "general";
 
 function parseSection(value: string | null): ResourceSection {
-  if (value === "historia" || value === "timeline") return value;
+  if (value === "historia" || value === "timeline" || value === "intro") return value;
   return "general";
 }
 
@@ -68,7 +68,13 @@ export async function POST(
       return NextResponse.json({ error: "Configura primero la carpeta de recursos en Drive" }, { status: 400 });
     }
 
-    const sectionFolderName = section === "historia" ? "historia" : section === "timeline" ? "timeline" : "general";
+    const sectionFolderName = section === "historia"
+      ? "historia"
+      : section === "timeline"
+        ? "timeline"
+        : section === "intro"
+          ? "intro"
+          : "general";
     let effectiveSharedDriveId = config.drive.recursosWeb.sharedDriveId;
     let targetFolderId: string;
     try {

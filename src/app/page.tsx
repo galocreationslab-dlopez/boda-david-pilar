@@ -17,6 +17,8 @@ import type { GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
 import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
 import { DEFAULT_TEXTO_INVITACION, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
+import IntroReveal from "@/components/motion/IntroReveal";
+import PostIntroSectionsGate from "@/components/motion/PostIntroSectionsGate";
 import type { CSSProperties } from "react";
 
 const DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX = 252;
@@ -48,6 +50,10 @@ function getSeparatorImageSize(separador: SeparadorDiseno): { maxWidthPx: number
 
 type SectionComponentKey =
   | HeroComponentKey
+  | "intro.fondo"
+  | "intro.lacre"
+  | "intro.sobre"
+  | "intro.titulo"
   | HistoriaComponentKey
   | TimelineComponentKey
   | GaleriaComponentKey
@@ -59,6 +65,12 @@ type SectionComponentKey =
   | "galeria.fondoSeccion";
 
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; defaultRole: TemaColorRole }>> = {
+  intro: [
+    { key: "intro.fondo", defaultRole: "fondoSeccion" },
+    { key: "intro.lacre", defaultRole: "logo" },
+    { key: "intro.sobre", defaultRole: "fondoSubseccion" },
+    { key: "intro.titulo", defaultRole: "titulo" },
+  ],
   invitacion: [
     { key: "portada.fondo", defaultRole: "fondoSeccion" },
     { key: "portada.logo", defaultRole: "logo" },
@@ -163,7 +175,7 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
   }
 }
 
-function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Partial<Record<string, string>> | null) {
+function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Partial<Record<string, string>> | null, sepKey?: string) {
   if (!separador || separador.modo === "sin_transicion" || separador.grafico === "ninguno") return null;
   const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
   const separatorColor = roleColors?.[separador.imagenColorRole ?? "nexosTransicionesBordes"]
@@ -178,7 +190,7 @@ function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Pa
 
     if (tintMode === "paleta") {
       return (
-        <div className="py-3" aria-hidden="true">
+        <div className="py-3" aria-hidden="true" key={sepKey}>
           <div
             className="mx-auto"
             style={{
@@ -200,7 +212,7 @@ function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Pa
     }
 
     return (
-      <div className="py-3" aria-hidden="true">
+      <div className="py-3" aria-hidden="true" key={sepKey}>
         <img
           src={src}
           alt=""
@@ -216,14 +228,14 @@ function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Pa
 
   if (separador.grafico === "ornamento") {
     return (
-      <div className="mx-auto overflow-hidden" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }}>
+      <div className="mx-auto overflow-hidden" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }} key={sepKey}>
         <OrnamentoDivisor className="my-0" color={separatorColor} />
       </div>
     );
   }
   if (separador.grafico === "linea_doble") {
     return (
-      <div className="mx-auto px-4 py-2" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }} aria-hidden="true">
+      <div className="mx-auto px-4 py-2" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }} aria-hidden="true" key={sepKey}>
         <div className="h-px" style={{ backgroundColor: separatorColor }} />
         <div className="mt-1 h-px" style={{ backgroundColor: separatorColor, opacity: 0.7 }} />
       </div>
@@ -231,13 +243,13 @@ function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Pa
   }
   if (separador.grafico === "onda_fina") {
     return (
-      <div className="mx-auto overflow-hidden" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }}>
+      <div className="mx-auto overflow-hidden" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }} key={sepKey}>
         <SeparadorSeccion colorHacia={separatorColor} />
       </div>
     );
   }
   return (
-    <div className="mx-auto flex items-center justify-center gap-2 overflow-hidden py-3" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }} aria-hidden="true">
+    <div className="mx-auto flex items-center justify-center gap-2 overflow-hidden py-3" style={{ width: `min(100%, ${maxWidthPx}px)`, maxHeight: `${maxHeightPx}px` }} aria-hidden="true" key={sepKey}>
       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor }} />
       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor, opacity: 0.7 }} />
       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: separatorColor }} />
@@ -307,6 +319,9 @@ export default async function PaginaPrincipal() {
     return s.perfiles.includes("publico");
   });
 
+  const introSection = visibleSections.find((section) => section.tipo === "intro" && section.intro);
+  const contentSections = visibleSections.filter((section) => section.tipo !== "intro");
+
   const fallbackSections: Array<{ id: string; tipo: TipoSeccionDiseno; titulo: string; source?: SeccionDiseno }> = [
     { id: "sec-invitacion-fallback", tipo: "invitacion", titulo: "Invitacion" },
     { id: "sec-historia-fallback", tipo: "historia", titulo: "Nuestra historia" },
@@ -316,8 +331,8 @@ export default async function PaginaPrincipal() {
 
   const normalizeSectionType = (tipo: TipoSeccionDiseno): TipoSeccionDiseno => (tipo === "portada" ? "invitacion" : tipo);
 
-  const orderedSections = visibleSections.length > 0
-    ? visibleSections.map((s) => ({ id: s.id, tipo: normalizeSectionType(s.tipo), titulo: s.titulo || s.nombre, source: s }))
+  const orderedSections = contentSections.length > 0
+    ? contentSections.map((s) => ({ id: s.id, tipo: normalizeSectionType(s.tipo), titulo: s.titulo || s.nombre, source: s }))
     : fallbackSections;
 
   const getInvitacionConfigForSection = (section?: SeccionDiseno) => {
@@ -365,7 +380,7 @@ export default async function PaginaPrincipal() {
     return galleryMedia;
   };
 
-  return (
+  const pageContent = (
     <div>
       <NavegacionPublica config={config} />
       <main>
@@ -388,7 +403,7 @@ export default async function PaginaPrincipal() {
                   <MainWithInvite
                     config={getInvitacionConfigForSection(section.source)}
                     componentStyles={componentStyles}
-                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors)}
+                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors, `${section.id}-divider`)}
                   />
                 </SeccionColapsable>
               )}
@@ -406,7 +421,7 @@ export default async function PaginaPrincipal() {
                     eventos={getHistoriaForSection(section.source)}
                     componentStyles={componentStyles}
                     sectionInternalTitle={section.source?.subtituloInterno || "El camino hasta aquí"}
-                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors)}
+                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors, `${section.id}-divider`)}
                   />
                 </SeccionColapsable>
               )}
@@ -423,7 +438,7 @@ export default async function PaginaPrincipal() {
                   <SeccionGaleria
                     media={getGalleryMediaForSection(section.source)}
                     componentStyles={componentStyles}
-                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors)}
+                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors, `${section.id}-divider`)}
                   />
                 </SeccionColapsable>
               )}
@@ -441,12 +456,12 @@ export default async function PaginaPrincipal() {
                     localizaciones={config.localizaciones}
                     timeline={getTimelineForSection(section.source)}
                     componentStyles={componentStyles}
-                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors)}
+                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors, `${section.id}-divider`)}
                   />
                 </SeccionColapsable>
               )}
 
-              {!isLast && renderSeparador(separador, sectionRoleColors)}
+              {!isLast && renderSeparador(separador, sectionRoleColors, `${section.id}-separator`)}
             </div>
           );
         })}
@@ -454,4 +469,17 @@ export default async function PaginaPrincipal() {
       <PieDePagina config={config} />
     </div>
   );
+
+  const introStorageKey = `intro:${config.slug}`;
+
+  return introSection?.intro ? (
+    <IntroReveal
+      config={introSection.intro}
+      storageKey={introStorageKey}
+      themeStyle={getSectionThemeVars(introSection)}
+      introStyle={getSectionComponentStyles(introSection)["intro.fondo"]}
+    >
+      <PostIntroSectionsGate>{pageContent}</PostIntroSectionsGate>
+    </IntroReveal>
+  ) : pageContent;
 }

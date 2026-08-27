@@ -28,6 +28,71 @@ function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
+function normalizeImageUrl(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const raw = value.trim();
+  const lower = raw.toLowerCase();
+  if (lower.endsWith(".html") || lower.endsWith(".htm") || lower.includes("/linealive/html") || lower.includes("_la.html")) {
+    return raw;
+  }
+  try {
+    const url = new URL(raw);
+    const pathMatch = url.pathname.match(/\/file\/d\/([^/,]+)/i);
+    const queryId = url.searchParams.get("id")?.split(",")[0];
+    const driveId = pathMatch?.[1] ?? queryId;
+    if (driveId && (url.hostname === "drive.google.com" || url.hostname.endsWith(".googleusercontent.com"))) {
+      return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(driveId)}`;
+    }
+  } catch {
+    const trimmed = raw.replace(/^\.\//, "");
+    if (trimmed.startsWith("images/")) {
+      return `/${trimmed}`;
+    }
+    if (/^[^/]+\.(svg|png|jpe?g|webp|gif|avif)$/i.test(trimmed)) {
+      return `/images/${trimmed}`;
+    }
+    return raw;
+  }
+  return raw;
+}
+
+// Datos antiguos guardaban la portada con tipo "invitacion"; el código actual espera "portada".
+function normalizeSectionTipo(tipo: unknown): "intro" | "portada" | "historia" | "timeline" | "galeria" {
+  if (tipo === "invitacion") return "portada";
+  if (tipo === "intro" || tipo === "portada" || tipo === "historia" || tipo === "timeline" || tipo === "galeria") return tipo;
+  return "portada";
+}
+
+function normalizeSecciones(config: WeddingConfig): WeddingConfig {
+  const secciones = config.diseno?.secciones;
+  if (!Array.isArray(secciones) || secciones.length === 0) return config;
+
+  return {
+    ...config,
+    diseno: {
+      ...config.diseno,
+      secciones: secciones.map((section) => ({
+        ...section,
+        tipo: normalizeSectionTipo(section.tipo),
+        fondos: section.fondos
+          ? {
+              seccion: normalizeImageUrl(section.fondos.seccion),
+              subseccion: normalizeImageUrl(section.fondos.subseccion),
+            }
+          : section.fondos,
+        intro: section.intro
+          ? {
+              ...section.intro,
+              lacreUrl: normalizeImageUrl(section.intro.lacreUrl),
+              panelIzquierdoUrl: normalizeImageUrl(section.intro.panelIzquierdoUrl),
+              panelDerechoUrl: normalizeImageUrl(section.intro.panelDerechoUrl),
+            }
+          : section.intro,
+      })),
+    },
+  };
+}
+
 function asHistoriaItem(item: SectionItemRow): WeddingConfig["historia"][number] {
   const payload = isRecord(item.payload) ? item.payload : {};
   return {
@@ -153,9 +218,11 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
       .maybeSingle();
 
     const override = data?.config_json;
-    const merged = isRecord(override) && Object.keys(override).length > 0
-      ? (deepMerge(weddingConfig as unknown as Record<string, unknown>, override) as WeddingConfig)
-      : weddingConfig;
+    const merged = normalizeSecciones(
+      isRecord(override) && Object.keys(override).length > 0
+        ? (deepMerge(weddingConfig as unknown as Record<string, unknown>, override) as WeddingConfig)
+        : weddingConfig,
+    );
 
     const bodaId = asString(data?.id);
     if (!bodaId) return merged;

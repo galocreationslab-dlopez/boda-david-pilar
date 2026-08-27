@@ -75,6 +75,7 @@ export function SeccionColapsable({
           style={{
             borderBottom: abierta ? "1px solid var(--cream-dark)" : "none",
             backgroundColor: bgColor,
+            ...(sectionStyle ?? {}),
           }}
           aria-expanded={abierta}
           aria-controls={`contenido-${id}`}

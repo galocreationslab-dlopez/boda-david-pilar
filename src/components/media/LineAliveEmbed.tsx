@@ -41,9 +41,14 @@ export default function LineAliveEmbed({
 }: LineAliveEmbedProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const endedNotifiedRef = useRef(false);
+  const endedProbeRef = useRef<number | null>(null);
+  const stableEndedFramesRef = useRef(0);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
   const [containerRatio, setContainerRatio] = useState<number | null>(null);
+  const currentLoadKey = `${src}::${restartToken}`;
+  const loaded = loadedKey === currentLoadKey;
 
   const sendPlayerCommand = useCallback((action: string, payload?: Record<string, unknown>) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -57,8 +62,18 @@ export default function LineAliveEmbed({
   }, []);
 
   useEffect(() => {
-    setLoaded(false);
+    endedNotifiedRef.current = false;
+    stableEndedFramesRef.current = 0;
+    if (endedProbeRef.current) {
+      window.clearInterval(endedProbeRef.current);
+      endedProbeRef.current = null;
+    }
   }, [src]);
+
+  useEffect(() => {
+    endedNotifiedRef.current = false;
+    stableEndedFramesRef.current = 0;
+  }, [restartToken]);
 
   useEffect(() => {
     const node = iframeRef.current;
@@ -101,6 +116,8 @@ export default function LineAliveEmbed({
       if (event.source !== iframeRef.current?.contentWindow) return;
       if (!event.data || event.data.source !== "linealive-player") return;
       if (event.data.type === "ended") {
+        if (endedNotifiedRef.current) return;
+        endedNotifiedRef.current = true;
         onEnded?.();
       }
     };
@@ -113,6 +130,15 @@ export default function LineAliveEmbed({
     if (!autoPlay || !loaded || !visible) return;
     const timer = window.setTimeout(() => {
       sendPlayerCommand("play", { from: "start" });
+
+      // Fallback para HTMLs de LineAlive que no implementan protocolo postMessage:
+      // disparamos click en el boton de replay si existe.
+      try {
+        const replayButton = iframeRef.current?.contentDocument?.getElementById("replay") as HTMLButtonElement | null;
+        replayButton?.click();
+      } catch {
+        // Ignore cross-origin access errors.
+      }
     }, 80);
     return () => window.clearTimeout(timer);
   }, [autoPlay, loaded, restartToken, sendPlayerCommand, src, visible]);
@@ -121,6 +147,53 @@ export default function LineAliveEmbed({
     if (!loaded) return;
     sendPlayerCommand("getState");
   }, [loaded, sendPlayerCommand, restartToken]);
+
+  useEffect(() => {
+    if (!loaded || !visible || endedNotifiedRef.current) return;
+
+    if (endedProbeRef.current) {
+      window.clearInterval(endedProbeRef.current);
+      endedProbeRef.current = null;
+    }
+
+    const probe = window.setInterval(() => {
+      if (endedNotifiedRef.current) {
+        window.clearInterval(probe);
+        return;
+      }
+
+      try {
+        const doc = iframeRef.current?.contentDocument;
+        if (!doc) return;
+        const colorLayer = doc.getElementById("color");
+        if (!colorLayer) return;
+
+        const opacity = Number.parseFloat(window.getComputedStyle(colorLayer).opacity || "0");
+        if (Number.isFinite(opacity) && opacity >= 0.995) {
+          stableEndedFramesRef.current += 1;
+        } else {
+          stableEndedFramesRef.current = 0;
+        }
+
+        if (stableEndedFramesRef.current >= 4) {
+          endedNotifiedRef.current = true;
+          window.clearInterval(probe);
+          onEnded?.();
+        }
+      } catch {
+        // Ignore cross-origin access errors.
+      }
+    }, 200);
+
+    endedProbeRef.current = probe;
+
+    return () => {
+      window.clearInterval(probe);
+      if (endedProbeRef.current === probe) {
+        endedProbeRef.current = null;
+      }
+    };
+  }, [loaded, onEnded, restartToken, src, visible]);
 
   const useCover = fit === "cover" && Boolean(aspectRatio) && Boolean(containerRatio);
 
@@ -142,10 +215,10 @@ export default function LineAliveEmbed({
   return (
     <div
       ref={containerRef}
-      className={joinClassNames("relative overflow-hidden rounded-xl border border-[#ddd5cb] bg-white", className)}
+      className={joinClassNames("relative overflow-hidden", className)}
       style={lockAspectRatio && aspectRatio ? { aspectRatio: `${aspectRatio}` } : undefined}
     >
-      {!loaded && (
+      {!loaded && loadingLabel && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#f7f3ee] text-sm text-[var(--brown-mid)]">
           {loadingLabel}
         </div>
@@ -154,10 +227,10 @@ export default function LineAliveEmbed({
         ref={iframeRef}
         title={title}
         src={src}
-        sandbox="allow-scripts"
+        sandbox="allow-scripts allow-same-origin"
         className={joinClassNames(useCover ? "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" : "h-full w-full", iframeClassName)}
         style={coverStyle}
-        onLoad={() => setLoaded(true)}
+        onLoad={() => setLoadedKey(currentLoadKey)}
       />
     </div>
   );
