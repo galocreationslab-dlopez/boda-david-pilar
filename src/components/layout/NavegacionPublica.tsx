@@ -31,6 +31,11 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
+  const toggleMenu = () => {
+    window.dispatchEvent(new CustomEvent("intro:unlock-sections"));
+    setMenuAbierto((prev) => !prev);
+  };
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -95,7 +100,7 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
 
         {/* Botón hamburguesa — solo en móvil */}
         <button
-          onClick={() => setMenuAbierto(!menuAbierto)}
+          onClick={toggleMenu}
           className="lg:hidden p-2"
           aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
           aria-expanded={menuAbierto}

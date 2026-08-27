@@ -5,7 +5,7 @@
  * Cada página: título, subtítulo (fecha), texto e imagen opcional.
  */
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Image from "next/image";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
@@ -121,9 +121,9 @@ export function SeccionHistoria({
         </div>
 
         <div className={forceMobile ? "space-y-6" : "space-y-6 md:hidden"}>
-          {eventos.map((item) => (
+          {eventos.map((item, index) => (
             <article
-              key={item.id}
+              key={`${item.id || "historia"}-${index}`}
               className="overflow-hidden border"
               style={styleFor("historia.card", {
                 backgroundColor: "var(--white)",
@@ -147,7 +147,7 @@ export function SeccionHistoria({
                   }}
                 >
                   {!designMode && editable && (
-                    <>
+                    <Fragment key={`${item.id || "historia"}-${index}-overlay-imagen`}>
                       <button
                         type="button"
                         className="absolute inset-0 z-20"
@@ -166,7 +166,7 @@ export function SeccionHistoria({
                       >
                         Cambiar imagen
                       </button>
-                    </>
+                    </Fragment>
                   )}
                   {item.lineAlive?.enabled && item.lineAlive.htmlDriveFileId ? (
                     <LineAliveEmbed
@@ -211,7 +211,7 @@ export function SeccionHistoria({
                   }}
                 >
                   {!designMode && editable && (
-                    <>
+                    <Fragment key={`${item.id || "historia"}-${index}-overlay-sin-imagen`}>
                       <button
                         type="button"
                         className="absolute inset-0 z-20"
@@ -230,7 +230,7 @@ export function SeccionHistoria({
                       >
                         Cambiar imagen
                       </button>
-                    </>
+                    </Fragment>
                   )}
                   <div className="flex h-full w-full items-center justify-center text-xs text-stone-500">
                     Sin imagen
@@ -578,9 +578,9 @@ export function SeccionHistoria({
 
             {/* Indicadores de página */}
             <div className="flex gap-2">
-              {eventos.map((_, i) => (
+              {eventos.map((item, i) => (
                 <button
-                  key={i}
+                  key={`${item.id || "historia"}-indicador-${i}`}
                   onClick={() => setActual(i)}
                   className="h-2 w-2 rounded-full transition-all duration-200"
                   style={{

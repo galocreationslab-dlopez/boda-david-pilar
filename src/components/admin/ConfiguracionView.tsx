@@ -32,6 +32,10 @@ import type {
 
 type SectionComponentKey =
   | HeroComponentKey
+  | "intro.fondo"
+  | "intro.lacre"
+  | "intro.sobre"
+  | "intro.titulo"
   | HistoriaComponentKey
   | TimelineComponentKey
   | GaleriaComponentKey
@@ -70,6 +74,12 @@ function getSeparatorImageSize(separador: SeparadorDiseno): { maxWidthPx: number
 }
 
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; label: string; defaultRole: TemaColorRole }>> = {
+  intro: [
+    { key: "intro.fondo", label: "Fondo intro", defaultRole: "fondoSeccion" },
+    { key: "intro.lacre", label: "Lacre", defaultRole: "logo" },
+    { key: "intro.sobre", label: "Sobre", defaultRole: "fondoSubseccion" },
+    { key: "intro.titulo", label: "Título intro", defaultRole: "titulo" },
+  ],
   invitacion: [
     { key: "portada.fondo", label: "Fondo sección", defaultRole: "fondoSeccion" },
     { key: "portada.logo", label: "Logo", defaultRole: "logo" },

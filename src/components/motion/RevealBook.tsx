@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import AutoDrawSVG from "@/components/motion/AutoDrawSVG";
+import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 
 type RevealPanel = {
   svgSource: string;
@@ -13,20 +14,91 @@ export type RevealBookProps = {
   panelDerecho: RevealPanel;
   children: ReactNode;
   duracionAperturaMs?: number;
+  pausaAntesDeAbrirMs?: number;
+  maxEsperaDibujoMs?: number;
+  onComplete?: () => void;
   colorMarco?: string;
   tintColor?: string;
+  fondoPanel?: string;
+  fullBleedPanels?: boolean;
 };
 
-const PAUSA_PRE_APERTURA_MS = 220;
-const MAX_ESPERA_DIBUJO_MS = 4200;
+const MAX_ESPERA_DIBUJO_MS = 15000;
+
+function isLikelyLineAliveHtmlUrl(value: string): boolean {
+  const raw = value.trim().toLowerCase();
+  if (!raw) return false;
+  return raw.endsWith(".html") || raw.endsWith(".htm") || raw.includes("/linealive/html") || raw.includes("_la.html");
+}
+
+function extractDriveFileId(raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(value)) return value;
+
+  try {
+    const parsed = new URL(value, "http://localhost");
+    const fileIdFromQuery = parsed.searchParams.get("fileId")?.trim();
+    if (fileIdFromQuery && /^[a-zA-Z0-9_-]{20,}$/.test(fileIdFromQuery)) {
+      return fileIdFromQuery;
+    }
+
+    const idFromQuery = parsed.searchParams.get("id")?.trim();
+    if (idFromQuery && /^[a-zA-Z0-9_-]{20,}$/.test(idFromQuery)) {
+      return idFromQuery;
+    }
+
+    const fileMatch = parsed.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i);
+    if (fileMatch?.[1]) {
+      return fileMatch[1];
+    }
+
+    const genericMatch = parsed.pathname.match(/\/d\/([a-zA-Z0-9_-]+)/i);
+    if (genericMatch?.[1]) {
+      return genericMatch[1];
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function resolvePublicLineAliveSrc(raw: string): string {
+  if (raw.includes("/api/linealive/html")) return raw;
+
+  const fileId = extractDriveFileId(raw);
+  if (fileId) {
+    return `/api/linealive/html?fileId=${encodeURIComponent(fileId)}`;
+  }
+
+  const value = raw.trim();
+  if (!value) return raw;
+
+  try {
+    const parsed = new URL(value, "http://localhost");
+    if (/^\/LineAlive\/.+\.html?$/i.test(parsed.pathname)) {
+      return `/api/linealive/html?path=${encodeURIComponent(parsed.pathname)}`;
+    }
+  } catch {
+    return raw;
+  }
+
+  return raw;
+}
 
 export default function RevealBook({
   panelIzquierdo,
   panelDerecho,
   children,
-  duracionAperturaMs = 1400,
+  duracionAperturaMs = 1800,
+  pausaAntesDeAbrirMs = 120,
+  maxEsperaDibujoMs = MAX_ESPERA_DIBUJO_MS,
   colorMarco = "#d8cec0",
   tintColor,
+  fondoPanel = "var(--brown-dark)",
+  fullBleedPanels = false,
+  onComplete,
 }: RevealBookProps) {
   const [izquierdoListo, setIzquierdoListo] = useState(false);
   const [derechoListo, setDerechoListo] = useState(false);
@@ -34,6 +106,16 @@ export default function RevealBook({
   const [contenidoVisible, setContenidoVisible] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const timersRef = useRef<number[]>([]);
+
+  const markLeftReady = useCallback(() => setIzquierdoListo(true), []);
+  const markRightReady = useCallback(() => setDerechoListo(true), []);
+
+  const leftIsHtml = isLikelyLineAliveHtmlUrl(panelIzquierdo.svgSource);
+  const rightIsHtml = isLikelyLineAliveHtmlUrl(panelDerecho.svgSource);
+  const leftHtmlSrc = leftIsHtml ? resolvePublicLineAliveSrc(panelIzquierdo.svgSource) : panelIzquierdo.svgSource;
+  const rightHtmlSrc = rightIsHtml ? resolvePublicLineAliveSrc(panelDerecho.svgSource) : panelDerecho.svgSource;
+  const leftReady = izquierdoListo;
+  const rightReady = derechoListo;
 
   const panelStyle = useMemo(() => (tintColor ? { color: tintColor } : undefined), [tintColor]);
 
@@ -53,28 +135,21 @@ export default function RevealBook({
     timersRef.current = [];
 
     if (reduceMotion) {
-      setAbriendo(false);
-      setContenidoVisible(true);
       return;
     }
-
-    setAbriendo(false);
-    setContenidoVisible(false);
-    setIzquierdoListo(false);
-    setDerechoListo(false);
 
     // Fallback para SVGs extremadamente pesados: si el autodibujado tarda demasiado,
     // no bloqueamos la narrativa y permitimos abrir el libro igualmente.
     const failSafeTimer = window.setTimeout(() => {
       setIzquierdoListo(true);
       setDerechoListo(true);
-    }, MAX_ESPERA_DIBUJO_MS);
+    }, Math.max(2000, maxEsperaDibujoMs));
     timersRef.current.push(failSafeTimer);
-  }, [panelIzquierdo.svgSource, panelDerecho.svgSource, duracionAperturaMs, reduceMotion]);
+  }, [maxEsperaDibujoMs, panelIzquierdo.svgSource, panelDerecho.svgSource, reduceMotion]);
 
   useEffect(() => {
     if (reduceMotion) return;
-    if (!izquierdoListo || !derechoListo) return;
+    if (!leftReady || !rightReady) return;
 
     // Coreografia:
     // 1) esperamos a que ambos AutoDrawSVG terminen,
@@ -88,7 +163,7 @@ export default function RevealBook({
         setContenidoVisible(true);
       }, Math.max(200, duracionAperturaMs));
       timersRef.current.push(contentTimer);
-    }, PAUSA_PRE_APERTURA_MS);
+    }, pausaAntesDeAbrirMs);
 
     timersRef.current.push(startTimer);
 
@@ -98,7 +173,12 @@ export default function RevealBook({
       }
       timersRef.current = [];
     };
-  }, [duracionAperturaMs, derechoListo, izquierdoListo, reduceMotion]);
+  }, [duracionAperturaMs, leftReady, pausaAntesDeAbrirMs, reduceMotion, rightReady]);
+
+  useEffect(() => {
+    if (!contenidoVisible && !reduceMotion) return;
+    onComplete?.();
+  }, [contenidoVisible, onComplete, reduceMotion]);
 
   const leftTransform = abriendo ? "rotateY(-112deg)" : "rotateY(0deg)";
   const rightTransform = abriendo ? "rotateY(112deg)" : "rotateY(0deg)";
@@ -106,17 +186,16 @@ export default function RevealBook({
   // El componente es transversal: no asume portada, historia ni timeline.
   // Solo revela children, que puede ser cualquier composicion inyectada por props.
   return (
-    <div className="w-full">
+    <div className="h-full w-full">
       <div
-        className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border bg-[var(--white)] shadow-[0_20px_55px_rgba(0,0,0,0.14)]"
+        className={fullBleedPanels
+          ? "relative h-full w-full overflow-hidden bg-transparent"
+          : "relative h-full w-full overflow-hidden border bg-transparent shadow-[0_20px_55px_rgba(0,0,0,0.14)]"}
         style={{ borderColor: colorMarco }}
       >
-        <div className="relative min-h-[320px] sm:min-h-[430px]">
+        <div className="relative h-full min-h-0">
           <div
-            className={`absolute inset-0 z-0 transition-opacity duration-500 ${contenidoVisible ? "opacity-100" : "opacity-0"}`}
-            style={{
-              transitionDelay: contenidoVisible ? "0ms" : "0ms",
-            }}
+            className="absolute inset-0 z-0 overflow-auto"
           >
             {children}
           </div>
@@ -129,7 +208,7 @@ export default function RevealBook({
               }}
             >
               <div
-                className="absolute inset-y-0 left-0 w-1/2 border-r"
+                className={fullBleedPanels ? "absolute inset-y-0 left-0 w-1/2" : "absolute inset-y-0 left-0 w-1/2 border-r"}
                 style={{
                   borderColor: colorMarco,
                   transformOrigin: "left center",
@@ -139,22 +218,35 @@ export default function RevealBook({
                   transition: `transform ${duracionAperturaMs}ms cubic-bezier(0.2, 0.72, 0.2, 1)`,
                 }}
               >
-                <div className="h-full w-full bg-[linear-gradient(110deg,rgba(255,255,255,0.97),rgba(245,240,232,0.97))] p-3 sm:p-4" style={panelStyle} role="img" aria-label={panelIzquierdo.alt}>
-                  <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.08)] bg-[rgba(255,255,255,0.75)]">
-                    <AutoDrawSVG
-                      svgSource={panelIzquierdo.svgSource}
-                      onComplete={() => setIzquierdoListo(true)}
-                      durationMs={650}
-                      staggerMs={24}
-                      sequential={false}
-                      respectReducedMotion
-                    />
+                <div className={fullBleedPanels ? "h-full w-full" : "h-full w-full p-3 sm:p-4"} style={{ ...panelStyle, backgroundColor: fondoPanel }} role="img" aria-label={panelIzquierdo.alt}>
+                  <div className={fullBleedPanels ? "flex h-full w-full items-center justify-center overflow-hidden" : "flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.08)]"} style={{ backgroundColor: fondoPanel }}>
+                    {leftIsHtml ? (
+                      <LineAliveEmbed
+                        src={leftHtmlSrc}
+                        title={panelIzquierdo.alt}
+                        fit="cover"
+                        lockAspectRatio={false}
+                        className="h-full w-full rounded-none border-0 bg-transparent"
+                        iframeClassName="rounded-none"
+                        loadingLabel=""
+                        onEnded={markLeftReady}
+                      />
+                    ) : (
+                      <AutoDrawSVG
+                        svgSource={panelIzquierdo.svgSource}
+                        onComplete={markLeftReady}
+                        durationMs={650}
+                        staggerMs={24}
+                        sequential={false}
+                        respectReducedMotion
+                      />
+                    )}
                   </div>
                 </div>
               </div>
 
               <div
-                className="absolute inset-y-0 right-0 w-1/2 border-l"
+                className={fullBleedPanels ? "absolute inset-y-0 right-0 w-1/2" : "absolute inset-y-0 right-0 w-1/2 border-l"}
                 style={{
                   borderColor: colorMarco,
                   transformOrigin: "right center",
@@ -164,16 +256,29 @@ export default function RevealBook({
                   transition: `transform ${duracionAperturaMs}ms cubic-bezier(0.2, 0.72, 0.2, 1)`,
                 }}
               >
-                <div className="h-full w-full bg-[linear-gradient(255deg,rgba(255,255,255,0.97),rgba(245,240,232,0.97))] p-3 sm:p-4" style={panelStyle} role="img" aria-label={panelDerecho.alt}>
-                  <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.08)] bg-[rgba(255,255,255,0.75)]">
-                    <AutoDrawSVG
-                      svgSource={panelDerecho.svgSource}
-                      onComplete={() => setDerechoListo(true)}
-                      durationMs={650}
-                      staggerMs={24}
-                      sequential={false}
-                      respectReducedMotion
-                    />
+                <div className={fullBleedPanels ? "h-full w-full" : "h-full w-full p-3 sm:p-4"} style={{ ...panelStyle, backgroundColor: fondoPanel }} role="img" aria-label={panelDerecho.alt}>
+                  <div className={fullBleedPanels ? "flex h-full w-full items-center justify-center overflow-hidden" : "flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.08)]"} style={{ backgroundColor: fondoPanel }}>
+                    {rightIsHtml ? (
+                      <LineAliveEmbed
+                        src={rightHtmlSrc}
+                        title={panelDerecho.alt}
+                        fit="cover"
+                        lockAspectRatio={false}
+                        className="h-full w-full rounded-none border-0 bg-transparent"
+                        iframeClassName="rounded-none"
+                        loadingLabel=""
+                        onEnded={markRightReady}
+                      />
+                    ) : (
+                      <AutoDrawSVG
+                        svgSource={panelDerecho.svgSource}
+                        onComplete={markRightReady}
+                        durationMs={650}
+                        staggerMs={24}
+                        sequential={false}
+                        respectReducedMotion
+                      />
+                    )}
                   </div>
                 </div>
               </div>

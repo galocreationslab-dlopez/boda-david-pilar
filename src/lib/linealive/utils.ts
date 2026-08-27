@@ -1,5 +1,42 @@
 import type { WeddingConfig } from "@/config/wedding.config";
 
+function extractDriveFileIdFromUrl(value?: string): string | null {
+  if (!value) return null;
+  const raw = value.trim();
+  if (!raw) return null;
+
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(raw)) {
+    return raw;
+  }
+
+  try {
+    const parsed = new URL(raw, "http://localhost");
+    const fileIdFromQuery = parsed.searchParams.get("fileId")?.trim();
+    if (fileIdFromQuery && /^[a-zA-Z0-9_-]{20,}$/.test(fileIdFromQuery)) {
+      return fileIdFromQuery;
+    }
+
+    const idFromQuery = parsed.searchParams.get("id")?.trim();
+    if (idFromQuery && /^[a-zA-Z0-9_-]{20,}$/.test(idFromQuery)) {
+      return idFromQuery;
+    }
+
+    const fileMatch = parsed.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i);
+    if (fileMatch?.[1]) {
+      return fileMatch[1];
+    }
+
+    const genericMatch = parsed.pathname.match(/\/d\/([a-zA-Z0-9_-]+)/i);
+    if (genericMatch?.[1]) {
+      return genericMatch[1];
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 function parseNumericDimension(value: string | null | undefined): number | null {
   if (!value) return null;
   const match = value.match(/([0-9]+(?:\.[0-9]+)?)/);
@@ -41,6 +78,17 @@ export function collectLineAliveHtmlDriveFileIds(config: WeddingConfig): Set<str
   }
 
   for (const section of config.diseno?.secciones ?? []) {
+    if (section.tipo === "intro" && section.intro) {
+      const introCandidates = [
+        section.intro.panelIzquierdoUrl,
+        section.intro.panelDerechoUrl,
+      ];
+      for (const candidate of introCandidates) {
+        const fileId = extractDriveFileIdFromUrl(candidate);
+        if (fileId) ids.add(fileId);
+      }
+    }
+
     for (const item of section.items ?? []) {
       const fileId = item.lineAlive?.htmlDriveFileId?.trim();
       if (fileId) ids.add(fileId);

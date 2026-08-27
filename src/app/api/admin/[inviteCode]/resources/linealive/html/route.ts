@@ -19,14 +19,46 @@ function normalizeLineAliveHtml(html: string): string {
     overflow: hidden !important;
     background: transparent !important;
   }
-  body > * {
-    margin: 0 !important;
+  #controls,
+  #replay {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
-  svg, canvas, video, img {
+  #wrap {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    gap: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    background: transparent !important;
+  }
+  #stage {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    aspect-ratio: auto !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  #stage svg,
+  #stage img,
+  svg,
+  canvas,
+  video,
+  img {
     display: block !important;
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
+  }
+  body > * {
+    margin: 0 !important;
   }
 </style>
 <script id="linealive-embed-normalize-script">
@@ -43,6 +75,20 @@ function normalizeLineAliveHtml(html: string): string {
         root.style.maxWidth = "none";
         root.style.maxHeight = "none";
         root.style.overflow = "hidden";
+        root.style.background = "transparent";
+      }
+      var stage = document.getElementById("stage");
+      if (stage) {
+        stage.style.background = "transparent";
+        stage.style.boxShadow = "none";
+      }
+      var replayButton = document.getElementById("replay");
+      if (replayButton) {
+        replayButton.style.display = "none";
+      }
+      var controls = document.getElementById("controls");
+      if (controls) {
+        controls.style.display = "none";
       }
       var svgs = document.querySelectorAll("svg");
       for (var i = 0; i < svgs.length; i += 1) {
