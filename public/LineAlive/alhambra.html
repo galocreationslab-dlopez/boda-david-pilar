@@ -61,6 +61,12 @@
     display: flex;
     justify-content: flex-start;
   }
+  #stage svg {
+    opacity: 0;
+  }
+  #stage svg path {
+    opacity: 0;
+  }
   @media (max-width: 900px) {
     #wrap {
       width: min(96vw, 1429px);
@@ -5467,26 +5473,26 @@
   </div>
 </div>
 <script>
-  const DRAW_MS = 6000;
+  const DRAW_MS = 8000;
   const STRUCT_RATIO = 0.6;
   const FADE_MS = 1800;
   const PHASE_PAUSE_MS = 90;
   const REGION_PAUSE_MS = 28;
-  const GLOBAL_EASE_STRENGTH = 0.18;
+  const GLOBAL_EASE_STRENGTH = 1; //0.18;
   const FADE_OVERLAP_MS = 220;
   const MONO_REVEAL_MODE = "fade";
-  const MONO_REVEAL_START_RATIO = Math.max(0, Math.min(1, 0.7));
+  const MONO_REVEAL_START_RATIO = Math.max(0, Math.min(1, 0.75));
   const MONO_REVEAL_DURATION_RATIO = Math.max(0.001, Math.min(1, 0.22));
   const COLOR_REVEAL_MODE = "blur-sweep";
   const COLOR_REVEAL_BLUR_PX = Math.max(0, 16.0);
   const COLOR_REVEAL_START_RATIO = Math.max(0, Math.min(1, 0.82));
   const COLOR_REVEAL_DURATION_RATIO = Math.max(0.001, Math.min(1, 0.18));
   const ANIMATION_PHASE_ORDER = "structure|fill|retint|shade";
-  const ANIMATION_STAGE_WEIGHTS = "";
+  const ANIMATION_STAGE_WEIGHTS = "5|2|0.5|0.5";
   const PHASE_SPEED = {
     structure: Math.max(0.05, 1.0),
-    fill: Math.max(0.05, 1.0),
     retint: Math.max(0.05, 1.0),
+    fill: Math.max(0.05, 1.0),
     shade: Math.max(0.05, 1.0),
   };
   const PHASE_OVERLAP = Math.max(0, Math.min(0.8, 0.0));
@@ -5593,7 +5599,7 @@
       runs.push({ idx, start: cursor, end: cursor + dur });
       cursor += dur;
     });
-
+	
     phaseRuns[ph] = runs;
     phaseLoads[ph] = cursor;
   });
