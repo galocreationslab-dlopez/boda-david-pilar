@@ -1,11 +1,27 @@
 import { NextResponse } from "next/server";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { getWeddingConfig } from "@/lib/wedding-config-server";
 import { downloadDriveFile } from "@/lib/google-drive";
 import { collectLineAliveHtmlDriveFileIds } from "@/lib/linealive/utils";
 
 export const runtime = "nodejs";
+
+// En Windows (dev) el filesystem ignora mayúsculas/minúsculas; en Vercel (Linux) no.
+// Si la ruta exacta no existe, busca una coincidencia case-insensitive antes de fallar.
+async function resolveCaseInsensitivePath(absolutePath: string): Promise<string> {
+  try {
+    await readFile(absolutePath);
+    return absolutePath;
+  } catch {
+    const dir = path.dirname(absolutePath);
+    const target = path.basename(absolutePath).toLowerCase();
+    const entries = await readdir(dir);
+    const match = entries.find((entry) => entry.toLowerCase() === target);
+    if (!match) throw new Error("not found");
+    return path.join(dir, match);
+  }
+}
 
 function normalizeLineAliveHtml(html: string): string {
   if (html.includes("linealive-embed-normalize")) {
@@ -144,7 +160,9 @@ export async function GET(request: Request) {
 
   if (publicPath) {
     try {
-      const absolutePath = path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
+      const absolutePath = await resolveCaseInsensitivePath(
+        path.join(/* turbopackIgnore: true */ process.cwd(), "public", publicPath.replace(/^\//, "")),
+      );
       const html = await readFile(absolutePath, "utf-8");
       const normalizedHtml = normalizeLineAliveHtml(html);
       return new NextResponse(new TextEncoder().encode(normalizedHtml), {
