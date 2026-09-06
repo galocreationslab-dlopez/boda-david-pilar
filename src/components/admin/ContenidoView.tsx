@@ -6,6 +6,7 @@ import { DEFAULT_TEXTO_INVITACION } from "@/config/wedding.config";
 import type {
   EventoHistoria,
   EventoTimeline,
+  IntroSeccionConfig,
   SeccionDiseno,
   TemaColorRole,
   TipoSeccionDiseno,
@@ -25,11 +26,39 @@ type ResourceItem = {
 const ICONO_OPTIONS: EventoTimeline["icono"][] = ["rings", "cocktail", "fork", "cake", "music", "car", "iglesia", "finca"];
 const PROFILE_OPTIONS = ["publico", "familia", "amigos", "vip", "admin"] as const;
 const SECTION_TYPES: Array<{ value: TipoSeccionDiseno; label: string }> = [
+  { value: "intro", label: "Intro" },
   { value: "invitacion", label: "Invitacion" },
   { value: "historia", label: "Historia" },
   { value: "timeline", label: "Timeline" },
   { value: "galeria", label: "Galeria" },
 ];
+
+const INTRO_ASSET_FIELDS = ["lacreUrl", "panelIzquierdoUrl", "panelDerechoUrl"] as const;
+type IntroAssetField = (typeof INTRO_ASSET_FIELDS)[number];
+const INTRO_ASSET_LABELS: Record<IntroAssetField, string> = {
+  lacreUrl: "Lacre (sello inicial)",
+  panelIzquierdoUrl: "Panel izquierdo del libro",
+  panelDerechoUrl: "Panel derecho del libro",
+};
+
+function buildDefaultIntroConfig(): IntroSeccionConfig {
+  return {
+    activo: true,
+    repetir: "primeraVez",
+    textoTitulo: "",
+    textoSubtitulo: "",
+    textoSaltar: "",
+    lacreUrl: "",
+    panelIzquierdoUrl: "",
+    panelDerechoUrl: "",
+    duracionLacreMs: 900,
+    duracionDibujoMs: 650,
+    duracionAperturaMs: 1800,
+    pausaAntesDeAbrirMs: 120,
+    maxEsperaDibujoMs: 9000,
+    bordeIntroPx: 0,
+  };
+}
 
 function normalizeSectionType(tipo: TipoSeccionDiseno): TipoSeccionDiseno {
   return tipo === "portada" ? "invitacion" : tipo;
@@ -56,6 +85,14 @@ function previewSrcForAdmin(inviteCode: string, src: string): string {
 }
 
 function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<string, TemaColorRole>> {
+  if (tipo === "intro") {
+    return {
+      "intro.fondo": "fondoSeccion",
+      "intro.lacre": "logo",
+      "intro.sobre": "fondoSubseccion",
+      "intro.titulo": "titulo",
+    };
+  }
   if (isInvitationType(tipo)) {
     return {
       "portada.fondo": "fondoSeccion",
@@ -107,6 +144,7 @@ function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<strin
 }
 
 function sectionTitleByType(tipo: TipoSeccionDiseno): string {
+  if (tipo === "intro") return "Intro";
   if (isInvitationType(tipo)) return "Invitacion";
   if (tipo === "historia") return "Nuestra historia";
   if (tipo === "timeline") return "El gran dia";
@@ -114,6 +152,7 @@ function sectionTitleByType(tipo: TipoSeccionDiseno): string {
 }
 
 function sectionNameByType(tipo: TipoSeccionDiseno): string {
+  if (tipo === "intro") return "Intro";
   if (isInvitationType(tipo)) return "Invitacion";
   if (tipo === "historia") return "Historia";
   if (tipo === "timeline") return "Timeline";
@@ -278,6 +317,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   const [uploadingHistoriaId, setUploadingHistoriaId] = useState<string | null>(null);
+  const [uploadingIntroField, setUploadingIntroField] = useState<IntroAssetField | null>(null);
   const [lineAliveGenerating, setLineAliveGenerating] = useState<Record<string, boolean>>({});
   const [contextMenu, setContextMenu] = useState<{ itemId: string; x: number; y: number } | null>(null);
 
@@ -351,6 +391,39 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     patchSection(selectedSection.id, { items: updater(selectedSection.items ?? []) });
   };
 
+  const patchIntro = (patch: Partial<IntroSeccionConfig>) => {
+    if (!selectedSection) return;
+    patchSection(selectedSection.id, { intro: { ...(selectedSection.intro ?? buildDefaultIntroConfig()), ...patch } });
+  };
+
+  const uploadIntroAsset = async (field: IntroAssetField, file: File) => {
+    setUploadingIntroField(field);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("section", "intro");
+      const response = await fetch(`/api/admin/${inviteCode}/resources`, {
+        method: "POST",
+        body: formData,
+      });
+      const data: unknown = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((data as { error?: string }).error ?? "No se pudo subir el archivo");
+      }
+      const resource = (data as { resource?: ResourceItem }).resource;
+      if (!resource?.url_publica) {
+        throw new Error("La subida no devolvio una URL publica");
+      }
+      patchIntro({ [field]: resource.url_publica });
+      setResources((prev) => [resource, ...prev]);
+      showMsg("ok", "Archivo subido y asociado a la intro");
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error al subir archivo");
+    } finally {
+      setUploadingIntroField(null);
+    }
+  };
+
   const addSection = () => {
     const section: SeccionDiseno = {
       id: `sec-${uid()}`,
@@ -362,6 +435,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
       visible: true,
       perfiles: ["publico"],
       componentRoles: getDefaultComponentRoles(newSectionType),
+      intro: newSectionType === "intro" ? buildDefaultIntroConfig() : undefined,
       items:
         isInvitationType(newSectionType)
           ? [{ id: `item-${uid()}`, titulo: "Invitacion", descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION }]
@@ -712,6 +786,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         componentRoles: getDefaultComponentRoles(tipo),
                         nombre: sectionNameByType(tipo),
                         titulo: sectionTitleByType(tipo),
+                        intro: tipo === "intro" ? selectedSection.intro ?? buildDefaultIntroConfig() : selectedSection.intro,
                         items:
                           isInvitationType(tipo)
                             ? [{ id: `item-${uid()}`, titulo: "Invitacion", descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION }]
@@ -763,6 +838,167 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                   Los permisos se gestionan en Contenido/Estructura para mantener en Diseno un enfoque puramente estetico.
                 </p>
               </div>
+
+              {selectedSection.tipo === "intro" && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-stone-700">Intro (reveal book)</h3>
+
+                  <label className="inline-flex items-center gap-2 text-sm text-stone-700">
+                    <input
+                      type="checkbox"
+                      checked={selectedSection.intro?.activo ?? true}
+                      onChange={(e) => patchIntro({ activo: e.target.checked })}
+                    />
+                    Intro activa
+                  </label>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="label-field">Repetir</label>
+                      <select
+                        className="input-field"
+                        value={selectedSection.intro?.repetir ?? "primeraVez"}
+                        onChange={(e) => patchIntro({ repetir: e.target.value as "siempre" | "primeraVez" })}
+                      >
+                        <option value="primeraVez">Solo la primera vez</option>
+                        <option value="siempre">Cada visita</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label-field">Ancho del borde (px)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={48}
+                        className="input-field"
+                        value={selectedSection.intro?.bordeIntroPx ?? 0}
+                        onChange={(e) => patchIntro({ bordeIntroPx: Math.max(0, Number(e.target.value) || 0) })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="label-field">Titulo</label>
+                      <input className="input-field" value={selectedSection.intro?.textoTitulo ?? ""} onChange={(e) => patchIntro({ textoTitulo: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="label-field">Subtitulo</label>
+                      <input className="input-field" value={selectedSection.intro?.textoSubtitulo ?? ""} onChange={(e) => patchIntro({ textoSubtitulo: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="label-field">Texto para saltar</label>
+                      <input className="input-field" value={selectedSection.intro?.textoSaltar ?? ""} onChange={(e) => patchIntro({ textoSaltar: e.target.value })} />
+                    </div>
+                  </div>
+
+                  {INTRO_ASSET_FIELDS.map((field) => (
+                    <div key={field} className="space-y-2">
+                      <label className="label-field">{INTRO_ASSET_LABELS[field]}</label>
+                      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <select
+                          className="input-field"
+                          value={resources.find((resource) => resource.url_publica === selectedSection.intro?.[field])?.id ?? ""}
+                          onChange={(e) => {
+                            const resource = resources.find((entry) => entry.id === e.target.value) ?? null;
+                            patchIntro({ [field]: resource?.url_publica ?? "" });
+                          }}
+                        >
+                          <option value="">Sin recurso (usar URL manual)</option>
+                          {resources.map((resource) => (
+                            <option key={resource.id} value={resource.id}>{resource.nombre}</option>
+                          ))}
+                        </select>
+                        <label className="inline-flex cursor-pointer items-center rounded-xl border border-stone-300 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+                          {uploadingIntroField === field ? "Subiendo..." : "Subir archivo"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingIntroField === field || !recursosDriveConfigured}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) void uploadIntroAsset(field, file);
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+                      </div>
+                      <input
+                        type="url"
+                        className="input-field font-mono text-xs"
+                        placeholder="/images/archivo.svg, /LineAlive/archivo.html o https://..."
+                        value={selectedSection.intro?.[field] ?? ""}
+                        onChange={(e) => patchIntro({ [field]: e.target.value })}
+                      />
+                    </div>
+                  ))}
+
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <label className="label-field">Duracion del lacre (ms)</label>
+                      <input
+                        type="number"
+                        min={300}
+                        max={5000}
+                        step={50}
+                        className="input-field"
+                        value={selectedSection.intro?.duracionLacreMs ?? 900}
+                        onChange={(e) => patchIntro({ duracionLacreMs: Math.max(300, Number(e.target.value) || 300) })}
+                      />
+                    </div>
+                    <div>
+                      <label className="label-field">Tiempo de pintado del dibujo (ms)</label>
+                      <input
+                        type="number"
+                        min={200}
+                        max={5000}
+                        step={50}
+                        className="input-field"
+                        value={selectedSection.intro?.duracionDibujoMs ?? 650}
+                        onChange={(e) => patchIntro({ duracionDibujoMs: Math.max(200, Number(e.target.value) || 200) })}
+                      />
+                    </div>
+                    <div>
+                      <label className="label-field">Pausa antes de abrir (ms)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={5000}
+                        step={50}
+                        className="input-field"
+                        value={selectedSection.intro?.pausaAntesDeAbrirMs ?? 120}
+                        onChange={(e) => patchIntro({ pausaAntesDeAbrirMs: Math.max(0, Number(e.target.value) || 0) })}
+                      />
+                    </div>
+                    <div>
+                      <label className="label-field">Duracion de apertura (ms)</label>
+                      <input
+                        type="number"
+                        min={300}
+                        max={5000}
+                        step={50}
+                        className="input-field"
+                        value={selectedSection.intro?.duracionAperturaMs ?? 1800}
+                        onChange={(e) => patchIntro({ duracionAperturaMs: Math.max(300, Number(e.target.value) || 300) })}
+                      />
+                    </div>
+                    <div>
+                      <label className="label-field">Espera maxima del dibujo (ms)</label>
+                      <input
+                        type="number"
+                        min={2000}
+                        max={20000}
+                        step={100}
+                        className="input-field"
+                        value={selectedSection.intro?.maxEsperaDibujoMs ?? 9000}
+                        onChange={(e) => patchIntro({ maxEsperaDibujoMs: Math.max(2000, Number(e.target.value) || 2000) })}
+                      />
+                    </div>
+                  </div>
+                  {loadingResources && <p className="text-xs text-stone-400">Cargando recursos de Drive...</p>}
+                </div>
+              )}
 
               {isInvitationType(selectedSection.tipo) && (
                 <div className="space-y-3">
