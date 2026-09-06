@@ -397,15 +397,16 @@ function buildPreviewSeparator(
 ) {
   if (separador.modo === "sin_transicion" || separador.grafico === "ninguno") return null;
   const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
-  const separatorColor = roleColors?.[separador.imagenColorRole ?? "nexosTransicionesBordes"]
-    ?? roleColors?.nexosTransicionesBordes
-    ?? "#C4964A";
+  const tintRole = separador.imagenColorRole ?? "nexosTransicionesBordes";
+  const separatorColor = (roleColors && tintRole in roleColors && roleColors[tintRole])
+    ? roleColors[tintRole]!
+    : (tintRole.startsWith("#") || tintRole.startsWith("rgb") || tintRole.startsWith("hsl") || tintRole.startsWith("var("))
+    ? tintRole
+    : roleColors?.nexosTransicionesBordes ?? "#C4964A";
 
   if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
     const src = resolveSrc(separador.imagenUrl);
     if (!src) return null;
-    const tintRole = separador.imagenColorRole ?? "nexosTransicionesBordes";
-    const tintColor = roleColors?.[tintRole] ?? roleColors?.nexosTransicionesBordes ?? "#C4964A";
     const tintMode = separador.tintMode ?? "original";
 
     if (tintMode === "paleta") {
@@ -416,7 +417,7 @@ function buildPreviewSeparator(
             style={{
               width: `min(100%, ${maxWidthPx}px)`,
               height: `${maxHeightPx}px`,
-              backgroundColor: tintColor,
+              backgroundColor: separatorColor,
               WebkitMaskImage: `url(${src})`,
               WebkitMaskRepeat: "no-repeat",
               WebkitMaskPosition: "center",
@@ -890,6 +891,11 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     [editingPalette],
   );
 
+  const editingPaletteRoleColors = useMemo(
+    () => (editingPalette ? resolvePaletteRoleColors(editingPalette) : null),
+    [editingPalette],
+  );
+
   const selectedComponentRole = useMemo(() => {
     if (!editingSectionDraft || !selectedComponentOption) return null;
     return getComponentRoleForSection(editingSectionDraft, selectedComponentOption.key);
@@ -946,7 +952,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   };
 
   const renderSectionHeaderSeparatorPreview = (section: SeccionDiseno, roleColors?: Partial<Record<string, string>> | null) => {
-    const separator = section.separadorInterno ?? buildInitialInternalSeparator();
+    const separator = buildInitialInternalSeparator(section.separadorInterno);
     const selected = separator.modo === "sin_transicion" || separator.grafico === "ninguno" ? null : separator;
     if (!selected) return null;
     const preview = buildPreviewSeparator(selected, resolveAdminPreviewSrc, roleColors);
@@ -1898,11 +1904,29 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               },
                             })}
                           >
-                            {separadorRoleKeys.map((role) => (
-                              <option key={role} value={role}>{getRoleLabel(role, paletaActiva)}</option>
+                            {availableRoleKeys.map((role) => (
+                              <option key={role} value={role}>{getRoleLabelForUI(role)}</option>
                             ))}
                           </select>
                         </label>
+                        {sectionInternalSeparator.grafico === "imagen" && (
+                          <label className="block text-[11px] text-stone-600">
+                            Modo de color
+                            <select
+                              className="input-field mt-1 h-8 w-full text-xs"
+                              value={sectionInternalSeparator.tintMode ?? "original"}
+                              onChange={(event) => patchEditingSectionDraft({
+                                separadorInterno: {
+                                  ...sectionInternalSeparator,
+                                  tintMode: event.target.value as SeparadorDiseno["tintMode"],
+                                },
+                              })}
+                            >
+                              <option value="original">Color original de la imagen</option>
+                              <option value="paleta">Color de paleta (fondo transparente)</option>
+                            </select>
+                          </label>
+                        )}
                       </div>
                       {sectionInternalSeparator.grafico === "imagen" && (
                         <div className="mt-2 space-y-2">
@@ -1925,7 +1949,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                                   style={{
                                     width: `min(100%, ${getSeparatorImageSize(sectionInternalSeparator).maxWidthPx}px)`,
                                     height: `${getSeparatorImageSize(sectionInternalSeparator).maxHeightPx}px`,
-                                    backgroundColor: paletaActivaRoleColors?.[sectionInternalSeparator.imagenColorRole ?? "nexosTransicionesBordes"] ?? paletaActivaRoleColors?.nexosTransicionesBordes ?? "#C4964A",
+                                    backgroundColor: (editingPaletteRoleColors && sectionInternalSeparator.imagenColorRole && sectionInternalSeparator.imagenColorRole in editingPaletteRoleColors)
+                                      ? editingPaletteRoleColors[sectionInternalSeparator.imagenColorRole]
+                                      : editingPaletteRoleColors?.nexosTransicionesBordes ?? "#C4964A",
                                     WebkitMaskImage: `url(${resolveAdminPreviewSrc(sectionInternalSeparator.imagenUrl)})`,
                                     WebkitMaskRepeat: "no-repeat",
                                     WebkitMaskPosition: "center",

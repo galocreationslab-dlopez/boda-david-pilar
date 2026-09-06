@@ -175,17 +175,30 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
   }
 }
 
-function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Partial<Record<string, string>> | null, sepKey?: string) {
-  if (!separador || separador.modo === "sin_transicion" || separador.grafico === "ninguno") return null;
+function renderSeparador(separadorInput: SeparadorDiseno | undefined, roleColors?: Partial<Record<string, string>> | null, sepKey?: string) {
+  if (!separadorInput) return null;
+  const separador: SeparadorDiseno = {
+    modo: separadorInput.modo ?? "suave",
+    grafico: separadorInput.grafico ?? "ornamento",
+    imagenUrl: separadorInput.imagenUrl ?? "",
+    imagenMaxWidthPx: separadorInput.imagenMaxWidthPx ?? 180,
+    imagenMaxHeightPx: separadorInput.imagenMaxHeightPx ?? 40,
+    tintMode: separadorInput.tintMode ?? "original",
+    imagenColorRole: separadorInput.imagenColorRole ?? "nexosTransicionesBordes",
+  };
+  if (separador.modo === "sin_transicion" || separador.grafico === "ninguno") return null;
+
   const { maxWidthPx, maxHeightPx } = getSeparatorImageSize(separador);
-  const separatorColor = roleColors?.[separador.imagenColorRole ?? "nexosTransicionesBordes"]
-    ?? roleColors?.nexosTransicionesBordes
-    ?? "#C4964A";
+  const tintRole = separador.imagenColorRole ?? "nexosTransicionesBordes";
+  const separatorColor = (roleColors && tintRole in roleColors && roleColors[tintRole])
+    ? roleColors[tintRole]!
+    : (tintRole.startsWith("#") || tintRole.startsWith("rgb") || tintRole.startsWith("hsl") || tintRole.startsWith("var("))
+    ? tintRole
+    : roleColors?.nexosTransicionesBordes ?? "#C4964A";
+
   if (separador.grafico === "imagen" && separador.imagenUrl?.trim()) {
     const src = resolvePublicImageSrc(separador.imagenUrl);
     if (!src) return null;
-    const tintRole = separador.imagenColorRole ?? "nexosTransicionesBordes";
-    const tintColor = roleColors?.[tintRole] ?? roleColors?.nexosTransicionesBordes ?? "#C4964A";
     const tintMode = separador.tintMode ?? "original";
 
     if (tintMode === "paleta") {
@@ -196,7 +209,7 @@ function renderSeparador(separador: SeparadorDiseno | undefined, roleColors?: Pa
             style={{
               width: `min(100%, ${maxWidthPx}px)`,
               height: `${maxHeightPx}px`,
-              backgroundColor: tintColor,
+              backgroundColor: separatorColor,
               WebkitMaskImage: `url(${src})`,
               WebkitMaskRepeat: "no-repeat",
               WebkitMaskPosition: "center",
@@ -396,6 +409,11 @@ export default async function PaginaPrincipal() {
             : section.tipo === "galeria"
             ? "galeria"
             : "timeline";
+          const sectionInternalSeparator = section.source?.separadorInterno ?? {
+            modo: "suave",
+            grafico: "ornamento",
+            imagenColorRole: "nexosTransicionesBordes",
+          };
           return (
             <div key={section.id} style={getSectionThemeVars(section.source)}>
               {section.tipo === "invitacion" && (
@@ -403,7 +421,7 @@ export default async function PaginaPrincipal() {
                   <MainWithInvite
                     config={getInvitacionConfigForSection(section.source)}
                     componentStyles={componentStyles}
-                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors, `${section.id}-divider`)}
+                    headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
                   />
                 </SeccionColapsable>
               )}
@@ -421,7 +439,7 @@ export default async function PaginaPrincipal() {
                     eventos={getHistoriaForSection(section.source)}
                     componentStyles={componentStyles}
                     sectionInternalTitle={section.source?.subtituloInterno || "El camino hasta aquí"}
-                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors, `${section.id}-divider`)}
+                    headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
                   />
                 </SeccionColapsable>
               )}
@@ -438,7 +456,7 @@ export default async function PaginaPrincipal() {
                   <SeccionGaleria
                     media={getGalleryMediaForSection(section.source)}
                     componentStyles={componentStyles}
-                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors, `${section.id}-divider`)}
+                    headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
                   />
                 </SeccionColapsable>
               )}
@@ -456,7 +474,7 @@ export default async function PaginaPrincipal() {
                     localizaciones={config.localizaciones}
                     timeline={getTimelineForSection(section.source)}
                     componentStyles={componentStyles}
-                    headerDivider={renderSeparador(section.source?.separadorInterno ?? undefined, sectionRoleColors, `${section.id}-divider`)}
+                    headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
                   />
                 </SeccionColapsable>
               )}

@@ -20,9 +20,9 @@ export function OrnamentoDivisor({
     >
       {/* Línea izquierda */}
       <div
-        className="h-px flex-1 max-w-[100px]"
+        className="h-px flex-1 max-w-[100px] opacity-40"
         style={{
-          background: `linear-gradient(to right, transparent, ${color}40)`,
+          background: `linear-gradient(to right, transparent, ${color})`,
         }}
       />
 
@@ -71,9 +71,9 @@ export function OrnamentoDivisor({
 
       {/* Línea derecha */}
       <div
-        className="h-px flex-1 max-w-[100px]"
+        className="h-px flex-1 max-w-[100px] opacity-40"
         style={{
-          background: `linear-gradient(to left, transparent, ${color}40)`,
+          background: `linear-gradient(to left, transparent, ${color})`,
         }}
       />
     </div>
