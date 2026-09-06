@@ -123,6 +123,67 @@ export type TipoSeccionDiseno = "intro" | "invitacion" | "portada" | "historia" 
 export const DEFAULT_TEXTO_INVITACION =
   "Con mucha alegría os invitamos a compartir con nosotros el día más especial de nuestras vidas.";
 
+export type IntroAnimationType = "revealBook" | "cortinas" | "fadeIn" | "focusRegion" | "slideUp" | "custom";
+
+// Región de interés (polígono de 4 vértices) usada por el tipo "focusRegion".
+// Coordenadas normalizadas (0-1) relativas al contenedor del media, en orden
+// TL (arriba-izq), TR (arriba-der), BR (abajo-der), BL (abajo-izq).
+export type IntroRegionCuadrilatero = {
+  tl: { x: number; y: number };
+  tr: { x: number; y: number };
+  br: { x: number; y: number };
+  bl: { x: number; y: number };
+};
+
+export type IntroRevealBookConfig = {
+  panelIzquierdoUrl?: string;
+  panelDerechoUrl?: string;
+  duracionDibujoMs?: number;
+  duracionAperturaMs?: number;
+  pausaAntesDeAbrirMs?: number;
+  maxEsperaDibujoMs?: number;
+};
+
+export type IntroCortinasConfig = {
+  panelIzquierdoUrl?: string;
+  panelDerechoUrl?: string;
+  duracionDibujoMs?: number;
+  duracionAperturaMs?: number;
+  pausaAntesDeAbrirMs?: number;
+  maxEsperaDibujoMs?: number;
+};
+
+export type IntroFadeInConfig = {
+  mediaUrl?: string;
+  duracionFadeMs?: number;
+};
+
+export type IntroFocusRegionConfig = {
+  mediaUrl?: string;
+  region?: IntroRegionCuadrilatero;
+  duracionZoomMs?: number;
+  duracionFadeMs?: number;
+};
+
+export type IntroSlideUpConfig = {
+  mediaUrl?: string;
+  duracionDeslizamientoMs?: number;
+};
+
+export type IntroCustomConfig = {
+  htmlUrl?: string;
+};
+
+export type IntroDeviceConfig = {
+  tipo: IntroAnimationType;
+  revealBook?: IntroRevealBookConfig;
+  cortinas?: IntroCortinasConfig;
+  fadeIn?: IntroFadeInConfig;
+  focusRegion?: IntroFocusRegionConfig;
+  slideUp?: IntroSlideUpConfig;
+  custom?: IntroCustomConfig;
+};
+
 export type IntroSeccionConfig = {
   activo: boolean;
   repetir: "siempre" | "primeraVez";
@@ -130,15 +191,46 @@ export type IntroSeccionConfig = {
   textoSubtitulo?: string;
   textoSaltar?: string;
   lacreUrl?: string;
+  duracionLacreMs?: number;
+  bordeIntroPx?: number;
+  // Animación tras el lacre, configurable por separado para PC y móvil.
+  pc?: IntroDeviceConfig;
+  movil?: IntroDeviceConfig;
+  // Campos heredados de versiones anteriores (solo "reveal book" plano).
+  // Se conservan para poder migrar configuraciones antiguas; usar normalizeIntroConfig().
   panelIzquierdoUrl?: string;
   panelDerechoUrl?: string;
-  duracionLacreMs?: number;
   duracionDibujoMs?: number;
   duracionAperturaMs?: number;
   pausaAntesDeAbrirMs?: number;
   maxEsperaDibujoMs?: number;
-  bordeIntroPx?: number;
 };
+
+/**
+ * Convierte una IntroSeccionConfig antigua (plana, solo reveal book) al nuevo
+ * formato con configuración independiente para "pc" y "movil". Si la config
+ * ya tiene pc/movil definidos, se devuelve tal cual (con defaults rellenados).
+ */
+export function normalizeIntroConfig(intro: IntroSeccionConfig | undefined): IntroSeccionConfig | undefined {
+  if (!intro) return intro;
+  if (intro.pc && intro.movil) return intro;
+
+  const legacyRevealBook: IntroRevealBookConfig = {
+    panelIzquierdoUrl: intro.panelIzquierdoUrl,
+    panelDerechoUrl: intro.panelDerechoUrl,
+    duracionDibujoMs: intro.duracionDibujoMs,
+    duracionAperturaMs: intro.duracionAperturaMs,
+    pausaAntesDeAbrirMs: intro.pausaAntesDeAbrirMs,
+    maxEsperaDibujoMs: intro.maxEsperaDibujoMs,
+  };
+  const deviceDefault: IntroDeviceConfig = { tipo: "revealBook", revealBook: legacyRevealBook };
+
+  return {
+    ...intro,
+    pc: intro.pc ?? deviceDefault,
+    movil: intro.movil ?? deviceDefault,
+  };
+}
 
 export type ItemSeccionDiseno = {
   id: string;

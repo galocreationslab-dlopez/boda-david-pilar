@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
-import { DEFAULT_TEXTO_INVITACION } from "@/config/wedding.config";
+import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
+import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
+import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig } from "@/config/wedding.config";
 import type {
   EventoHistoria,
   EventoTimeline,
+  IntroAnimationType,
+  IntroDeviceConfig,
   IntroSeccionConfig,
   SeccionDiseno,
   TemaColorRole,
@@ -33,13 +37,28 @@ const SECTION_TYPES: Array<{ value: TipoSeccionDiseno; label: string }> = [
   { value: "galeria", label: "Galeria" },
 ];
 
-const INTRO_ASSET_FIELDS = ["lacreUrl", "panelIzquierdoUrl", "panelDerechoUrl"] as const;
-type IntroAssetField = (typeof INTRO_ASSET_FIELDS)[number];
-const INTRO_ASSET_LABELS: Record<IntroAssetField, string> = {
-  lacreUrl: "Lacre (sello inicial)",
-  panelIzquierdoUrl: "Panel izquierdo del libro",
-  panelDerechoUrl: "Panel derecho del libro",
-};
+const INTRO_ANIMATION_TYPES: Array<{ value: IntroAnimationType; label: string; description: string }> = [
+  { value: "revealBook", label: "Reveal Book", description: "Libro 3D: dos paneles giran para revelar la portada." },
+  { value: "cortinas", label: "Cortinas", description: "Como Reveal Book pero los paneles se deslizan lateralmente (más ligero)." },
+  { value: "fadeIn", label: "Fade in", description: "El media inicial se desvanece mientras aparece la portada." },
+  { value: "focusRegion", label: "Focus on Region", description: "Zoom sobre una región del media hasta ocupar toda la pantalla y luego fade-in." },
+  { value: "slideUp", label: "Slide up", description: "La portada sube desde abajo cubriendo el media inicial." },
+  { value: "custom", label: "Custom (HTML)", description: "Carga un HTML propio a pantalla completa; él mismo avisa cuándo termina." },
+];
+
+function buildDefaultIntroDeviceConfig(): IntroDeviceConfig {
+  return {
+    tipo: "revealBook",
+    revealBook: {
+      panelIzquierdoUrl: "",
+      panelDerechoUrl: "",
+      duracionDibujoMs: 650,
+      duracionAperturaMs: 1800,
+      pausaAntesDeAbrirMs: 120,
+      maxEsperaDibujoMs: 9000,
+    },
+  };
+}
 
 function buildDefaultIntroConfig(): IntroSeccionConfig {
   return {
@@ -49,15 +68,169 @@ function buildDefaultIntroConfig(): IntroSeccionConfig {
     textoSubtitulo: "",
     textoSaltar: "",
     lacreUrl: "",
-    panelIzquierdoUrl: "",
-    panelDerechoUrl: "",
     duracionLacreMs: 900,
-    duracionDibujoMs: 650,
-    duracionAperturaMs: 1800,
-    pausaAntesDeAbrirMs: 120,
-    maxEsperaDibujoMs: 9000,
     bordeIntroPx: 0,
+    pc: buildDefaultIntroDeviceConfig(),
+    movil: buildDefaultIntroDeviceConfig(),
   };
+}
+
+type AssetPickerProps = {
+  label: string;
+  value: string;
+  onChangeValue: (value: string) => void;
+  uploading: boolean;
+  onUpload: (file: File) => void;
+  disabled: boolean;
+  resources: ResourceItem[];
+  placeholder: string;
+  accept?: string;
+};
+
+function IntroAssetField({ label, value, onChangeValue, uploading, onUpload, disabled, resources, placeholder, accept }: AssetPickerProps) {
+  return (
+    <div className="space-y-2">
+      <label className="label-field">{label}</label>
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <select
+          className="input-field"
+          value={resources.find((resource) => resource.url_publica === value)?.id ?? ""}
+          onChange={(e) => {
+            const resource = resources.find((entry) => entry.id === e.target.value) ?? null;
+            onChangeValue(resource?.url_publica ?? "");
+          }}
+        >
+          <option value="">Sin recurso (usar URL manual)</option>
+          {resources.map((resource) => (
+            <option key={resource.id} value={resource.id}>{resource.nombre}</option>
+          ))}
+        </select>
+        <label className="inline-flex cursor-pointer items-center rounded-xl border border-stone-300 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+          {uploading ? "Subiendo..." : "Subir archivo"}
+          <input
+            type="file"
+            accept={accept}
+            className="hidden"
+            disabled={uploading || disabled}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onUpload(file);
+              e.currentTarget.value = "";
+            }}
+          />
+        </label>
+      </div>
+      <input
+        type="url"
+        className="input-field font-mono text-xs"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChangeValue(e.target.value)}
+      />
+    </div>
+  );
+}
+
+type DualPanelValues = {
+  panelIzquierdoUrl?: string;
+  panelDerechoUrl?: string;
+  duracionDibujoMs?: number;
+  duracionAperturaMs?: number;
+  pausaAntesDeAbrirMs?: number;
+  maxEsperaDibujoMs?: number;
+};
+
+function DualPanelFields({
+  values,
+  resources,
+  uploadingKey,
+  onUpload,
+  onChange,
+  aperturaDefault,
+  disabled,
+}: {
+  values: DualPanelValues;
+  resources: ResourceItem[];
+  uploadingKey: string | null;
+  onUpload: (key: "panelIzquierdo" | "panelDerecho", file: File) => void;
+  onChange: (patch: Partial<DualPanelValues>) => void;
+  aperturaDefault: number;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      <IntroAssetField
+        label="Panel izquierdo"
+        value={values.panelIzquierdoUrl ?? ""}
+        onChangeValue={(v) => onChange({ panelIzquierdoUrl: v })}
+        uploading={uploadingKey === "panelIzquierdo"}
+        onUpload={(file) => onUpload("panelIzquierdo", file)}
+        disabled={disabled}
+        resources={resources}
+        placeholder="/images/archivo.svg, /LineAlive/archivo.html o https://..."
+      />
+      <IntroAssetField
+        label="Panel derecho"
+        value={values.panelDerechoUrl ?? ""}
+        onChangeValue={(v) => onChange({ panelDerechoUrl: v })}
+        uploading={uploadingKey === "panelDerecho"}
+        onUpload={(file) => onUpload("panelDerecho", file)}
+        disabled={disabled}
+        resources={resources}
+        placeholder="/images/archivo.svg, /LineAlive/archivo.html o https://..."
+      />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <label className="label-field">Tiempo de pintado (ms)</label>
+          <input
+            type="number"
+            min={200}
+            max={5000}
+            step={50}
+            className="input-field"
+            value={values.duracionDibujoMs ?? 650}
+            onChange={(e) => onChange({ duracionDibujoMs: Math.max(200, Number(e.target.value) || 200) })}
+          />
+        </div>
+        <div>
+          <label className="label-field">Pausa antes de abrir (ms)</label>
+          <input
+            type="number"
+            min={0}
+            max={5000}
+            step={50}
+            className="input-field"
+            value={values.pausaAntesDeAbrirMs ?? 120}
+            onChange={(e) => onChange({ pausaAntesDeAbrirMs: Math.max(0, Number(e.target.value) || 0) })}
+          />
+        </div>
+        <div>
+          <label className="label-field">Duracion de apertura (ms)</label>
+          <input
+            type="number"
+            min={300}
+            max={5000}
+            step={50}
+            className="input-field"
+            value={values.duracionAperturaMs ?? aperturaDefault}
+            onChange={(e) => onChange({ duracionAperturaMs: Math.max(300, Number(e.target.value) || 300) })}
+          />
+        </div>
+        <div>
+          <label className="label-field">Espera maxima del dibujo (ms)</label>
+          <input
+            type="number"
+            min={2000}
+            max={20000}
+            step={100}
+            className="input-field"
+            value={values.maxEsperaDibujoMs ?? 9000}
+            onChange={(e) => onChange({ maxEsperaDibujoMs: Math.max(2000, Number(e.target.value) || 2000) })}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function normalizeSectionType(tipo: TipoSeccionDiseno): TipoSeccionDiseno {
@@ -317,7 +490,8 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   const [uploadingHistoriaId, setUploadingHistoriaId] = useState<string | null>(null);
-  const [uploadingIntroField, setUploadingIntroField] = useState<IntroAssetField | null>(null);
+  const [uploadingAssetKey, setUploadingAssetKey] = useState<string | null>(null);
+  const [introDeviceTab, setIntroDeviceTab] = useState<"pc" | "movil">("pc");
   const [lineAliveGenerating, setLineAliveGenerating] = useState<Record<string, boolean>>({});
   const [contextMenu, setContextMenu] = useState<{ itemId: string; x: number; y: number } | null>(null);
 
@@ -326,6 +500,11 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const selectedSection = useMemo(
     () => sections.find((section) => section.id === selectedSectionId) ?? sections[0],
     [sections, selectedSectionId],
+  );
+
+  const introConfig = useMemo(
+    () => (selectedSection?.tipo === "intro" ? normalizeIntroConfig(selectedSection.intro) ?? buildDefaultIntroConfig() : undefined),
+    [selectedSection],
   );
 
   const resourcesForHistoria = useMemo(
@@ -393,11 +572,31 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
 
   const patchIntro = (patch: Partial<IntroSeccionConfig>) => {
     if (!selectedSection) return;
-    patchSection(selectedSection.id, { intro: { ...(selectedSection.intro ?? buildDefaultIntroConfig()), ...patch } });
+    const base = normalizeIntroConfig(selectedSection.intro) ?? buildDefaultIntroConfig();
+    patchSection(selectedSection.id, { intro: { ...base, ...patch } });
   };
 
-  const uploadIntroAsset = async (field: IntroAssetField, file: File) => {
-    setUploadingIntroField(field);
+  const patchIntroDevice = (device: "pc" | "movil", patch: Partial<IntroDeviceConfig>) => {
+    if (!selectedSection) return;
+    const base = normalizeIntroConfig(selectedSection.intro) ?? buildDefaultIntroConfig();
+    const currentDevice = base[device] ?? buildDefaultIntroDeviceConfig();
+    patchSection(selectedSection.id, { intro: { ...base, [device]: { ...currentDevice, ...patch } } });
+  };
+
+  type IntroSubKey = "revealBook" | "cortinas" | "fadeIn" | "focusRegion" | "slideUp" | "custom";
+
+  const patchIntroDeviceSub = (device: "pc" | "movil", sub: IntroSubKey, patch: Record<string, unknown>) => {
+    if (!selectedSection) return;
+    const base = normalizeIntroConfig(selectedSection.intro) ?? buildDefaultIntroConfig();
+    const currentDevice = base[device] ?? buildDefaultIntroDeviceConfig();
+    const currentSub = (currentDevice[sub] as Record<string, unknown> | undefined) ?? {};
+    patchSection(selectedSection.id, {
+      intro: { ...base, [device]: { ...currentDevice, [sub]: { ...currentSub, ...patch } } },
+    });
+  };
+
+  const uploadGenericAsset = async (key: string, file: File, onDone: (url: string) => void) => {
+    setUploadingAssetKey(key);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -414,15 +613,16 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
       if (!resource?.url_publica) {
         throw new Error("La subida no devolvio una URL publica");
       }
-      patchIntro({ [field]: resource.url_publica });
+      onDone(resource.url_publica);
       setResources((prev) => [resource, ...prev]);
       showMsg("ok", "Archivo subido y asociado a la intro");
     } catch (error) {
       showMsg("error", error instanceof Error ? error.message : "Error al subir archivo");
     } finally {
-      setUploadingIntroField(null);
+      setUploadingAssetKey(null);
     }
   };
+
 
   const addSection = () => {
     const section: SeccionDiseno = {
@@ -839,14 +1039,14 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                 </p>
               </div>
 
-              {selectedSection.tipo === "intro" && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-stone-700">Intro (reveal book)</h3>
+              {selectedSection.tipo === "intro" && introConfig && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-stone-700">Intro</h3>
 
                   <label className="inline-flex items-center gap-2 text-sm text-stone-700">
                     <input
                       type="checkbox"
-                      checked={selectedSection.intro?.activo ?? true}
+                      checked={introConfig.activo}
                       onChange={(e) => patchIntro({ activo: e.target.checked })}
                     />
                     Intro activa
@@ -857,7 +1057,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                       <label className="label-field">Repetir</label>
                       <select
                         className="input-field"
-                        value={selectedSection.intro?.repetir ?? "primeraVez"}
+                        value={introConfig.repetir}
                         onChange={(e) => patchIntro({ repetir: e.target.value as "siempre" | "primeraVez" })}
                       >
                         <option value="primeraVez">Solo la primera vez</option>
@@ -871,7 +1071,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         min={0}
                         max={48}
                         className="input-field"
-                        value={selectedSection.intro?.bordeIntroPx ?? 0}
+                        value={introConfig.bordeIntroPx ?? 0}
                         onChange={(e) => patchIntro({ bordeIntroPx: Math.max(0, Number(e.target.value) || 0) })}
                       />
                     </div>
@@ -880,125 +1080,228 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div>
                       <label className="label-field">Titulo</label>
-                      <input className="input-field" value={selectedSection.intro?.textoTitulo ?? ""} onChange={(e) => patchIntro({ textoTitulo: e.target.value })} />
+                      <input className="input-field" value={introConfig.textoTitulo ?? ""} onChange={(e) => patchIntro({ textoTitulo: e.target.value })} />
                     </div>
                     <div>
                       <label className="label-field">Subtitulo</label>
-                      <input className="input-field" value={selectedSection.intro?.textoSubtitulo ?? ""} onChange={(e) => patchIntro({ textoSubtitulo: e.target.value })} />
+                      <input className="input-field" value={introConfig.textoSubtitulo ?? ""} onChange={(e) => patchIntro({ textoSubtitulo: e.target.value })} />
                     </div>
                     <div>
                       <label className="label-field">Texto para saltar</label>
-                      <input className="input-field" value={selectedSection.intro?.textoSaltar ?? ""} onChange={(e) => patchIntro({ textoSaltar: e.target.value })} />
+                      <input className="input-field" value={introConfig.textoSaltar ?? ""} onChange={(e) => patchIntro({ textoSaltar: e.target.value })} />
                     </div>
                   </div>
 
-                  {INTRO_ASSET_FIELDS.map((field) => (
-                    <div key={field} className="space-y-2">
-                      <label className="label-field">{INTRO_ASSET_LABELS[field]}</label>
-                      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                        <select
-                          className="input-field"
-                          value={resources.find((resource) => resource.url_publica === selectedSection.intro?.[field])?.id ?? ""}
-                          onChange={(e) => {
-                            const resource = resources.find((entry) => entry.id === e.target.value) ?? null;
-                            patchIntro({ [field]: resource?.url_publica ?? "" });
-                          }}
-                        >
-                          <option value="">Sin recurso (usar URL manual)</option>
-                          {resources.map((resource) => (
-                            <option key={resource.id} value={resource.id}>{resource.nombre}</option>
-                          ))}
-                        </select>
-                        <label className="inline-flex cursor-pointer items-center rounded-xl border border-stone-300 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50">
-                          {uploadingIntroField === field ? "Subiendo..." : "Subir archivo"}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            disabled={uploadingIntroField === field || !recursosDriveConfigured}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) void uploadIntroAsset(field, file);
-                              e.currentTarget.value = "";
-                            }}
-                          />
-                        </label>
-                      </div>
-                      <input
-                        type="url"
-                        className="input-field font-mono text-xs"
-                        placeholder="/images/archivo.svg, /LineAlive/archivo.html o https://..."
-                        value={selectedSection.intro?.[field] ?? ""}
-                        onChange={(e) => patchIntro({ [field]: e.target.value })}
-                      />
-                    </div>
-                  ))}
+                  <IntroAssetField
+                    label="Lacre (sello inicial)"
+                    value={introConfig.lacreUrl ?? ""}
+                    onChangeValue={(v) => patchIntro({ lacreUrl: v })}
+                    uploading={uploadingAssetKey === "lacre"}
+                    onUpload={(file) => void uploadGenericAsset("lacre", file, (url) => patchIntro({ lacreUrl: url }))}
+                    disabled={!recursosDriveConfigured}
+                    resources={resources}
+                    placeholder="/images/archivo.svg o https://..."
+                    accept="image/*"
+                  />
 
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <div>
-                      <label className="label-field">Duracion del lacre (ms)</label>
-                      <input
-                        type="number"
-                        min={300}
-                        max={5000}
-                        step={50}
-                        className="input-field"
-                        value={selectedSection.intro?.duracionLacreMs ?? 900}
-                        onChange={(e) => patchIntro({ duracionLacreMs: Math.max(300, Number(e.target.value) || 300) })}
-                      />
+                  <div>
+                    <label className="label-field">Duracion del lacre (ms)</label>
+                    <input
+                      type="number"
+                      min={300}
+                      max={5000}
+                      step={50}
+                      className="input-field max-w-xs"
+                      value={introConfig.duracionLacreMs ?? 900}
+                      onChange={(e) => patchIntro({ duracionLacreMs: Math.max(300, Number(e.target.value) || 300) })}
+                    />
+                  </div>
+
+                  <div className="border-t border-stone-200 pt-4">
+                    <p className="label-field">Animacion tras el lacre (independiente por dispositivo)</p>
+                    <div className="mt-2 inline-flex rounded-xl border border-stone-300 p-1 text-sm">
+                      {(["pc", "movil"] as const).map((device) => (
+                        <button
+                          key={device}
+                          type="button"
+                          className={`rounded-lg px-3 py-1.5 font-semibold ${introDeviceTab === device ? "bg-stone-800 text-white" : "text-stone-600 hover:bg-stone-100"}`}
+                          onClick={() => setIntroDeviceTab(device)}
+                        >
+                          {device === "pc" ? "PC" : "Movil"}
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <label className="label-field">Tiempo de pintado del dibujo (ms)</label>
-                      <input
-                        type="number"
-                        min={200}
-                        max={5000}
-                        step={50}
-                        className="input-field"
-                        value={selectedSection.intro?.duracionDibujoMs ?? 650}
-                        onChange={(e) => patchIntro({ duracionDibujoMs: Math.max(200, Number(e.target.value) || 200) })}
-                      />
-                    </div>
-                    <div>
-                      <label className="label-field">Pausa antes de abrir (ms)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={5000}
-                        step={50}
-                        className="input-field"
-                        value={selectedSection.intro?.pausaAntesDeAbrirMs ?? 120}
-                        onChange={(e) => patchIntro({ pausaAntesDeAbrirMs: Math.max(0, Number(e.target.value) || 0) })}
-                      />
-                    </div>
-                    <div>
-                      <label className="label-field">Duracion de apertura (ms)</label>
-                      <input
-                        type="number"
-                        min={300}
-                        max={5000}
-                        step={50}
-                        className="input-field"
-                        value={selectedSection.intro?.duracionAperturaMs ?? 1800}
-                        onChange={(e) => patchIntro({ duracionAperturaMs: Math.max(300, Number(e.target.value) || 300) })}
-                      />
-                    </div>
-                    <div>
-                      <label className="label-field">Espera maxima del dibujo (ms)</label>
-                      <input
-                        type="number"
-                        min={2000}
-                        max={20000}
-                        step={100}
-                        className="input-field"
-                        value={selectedSection.intro?.maxEsperaDibujoMs ?? 9000}
-                        onChange={(e) => patchIntro({ maxEsperaDibujoMs: Math.max(2000, Number(e.target.value) || 2000) })}
-                      />
-                    </div>
+
+                    {(["pc", "movil"] as const)
+                      .filter((device) => device === introDeviceTab)
+                      .map((device) => {
+                        const deviceConfig = introConfig[device] ?? buildDefaultIntroDeviceConfig();
+                        const uploadPrefix = `${device}-`;
+                        return (
+                          <div key={device} className="mt-3 space-y-3">
+                            <div>
+                              <label className="label-field">Tipo de animacion</label>
+                              <select
+                                className="input-field"
+                                value={deviceConfig.tipo}
+                                onChange={(e) => patchIntroDevice(device, { tipo: e.target.value as IntroAnimationType })}
+                              >
+                                {INTRO_ANIMATION_TYPES.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
+                              <p className="mt-1 text-xs text-stone-500">
+                                {INTRO_ANIMATION_TYPES.find((option) => option.value === deviceConfig.tipo)?.description}
+                              </p>
+                            </div>
+
+                            {(deviceConfig.tipo === "revealBook" || deviceConfig.tipo === "cortinas") && (
+                              <DualPanelFields
+                                values={deviceConfig[deviceConfig.tipo] ?? {}}
+                                resources={resources}
+                                uploadingKey={uploadingAssetKey?.startsWith(uploadPrefix) ? uploadingAssetKey.slice(uploadPrefix.length) : null}
+                                onUpload={(key, file) =>
+                                  void uploadGenericAsset(`${uploadPrefix}${key}`, file, (url) =>
+                                    patchIntroDeviceSub(device, deviceConfig.tipo as "revealBook" | "cortinas", {
+                                      [key === "panelIzquierdo" ? "panelIzquierdoUrl" : "panelDerechoUrl"]: url,
+                                    }),
+                                  )
+                                }
+                                onChange={(patch) => patchIntroDeviceSub(device, deviceConfig.tipo as "revealBook" | "cortinas", patch)}
+                                aperturaDefault={deviceConfig.tipo === "cortinas" ? 900 : 1800}
+                                disabled={!recursosDriveConfigured}
+                              />
+                            )}
+
+                            {deviceConfig.tipo === "fadeIn" && (
+                              <div className="space-y-3">
+                                <IntroAssetField
+                                  label="Media inicial (imagen o LineAlive)"
+                                  value={deviceConfig.fadeIn?.mediaUrl ?? ""}
+                                  onChangeValue={(v) => patchIntroDeviceSub(device, "fadeIn", { mediaUrl: v })}
+                                  uploading={uploadingAssetKey === `${uploadPrefix}fadeInMedia`}
+                                  onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}fadeInMedia`, file, (url) => patchIntroDeviceSub(device, "fadeIn", { mediaUrl: url }))}
+                                  disabled={!recursosDriveConfigured}
+                                  resources={resources}
+                                  placeholder="/images/archivo.jpg, /LineAlive/archivo.html o https://..."
+                                />
+                                <div>
+                                  <label className="label-field">Duracion del fade (ms)</label>
+                                  <input
+                                    type="number"
+                                    min={200}
+                                    max={5000}
+                                    step={50}
+                                    className="input-field max-w-xs"
+                                    value={deviceConfig.fadeIn?.duracionFadeMs ?? 1200}
+                                    onChange={(e) => patchIntroDeviceSub(device, "fadeIn", { duracionFadeMs: Math.max(200, Number(e.target.value) || 200) })}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {deviceConfig.tipo === "focusRegion" && (
+                              <div className="space-y-3">
+                                <IntroAssetField
+                                  label="Media (imagen o LineAlive)"
+                                  value={deviceConfig.focusRegion?.mediaUrl ?? ""}
+                                  onChangeValue={(v) => patchIntroDeviceSub(device, "focusRegion", { mediaUrl: v })}
+                                  uploading={uploadingAssetKey === `${uploadPrefix}focusRegionMedia`}
+                                  onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}focusRegionMedia`, file, (url) => patchIntroDeviceSub(device, "focusRegion", { mediaUrl: url }))}
+                                  disabled={!recursosDriveConfigured}
+                                  resources={resources}
+                                  placeholder="/images/archivo.jpg, /LineAlive/archivo.html o https://..."
+                                />
+                                <PolygonRegionEditor
+                                  previewSrc={previewSrcForAdmin(inviteCode, deviceConfig.focusRegion?.mediaUrl ?? "")}
+                                  isHtml={isLikelyLineAliveHtmlUrl(deviceConfig.focusRegion?.mediaUrl)}
+                                  value={deviceConfig.focusRegion?.region}
+                                  onChange={(region) => patchIntroDeviceSub(device, "focusRegion", { region })}
+                                />
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Duracion del zoom (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={300}
+                                      max={6000}
+                                      step={50}
+                                      className="input-field"
+                                      value={deviceConfig.focusRegion?.duracionZoomMs ?? 1400}
+                                      onChange={(e) => patchIntroDeviceSub(device, "focusRegion", { duracionZoomMs: Math.max(300, Number(e.target.value) || 300) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Duracion del fade final (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={200}
+                                      max={5000}
+                                      step={50}
+                                      className="input-field"
+                                      value={deviceConfig.focusRegion?.duracionFadeMs ?? 900}
+                                      onChange={(e) => patchIntroDeviceSub(device, "focusRegion", { duracionFadeMs: Math.max(200, Number(e.target.value) || 200) })}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {deviceConfig.tipo === "slideUp" && (
+                              <div className="space-y-3">
+                                <IntroAssetField
+                                  label="Media inicial (imagen o LineAlive)"
+                                  value={deviceConfig.slideUp?.mediaUrl ?? ""}
+                                  onChangeValue={(v) => patchIntroDeviceSub(device, "slideUp", { mediaUrl: v })}
+                                  uploading={uploadingAssetKey === `${uploadPrefix}slideUpMedia`}
+                                  onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}slideUpMedia`, file, (url) => patchIntroDeviceSub(device, "slideUp", { mediaUrl: url }))}
+                                  disabled={!recursosDriveConfigured}
+                                  resources={resources}
+                                  placeholder="/images/archivo.jpg, /LineAlive/archivo.html o https://..."
+                                />
+                                <div>
+                                  <label className="label-field">Duracion del deslizamiento (ms)</label>
+                                  <input
+                                    type="number"
+                                    min={200}
+                                    max={5000}
+                                    step={50}
+                                    className="input-field max-w-xs"
+                                    value={deviceConfig.slideUp?.duracionDeslizamientoMs ?? 900}
+                                    onChange={(e) => patchIntroDeviceSub(device, "slideUp", { duracionDeslizamientoMs: Math.max(200, Number(e.target.value) || 200) })}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {deviceConfig.tipo === "custom" && (
+                              <div className="space-y-2">
+                                <IntroAssetField
+                                  label="HTML personalizado"
+                                  value={deviceConfig.custom?.htmlUrl ?? ""}
+                                  onChangeValue={(v) => patchIntroDeviceSub(device, "custom", { htmlUrl: v })}
+                                  uploading={uploadingAssetKey === `${uploadPrefix}customHtml`}
+                                  onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}customHtml`, file, (url) => patchIntroDeviceSub(device, "custom", { htmlUrl: url }))}
+                                  disabled={!recursosDriveConfigured}
+                                  resources={resources}
+                                  placeholder="/LineAlive/archivo.html o https://..."
+                                  accept=".html,.htm"
+                                />
+                                <p className="text-xs text-stone-500">
+                                  El HTML se carga a pantalla completa tras el lacre. Para avisar que ha terminado, debe enviar
+                                  <code className="mx-1 rounded bg-stone-100 px-1">window.parent.postMessage(&#123;source:&quot;linealive-player&quot;, type:&quot;ended&quot;&#125;, &quot;*&quot;)</code>
+                                  — el mismo contrato que usan los recursos generados con LineAlive, que funcionan aqui directamente.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
                   {loadingResources && <p className="text-xs text-stone-400">Cargando recursos de Drive...</p>}
                 </div>
               )}
+
 
               {isInvitationType(selectedSection.tipo) && (
                 <div className="space-y-3">
