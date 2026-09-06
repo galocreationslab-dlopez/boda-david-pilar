@@ -136,6 +136,7 @@ export default function IntroReveal({ config, storageKey, themeStyle, introStyle
               panelIzquierdo={{ svgSource: config.panelIzquierdoUrl || DEFAULT_LEFT_PANEL, alt: "Ilustración de la invitación" }}
               panelDerecho={{ svgSource: config.panelDerechoUrl || DEFAULT_RIGHT_PANEL, alt: "Ilustración de la invitación" }}
               duracionAperturaMs={config.duracionAperturaMs ?? 1800}
+              duracionDibujoMs={config.duracionDibujoMs ?? 650}
               pausaAntesDeAbrirMs={config.pausaAntesDeAbrirMs ?? 120}
               maxEsperaDibujoMs={config.maxEsperaDibujoMs ?? 9000}
               colorMarco={themeValue("--bronze-pale") || "#d8cec0"}

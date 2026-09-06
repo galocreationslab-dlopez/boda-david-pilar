@@ -14,6 +14,7 @@ export type RevealBookProps = {
   panelDerecho: RevealPanel;
   children: ReactNode;
   duracionAperturaMs?: number;
+  duracionDibujoMs?: number;
   pausaAntesDeAbrirMs?: number;
   maxEsperaDibujoMs?: number;
   onComplete?: () => void;
@@ -92,6 +93,7 @@ export default function RevealBook({
   panelDerecho,
   children,
   duracionAperturaMs = 1800,
+  duracionDibujoMs = 650,
   pausaAntesDeAbrirMs = 120,
   maxEsperaDibujoMs = MAX_ESPERA_DIBUJO_MS,
   colorMarco = "#d8cec0",
@@ -215,7 +217,8 @@ export default function RevealBook({
                   transformStyle: "preserve-3d",
                   backfaceVisibility: "hidden",
                   transform: leftTransform,
-                  transition: `transform ${duracionAperturaMs}ms cubic-bezier(0.2, 0.72, 0.2, 1)`,
+                  // ease-in-out: progreso visual proporcional al tiempo, para que coincida con duracionAperturaMs
+                  transition: `transform ${duracionAperturaMs}ms ease-in-out`,
                 }}
               >
                 <div className={fullBleedPanels ? "h-full w-full" : "h-full w-full p-3 sm:p-4"} style={{ ...panelStyle, backgroundColor: fondoPanel }} role="img" aria-label={panelIzquierdo.alt}>
@@ -235,7 +238,7 @@ export default function RevealBook({
                       <AutoDrawSVG
                         svgSource={panelIzquierdo.svgSource}
                         onComplete={markLeftReady}
-                        durationMs={650}
+                        durationMs={duracionDibujoMs}
                         staggerMs={24}
                         sequential={false}
                         respectReducedMotion
@@ -253,7 +256,7 @@ export default function RevealBook({
                   transformStyle: "preserve-3d",
                   backfaceVisibility: "hidden",
                   transform: rightTransform,
-                  transition: `transform ${duracionAperturaMs}ms cubic-bezier(0.2, 0.72, 0.2, 1)`,
+                  transition: `transform ${duracionAperturaMs}ms ease-in-out`,
                 }}
               >
                 <div className={fullBleedPanels ? "h-full w-full" : "h-full w-full p-3 sm:p-4"} style={{ ...panelStyle, backgroundColor: fondoPanel }} role="img" aria-label={panelDerecho.alt}>
@@ -273,7 +276,7 @@ export default function RevealBook({
                       <AutoDrawSVG
                         svgSource={panelDerecho.svgSource}
                         onComplete={markRightReady}
-                        durationMs={650}
+                        durationMs={duracionDibujoMs}
                         staggerMs={24}
                         sequential={false}
                         respectReducedMotion

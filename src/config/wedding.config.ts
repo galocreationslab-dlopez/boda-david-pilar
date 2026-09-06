@@ -133,6 +133,7 @@ export type IntroSeccionConfig = {
   panelIzquierdoUrl?: string;
   panelDerechoUrl?: string;
   duracionLacreMs?: number;
+  duracionDibujoMs?: number;
   duracionAperturaMs?: number;
   pausaAntesDeAbrirMs?: number;
   maxEsperaDibujoMs?: number;
