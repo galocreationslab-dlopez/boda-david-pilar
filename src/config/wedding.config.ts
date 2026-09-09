@@ -156,6 +156,7 @@ export type IntroCortinasConfig = {
 export type IntroFadeInConfig = {
   mediaUrl?: string;
   duracionFadeMs?: number;
+  maxEsperaMs?: number;
 };
 
 export type IntroFocusRegionConfig = {
@@ -163,15 +164,18 @@ export type IntroFocusRegionConfig = {
   region?: IntroRegionCuadrilatero;
   duracionZoomMs?: number;
   duracionFadeMs?: number;
+  maxEsperaMs?: number;
 };
 
 export type IntroSlideUpConfig = {
   mediaUrl?: string;
   duracionDeslizamientoMs?: number;
+  maxEsperaMs?: number;
 };
 
 export type IntroCustomConfig = {
   htmlUrl?: string;
+  maxEsperaMs?: number;
 };
 
 export type IntroDeviceConfig = {

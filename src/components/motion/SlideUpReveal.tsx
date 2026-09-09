@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useState, type CSSProperties, type ReactNode } from "react";
-import LineAliveEmbed from "@/components/media/LineAliveEmbed";
-import { isLikelyLineAliveHtmlUrl, resolvePublicLineAliveSrc } from "@/lib/linealive/utils";
+import IntroMediaStage from "@/components/motion/IntroMediaStage";
 
 export type SlideUpRevealProps = {
   mediaUrl: string;
+  fondo?: string;
   duracionDeslizamientoMs?: number;
+  maxEsperaMs?: number;
   onComplete?: () => void;
   children: ReactNode;
 };
@@ -15,11 +16,9 @@ export type SlideUpRevealProps = {
  * Tras finalizar el media inicial, la portada (children) sube desde abajo
  * cubriendo el último fotograma del media hasta ocupar toda la ventana.
  */
-export default function SlideUpReveal({ mediaUrl, duracionDeslizamientoMs = 900, onComplete, children }: SlideUpRevealProps) {
+export default function SlideUpReveal({ mediaUrl, fondo, duracionDeslizamientoMs = 900, maxEsperaMs = 9000, onComplete, children }: SlideUpRevealProps) {
   const [sliding, setSliding] = useState(false);
   const [mediaHidden, setMediaHidden] = useState(false);
-  const isHtml = isLikelyLineAliveHtmlUrl(mediaUrl);
-  const resolvedSrc = isHtml ? resolvePublicLineAliveSrc(mediaUrl) : mediaUrl;
 
   const startSlide = useCallback(() => {
     setSliding(true);
@@ -35,24 +34,9 @@ export default function SlideUpReveal({ mediaUrl, duracionDeslizamientoMs = 900,
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[var(--brown-dark)]">
+    <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: fondo }}>
       {!mediaHidden ? (
-        <div className="absolute inset-0 z-0">
-          {isHtml ? (
-            <LineAliveEmbed
-              src={resolvedSrc}
-              title="Animación de introducción"
-              fit="cover"
-              lockAspectRatio={false}
-              className="h-full w-full rounded-none border-0 bg-transparent"
-              iframeClassName="rounded-none"
-              loadingLabel=""
-              onEnded={startSlide}
-            />
-          ) : (
-            <img src={resolvedSrc} alt="" className="h-full w-full object-cover" onLoad={startSlide} />
-          )}
-        </div>
+        <IntroMediaStage mediaUrl={mediaUrl} fondo={fondo} maxEsperaMs={maxEsperaMs} onReady={startSlide} className="absolute inset-0 z-0 h-full w-full" />
       ) : null}
       <div className="absolute inset-0 z-10" style={slideStyle}>
         {children}

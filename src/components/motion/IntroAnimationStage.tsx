@@ -58,7 +58,13 @@ export default function IntroAnimationStage({
       const cfg = deviceConfig.fadeIn ?? {};
       if (!cfg.mediaUrl) return <>{children}</>;
       return (
-        <FadeInReveal mediaUrl={cfg.mediaUrl} duracionFadeMs={cfg.duracionFadeMs ?? 1200} onComplete={onComplete}>
+        <FadeInReveal
+          mediaUrl={cfg.mediaUrl}
+          fondo={fondoPanel}
+          duracionFadeMs={cfg.duracionFadeMs ?? 1200}
+          maxEsperaMs={cfg.maxEsperaMs ?? 9000}
+          onComplete={onComplete}
+        >
           {children}
         </FadeInReveal>
       );
@@ -70,8 +76,10 @@ export default function IntroAnimationStage({
         <FocusRegionReveal
           mediaUrl={cfg.mediaUrl}
           region={cfg.region}
+          fondo={fondoPanel}
           duracionZoomMs={cfg.duracionZoomMs ?? 1400}
           duracionFadeMs={cfg.duracionFadeMs ?? 900}
+          maxEsperaMs={cfg.maxEsperaMs ?? 9000}
           onComplete={onComplete}
         >
           {children}
@@ -82,7 +90,13 @@ export default function IntroAnimationStage({
       const cfg = deviceConfig.slideUp ?? {};
       if (!cfg.mediaUrl) return <>{children}</>;
       return (
-        <SlideUpReveal mediaUrl={cfg.mediaUrl} duracionDeslizamientoMs={cfg.duracionDeslizamientoMs ?? 900} onComplete={onComplete}>
+        <SlideUpReveal
+          mediaUrl={cfg.mediaUrl}
+          fondo={fondoPanel}
+          duracionDeslizamientoMs={cfg.duracionDeslizamientoMs ?? 900}
+          maxEsperaMs={cfg.maxEsperaMs ?? 9000}
+          onComplete={onComplete}
+        >
           {children}
         </SlideUpReveal>
       );
@@ -91,7 +105,7 @@ export default function IntroAnimationStage({
       const cfg = deviceConfig.custom ?? {};
       if (!cfg.htmlUrl) return <>{children}</>;
       return (
-        <CustomHtmlReveal htmlUrl={cfg.htmlUrl} onComplete={onComplete}>
+        <CustomHtmlReveal htmlUrl={cfg.htmlUrl} fondo={fondoPanel} maxEsperaMs={cfg.maxEsperaMs ?? 20000} onComplete={onComplete}>
           {children}
         </CustomHtmlReveal>
       );

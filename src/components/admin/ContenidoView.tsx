@@ -1185,17 +1185,31 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   resources={resources}
                                   placeholder="/images/archivo.jpg, /LineAlive/archivo.html o https://..."
                                 />
-                                <div>
-                                  <label className="label-field">Duracion del fade (ms)</label>
-                                  <input
-                                    type="number"
-                                    min={200}
-                                    max={5000}
-                                    step={50}
-                                    className="input-field max-w-xs"
-                                    value={deviceConfig.fadeIn?.duracionFadeMs ?? 1200}
-                                    onChange={(e) => patchIntroDeviceSub(device, "fadeIn", { duracionFadeMs: Math.max(200, Number(e.target.value) || 200) })}
-                                  />
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Duracion del fade (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={200}
+                                      max={5000}
+                                      step={50}
+                                      className="input-field"
+                                      value={deviceConfig.fadeIn?.duracionFadeMs ?? 1200}
+                                      onChange={(e) => patchIntroDeviceSub(device, "fadeIn", { duracionFadeMs: Math.max(200, Number(e.target.value) || 200) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Espera maxima del media (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={1000}
+                                      max={30000}
+                                      step={500}
+                                      className="input-field"
+                                      value={deviceConfig.fadeIn?.maxEsperaMs ?? 9000}
+                                      onChange={(e) => patchIntroDeviceSub(device, "fadeIn", { maxEsperaMs: Math.max(1000, Number(e.target.value) || 1000) })}
+                                    />
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -1218,7 +1232,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   value={deviceConfig.focusRegion?.region}
                                   onChange={(region) => patchIntroDeviceSub(device, "focusRegion", { region })}
                                 />
-                                <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="grid gap-3 sm:grid-cols-3">
                                   <div>
                                     <label className="label-field">Duracion del zoom (ms)</label>
                                     <input
@@ -1243,6 +1257,18 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                       onChange={(e) => patchIntroDeviceSub(device, "focusRegion", { duracionFadeMs: Math.max(200, Number(e.target.value) || 200) })}
                                     />
                                   </div>
+                                  <div>
+                                    <label className="label-field">Espera maxima del media (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={1000}
+                                      max={30000}
+                                      step={500}
+                                      className="input-field"
+                                      value={deviceConfig.focusRegion?.maxEsperaMs ?? 9000}
+                                      onChange={(e) => patchIntroDeviceSub(device, "focusRegion", { maxEsperaMs: Math.max(1000, Number(e.target.value) || 1000) })}
+                                    />
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -1259,17 +1285,31 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   resources={resources}
                                   placeholder="/images/archivo.jpg, /LineAlive/archivo.html o https://..."
                                 />
-                                <div>
-                                  <label className="label-field">Duracion del deslizamiento (ms)</label>
-                                  <input
-                                    type="number"
-                                    min={200}
-                                    max={5000}
-                                    step={50}
-                                    className="input-field max-w-xs"
-                                    value={deviceConfig.slideUp?.duracionDeslizamientoMs ?? 900}
-                                    onChange={(e) => patchIntroDeviceSub(device, "slideUp", { duracionDeslizamientoMs: Math.max(200, Number(e.target.value) || 200) })}
-                                  />
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Duracion del deslizamiento (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={200}
+                                      max={5000}
+                                      step={50}
+                                      className="input-field"
+                                      value={deviceConfig.slideUp?.duracionDeslizamientoMs ?? 900}
+                                      onChange={(e) => patchIntroDeviceSub(device, "slideUp", { duracionDeslizamientoMs: Math.max(200, Number(e.target.value) || 200) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Espera maxima del media (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={1000}
+                                      max={30000}
+                                      step={500}
+                                      className="input-field"
+                                      value={deviceConfig.slideUp?.maxEsperaMs ?? 9000}
+                                      onChange={(e) => patchIntroDeviceSub(device, "slideUp", { maxEsperaMs: Math.max(1000, Number(e.target.value) || 1000) })}
+                                    />
+                                  </div>
                                 </div>
                               </div>
                             )}
@@ -1292,6 +1332,18 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   <code className="mx-1 rounded bg-stone-100 px-1">window.parent.postMessage(&#123;source:&quot;linealive-player&quot;, type:&quot;ended&quot;&#125;, &quot;*&quot;)</code>
                                   — el mismo contrato que usan los recursos generados con LineAlive, que funcionan aqui directamente.
                                 </p>
+                                <div>
+                                  <label className="label-field">Espera maxima si no avisa que termino (ms)</label>
+                                  <input
+                                    type="number"
+                                    min={2000}
+                                    max={60000}
+                                    step={1000}
+                                    className="input-field max-w-xs"
+                                    value={deviceConfig.custom?.maxEsperaMs ?? 20000}
+                                    onChange={(e) => patchIntroDeviceSub(device, "custom", { maxEsperaMs: Math.max(2000, Number(e.target.value) || 2000) })}
+                                  />
+                                </div>
                               </div>
                             )}
                           </div>
