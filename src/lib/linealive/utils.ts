@@ -1,5 +1,39 @@
 import type { WeddingConfig } from "@/config/wedding.config";
 
+export function isLikelyLineAliveHtmlUrl(value?: string): boolean {
+  if (!value) return false;
+  const raw = value.trim().toLowerCase();
+  if (!raw) return false;
+  return raw.endsWith(".html") || raw.endsWith(".htm") || raw.includes("/linealive/html") || raw.includes("_la.html");
+}
+
+/**
+ * Resuelve una URL de recurso LineAlive (Drive, path público o ya resuelta)
+ * a la ruta que debe usarse como `src` de un iframe/embed en cliente.
+ */
+export function resolvePublicLineAliveSrc(raw: string): string {
+  if (raw.includes("/api/linealive/html")) return raw;
+
+  const fileId = extractDriveFileIdFromUrl(raw);
+  if (fileId) {
+    return `/api/linealive/html?fileId=${encodeURIComponent(fileId)}`;
+  }
+
+  const value = raw.trim();
+  if (!value) return raw;
+
+  try {
+    const parsed = new URL(value, "http://localhost");
+    if (/^\/LineAlive\/.+\.html?$/i.test(parsed.pathname)) {
+      return `/api/linealive/html?path=${encodeURIComponent(parsed.pathname)}`;
+    }
+  } catch {
+    return raw;
+  }
+
+  return raw;
+}
+
 function extractDriveFileIdFromUrl(value?: string): string | null {
   if (!value) return null;
   const raw = value.trim();
@@ -79,10 +113,24 @@ export function collectLineAliveHtmlDriveFileIds(config: WeddingConfig): Set<str
 
   for (const section of config.diseno?.secciones ?? []) {
     if (section.tipo === "intro" && section.intro) {
-      const introCandidates = [
+      const devices = [section.intro.pc, section.intro.movil];
+      const introCandidates: Array<string | undefined> = [
         section.intro.panelIzquierdoUrl,
         section.intro.panelDerechoUrl,
       ];
+      for (const device of devices) {
+        if (!device) continue;
+        introCandidates.push(
+          device.revealBook?.panelIzquierdoUrl,
+          device.revealBook?.panelDerechoUrl,
+          device.cortinas?.panelIzquierdoUrl,
+          device.cortinas?.panelDerechoUrl,
+          device.fadeIn?.mediaUrl,
+          device.focusRegion?.mediaUrl,
+          device.slideUp?.mediaUrl,
+          device.custom?.htmlUrl,
+        );
+      }
       for (const candidate of introCandidates) {
         const fileId = extractDriveFileIdFromUrl(candidate);
         if (fileId) ids.add(fileId);

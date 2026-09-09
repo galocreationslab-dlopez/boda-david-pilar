@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import AutoDrawSVG from "@/components/motion/AutoDrawSVG";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
+import { isLikelyLineAliveHtmlUrl, resolvePublicLineAliveSrc } from "@/lib/linealive/utils";
 
 type RevealPanel = {
   svgSource: string;
@@ -22,71 +23,11 @@ export type RevealBookProps = {
   tintColor?: string;
   fondoPanel?: string;
   fullBleedPanels?: boolean;
+  // "libro": paneles giran en 3D (por defecto). "cortinas": paneles se deslizan lateralmente.
+  modo?: "libro" | "cortinas";
 };
 
 const MAX_ESPERA_DIBUJO_MS = 15000;
-
-function isLikelyLineAliveHtmlUrl(value: string): boolean {
-  const raw = value.trim().toLowerCase();
-  if (!raw) return false;
-  return raw.endsWith(".html") || raw.endsWith(".htm") || raw.includes("/linealive/html") || raw.includes("_la.html");
-}
-
-function extractDriveFileId(raw: string): string | null {
-  const value = raw.trim();
-  if (!value) return null;
-  if (/^[a-zA-Z0-9_-]{20,}$/.test(value)) return value;
-
-  try {
-    const parsed = new URL(value, "http://localhost");
-    const fileIdFromQuery = parsed.searchParams.get("fileId")?.trim();
-    if (fileIdFromQuery && /^[a-zA-Z0-9_-]{20,}$/.test(fileIdFromQuery)) {
-      return fileIdFromQuery;
-    }
-
-    const idFromQuery = parsed.searchParams.get("id")?.trim();
-    if (idFromQuery && /^[a-zA-Z0-9_-]{20,}$/.test(idFromQuery)) {
-      return idFromQuery;
-    }
-
-    const fileMatch = parsed.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i);
-    if (fileMatch?.[1]) {
-      return fileMatch[1];
-    }
-
-    const genericMatch = parsed.pathname.match(/\/d\/([a-zA-Z0-9_-]+)/i);
-    if (genericMatch?.[1]) {
-      return genericMatch[1];
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-function resolvePublicLineAliveSrc(raw: string): string {
-  if (raw.includes("/api/linealive/html")) return raw;
-
-  const fileId = extractDriveFileId(raw);
-  if (fileId) {
-    return `/api/linealive/html?fileId=${encodeURIComponent(fileId)}`;
-  }
-
-  const value = raw.trim();
-  if (!value) return raw;
-
-  try {
-    const parsed = new URL(value, "http://localhost");
-    if (/^\/LineAlive\/.+\.html?$/i.test(parsed.pathname)) {
-      return `/api/linealive/html?path=${encodeURIComponent(parsed.pathname)}`;
-    }
-  } catch {
-    return raw;
-  }
-
-  return raw;
-}
 
 export default function RevealBook({
   panelIzquierdo,
@@ -100,6 +41,7 @@ export default function RevealBook({
   tintColor,
   fondoPanel = "var(--brown-dark)",
   fullBleedPanels = false,
+  modo = "libro",
   onComplete,
 }: RevealBookProps) {
   const [izquierdoListo, setIzquierdoListo] = useState(false);
@@ -112,8 +54,8 @@ export default function RevealBook({
   const markLeftReady = useCallback(() => setIzquierdoListo(true), []);
   const markRightReady = useCallback(() => setDerechoListo(true), []);
 
-  const leftIsHtml = isLikelyLineAliveHtmlUrl(panelIzquierdo.svgSource);
-  const rightIsHtml = isLikelyLineAliveHtmlUrl(panelDerecho.svgSource);
+  const leftIsHtml = isLikelyLineAliveHtmlUrl(panelIzquierdo.svgSource) && Boolean(panelIzquierdo.svgSource);
+  const rightIsHtml = isLikelyLineAliveHtmlUrl(panelDerecho.svgSource) && Boolean(panelDerecho.svgSource);
   const leftHtmlSrc = leftIsHtml ? resolvePublicLineAliveSrc(panelIzquierdo.svgSource) : panelIzquierdo.svgSource;
   const rightHtmlSrc = rightIsHtml ? resolvePublicLineAliveSrc(panelDerecho.svgSource) : panelDerecho.svgSource;
   const leftReady = izquierdoListo;
@@ -182,8 +124,12 @@ export default function RevealBook({
     onComplete?.();
   }, [contenidoVisible, onComplete, reduceMotion]);
 
-  const leftTransform = abriendo ? "rotateY(-112deg)" : "rotateY(0deg)";
-  const rightTransform = abriendo ? "rotateY(112deg)" : "rotateY(0deg)";
+  const leftTransform = modo === "cortinas"
+    ? (abriendo ? "translateX(-100%)" : "translateX(0)")
+    : (abriendo ? "rotateY(-112deg)" : "rotateY(0deg)");
+  const rightTransform = modo === "cortinas"
+    ? (abriendo ? "translateX(100%)" : "translateX(0)")
+    : (abriendo ? "rotateY(112deg)" : "rotateY(0deg)");
 
   // El componente es transversal: no asume portada, historia ni timeline.
   // Solo revela children, que puede ser cualquier composicion inyectada por props.

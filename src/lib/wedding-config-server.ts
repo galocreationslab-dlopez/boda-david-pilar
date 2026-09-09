@@ -6,7 +6,7 @@
  */
 
 import { createServerClient } from "@/lib/supabase/server";
-import { weddingConfig, type WeddingConfig } from "@/config/wedding.config";
+import { weddingConfig, normalizeIntroConfig, type IntroDeviceConfig, type WeddingConfig } from "@/config/wedding.config";
 import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
 import { unstable_noStore as noStore } from "next/cache";
 
@@ -63,6 +63,31 @@ function normalizeSectionTipo(tipo: unknown): "intro" | "portada" | "historia" |
   return "portada";
 }
 
+function normalizeIntroDeviceUrls(device: IntroDeviceConfig | undefined): IntroDeviceConfig | undefined {
+  if (!device) return device;
+  return {
+    ...device,
+    revealBook: device.revealBook
+      ? {
+          ...device.revealBook,
+          panelIzquierdoUrl: normalizeImageUrl(device.revealBook.panelIzquierdoUrl),
+          panelDerechoUrl: normalizeImageUrl(device.revealBook.panelDerechoUrl),
+        }
+      : device.revealBook,
+    cortinas: device.cortinas
+      ? {
+          ...device.cortinas,
+          panelIzquierdoUrl: normalizeImageUrl(device.cortinas.panelIzquierdoUrl),
+          panelDerechoUrl: normalizeImageUrl(device.cortinas.panelDerechoUrl),
+        }
+      : device.cortinas,
+    fadeIn: device.fadeIn ? { ...device.fadeIn, mediaUrl: normalizeImageUrl(device.fadeIn.mediaUrl) } : device.fadeIn,
+    focusRegion: device.focusRegion ? { ...device.focusRegion, mediaUrl: normalizeImageUrl(device.focusRegion.mediaUrl) } : device.focusRegion,
+    slideUp: device.slideUp ? { ...device.slideUp, mediaUrl: normalizeImageUrl(device.slideUp.mediaUrl) } : device.slideUp,
+    custom: device.custom ? { ...device.custom, htmlUrl: normalizeImageUrl(device.custom.htmlUrl) } : device.custom,
+  };
+}
+
 function normalizeSecciones(config: WeddingConfig): WeddingConfig {
   const secciones = config.diseno?.secciones;
   if (!Array.isArray(secciones) || secciones.length === 0) return config;
@@ -81,12 +106,19 @@ function normalizeSecciones(config: WeddingConfig): WeddingConfig {
             }
           : section.fondos,
         intro: section.intro
-          ? {
-              ...section.intro,
-              lacreUrl: normalizeImageUrl(section.intro.lacreUrl),
-              panelIzquierdoUrl: normalizeImageUrl(section.intro.panelIzquierdoUrl),
-              panelDerechoUrl: normalizeImageUrl(section.intro.panelDerechoUrl),
-            }
+          ? (() => {
+              const normalized = normalizeIntroConfig({
+                ...section.intro,
+                lacreUrl: normalizeImageUrl(section.intro.lacreUrl),
+              });
+              return normalized
+                ? {
+                    ...normalized,
+                    pc: normalizeIntroDeviceUrls(normalized.pc),
+                    movil: normalizeIntroDeviceUrls(normalized.movil),
+                  }
+                : normalized;
+            })()
           : section.intro,
       })),
     },

@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useSyncExternalStore, useState, type CSSProperties, type ReactNode } from "react";
 import { IntroProvider } from "@/contexts/IntroContext";
 import AutoDrawSVG from "@/components/motion/AutoDrawSVG";
-import RevealBook from "@/components/motion/RevealBook";
-import type { IntroSeccionConfig } from "@/config/wedding.config";
+import IntroAnimationStage from "@/components/motion/IntroAnimationStage";
+import { useDeviceViewport } from "@/components/motion/useDeviceViewport";
+import { normalizeIntroConfig, type IntroDeviceConfig, type IntroSeccionConfig } from "@/config/wedding.config";
 
 const DEFAULT_LACRE = "/images/Sello.svg";
-const DEFAULT_LEFT_PANEL = "/images/Vidriera_Catedral.svg";
-const DEFAULT_RIGHT_PANEL = "/images/Ventana_Alhambra.svg";
+const DEFAULT_DEVICE_CONFIG: IntroDeviceConfig = { tipo: "revealBook" };
 
 type Props = {
   config: IntroSeccionConfig;
@@ -18,7 +18,10 @@ type Props = {
   children: ReactNode;
 };
 
-export default function IntroReveal({ config, storageKey, themeStyle, introStyle, children }: Props) {
+export default function IntroReveal({ config: rawConfig, storageKey, themeStyle, introStyle, children }: Props) {
+  const config = normalizeIntroConfig(rawConfig) ?? rawConfig;
+  const viewport = useDeviceViewport();
+  const deviceConfig = (viewport === "movil" ? config.movil : config.pc) ?? DEFAULT_DEVICE_CONFIG;
   const [started, setStarted] = useState(false);
   const [closingLacre, setClosingLacre] = useState(false);
   const [lacreGone, setLacreGone] = useState(false);
@@ -132,21 +135,15 @@ export default function IntroReveal({ config, storageKey, themeStyle, introStyle
       ) : (
         <div className="fixed inset-0 z-[100] h-[100svh] w-full bg-transparent">
           <div className="relative h-full w-full px-0 py-0 sm:px-0 sm:py-0" style={introFrameStyle}>
-            <RevealBook
-              panelIzquierdo={{ svgSource: config.panelIzquierdoUrl || DEFAULT_LEFT_PANEL, alt: "Ilustración de la invitación" }}
-              panelDerecho={{ svgSource: config.panelDerechoUrl || DEFAULT_RIGHT_PANEL, alt: "Ilustración de la invitación" }}
-              duracionAperturaMs={config.duracionAperturaMs ?? 1800}
-              duracionDibujoMs={config.duracionDibujoMs ?? 650}
-              pausaAntesDeAbrirMs={config.pausaAntesDeAbrirMs ?? 120}
-              maxEsperaDibujoMs={config.maxEsperaDibujoMs ?? 9000}
+            <IntroAnimationStage
+              deviceConfig={deviceConfig}
               colorMarco={themeValue("--bronze-pale") || "#d8cec0"}
               tintColor={themeValue("--bronze-light")}
               fondoPanel={introBackground}
-              fullBleedPanels={true}
               onComplete={completeIntro}
             >
               {children}
-            </RevealBook>
+            </IntroAnimationStage>
           </div>
         </div>
       )}
