@@ -39,11 +39,8 @@ type Props = {
   headerDivider?: ReactNode;
 };
 
-function resolveImageSrc(value: string): string {
-  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/")) {
-    return value;
-  }
-  return `/images/${value}`;
+function isDriveUrl(value: string): boolean {
+  return value.includes("drive.google.com") || value.includes("drive.usercontent.google.com");
 }
 
 export function SeccionHistoria({
@@ -85,6 +82,13 @@ export function SeccionHistoria({
     adminInviteCode
       ? `/api/admin/${encodeURIComponent(adminInviteCode)}/resources/linealive/html?fileId=${encodeURIComponent(fileId)}`
       : `/api/linealive/html?fileId=${encodeURIComponent(fileId)}`;
+
+  const resolveImageSrc = (src: string) => {
+    if (!src || !isDriveUrl(src)) return src;
+    return adminInviteCode
+      ? `/api/admin/${encodeURIComponent(adminInviteCode)}/resources/preview?src=${encodeURIComponent(src)}`
+      : `/api/resources/preview?src=${encodeURIComponent(src)}`;
+  };
 
   const anterior = () => {
     if (designMode) return;
