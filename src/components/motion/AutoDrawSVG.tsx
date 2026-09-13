@@ -101,6 +101,76 @@ export function parseNativeSvgAnimations(markup: string): NativeSvgAnimationOpti
   }
 }
 
+function detectSvgAspectRatioFromMarkup(markup: string): { width: number; height: number } | null {
+  if (typeof DOMParser !== "undefined") {
+    try {
+      const doc = new DOMParser().parseFromString(markup, "image/svg+xml");
+      const svg = doc.querySelector("svg");
+      if (svg) {
+        const vb = svg.getAttribute("viewBox");
+        if (vb) {
+          const parts = vb.trim().split(/[\s,]+/).map(Number);
+          if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+            return { width: parts[2], height: parts[3] };
+          }
+        }
+        const w = parseSvgNumericValue(svg.getAttribute("width"));
+        const h = parseSvgNumericValue(svg.getAttribute("height"));
+        if (w && h) return { width: w, height: h };
+      }
+    } catch {}
+  }
+  const vbMatch = markup.match(/viewBox=["']\s*([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)\s*["']/i);
+  if (vbMatch) {
+    const w = parseFloat(vbMatch[3]);
+    const h = parseFloat(vbMatch[4]);
+    if (w > 0 && h > 0) return { width: w, height: h };
+  }
+  return null;
+}
+
+function buildIframeDoc(markupWithWatchdog: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    svg {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  ${markupWithWatchdog}
+</body>
+</html>`;
+}
+
 function injectCompletionWatchdog(markup: string, token: string, targetAnimationId?: string): string {
   // Se inyecta dentro del propio documento del iframe: sondea document.getAnimations()
   // hasta que las animaciones que el SVG dispara por su cuenta se hayan asentado, y
@@ -110,7 +180,10 @@ function injectCompletionWatchdog(markup: string, token: string, targetAnimation
 (function () {
   var token = ${JSON.stringify(token)};
   var targetAnimationId = ${JSON.stringify(targetAnimationId ?? null)};
+  var finished = false;
   function finish() {
+    if (finished) return;
+    finished = true;
     try { window.parent.postMessage({ __autoDrawWatchdog: token }, '*'); } catch (e) {}
   }
   var svgRoot = document.querySelector('svg');
@@ -129,9 +202,25 @@ function injectCompletionWatchdog(markup: string, token: string, targetAnimation
   for (var i = 0; i < animations.length; i += 1) {
     bindAnimation(animations[i], i);
   }
-  if (svgRoot && targetAnimationId && targetAnimationId.indexOf('__auto_draw_event_') === 0) {
+  if (!targetAnimationId && animations.length > 0) {
+    var lastAnim = animations[animations.length - 1];
+    if (lastAnim && typeof lastAnim.addEventListener === 'function') {
+      lastAnim.addEventListener('endEvent', finish, { once: true });
+    }
+  }
+  if (targetAnimationId && targetAnimationId.indexOf('__auto_draw_event_') === 0) {
     var eventName = targetAnimationId.slice('__auto_draw_event_'.length);
-    svgRoot.addEventListener(eventName, finish, { once: true });
+    if (svgRoot) svgRoot.addEventListener(eventName, finish, { once: true });
+    window.addEventListener(eventName, finish, { once: true });
+    document.addEventListener(eventName, finish, { once: true });
+  } else {
+    var commonEvents = ['sello-erased', 'intro-complete', 'animationend'];
+    for (var j = 0; j < commonEvents.length; j += 1) {
+      var ev = commonEvents[j];
+      if (svgRoot) svgRoot.addEventListener(ev, finish, { once: true });
+      window.addEventListener(ev, finish, { once: true });
+      document.addEventListener(ev, finish, { once: true });
+    }
   }
   var watchdogTimer = window.setTimeout(function () {
     finish();
@@ -503,7 +592,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
   const timersRef = useRef<number[]>([]);
   const [restartTick, setRestartTick] = useState(0);
   const [detectedAspectRatio, setDetectedAspectRatio] = useState<{ width: number; height: number } | null>(null);
-  const [animatedSvgUrl, setAnimatedSvgUrl] = useState<string | null>(null);
+  const [animatedSvgDoc, setAnimatedSvgDoc] = useState<string | null>(null);
   const watchdogTokenRef = useRef(0);
   const onNativeAnimationDetectedRef = useRef(onNativeAnimationDetected);
   const onNativeAnimationsDetectedRef = useRef(onNativeAnimationsDetected);
@@ -512,9 +601,15 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
 
   useEffect(() => {
     if (!svgMarkup) {
-      setAnimatedSvgUrl(null);
+      setAnimatedSvgDoc(null);
       onNativeAnimationsDetectedRef.current?.([]);
       return;
+    }
+
+    const ratio = detectSvgAspectRatioFromMarkup(svgMarkup);
+    if (ratio) {
+      setDetectedAspectRatio(ratio);
+      onAspectRatioDetected?.(ratio.width / ratio.height);
     }
 
     const nativeAnimations = parseNativeSvgAnimations(svgMarkup);
@@ -524,19 +619,17 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     onNativeAnimationDetectedRef.current?.(hasNativeAnimation);
 
     if (!hasNativeAnimation) {
-      setAnimatedSvgUrl(null);
+      setAnimatedSvgDoc(null);
       return;
     }
 
     watchdogTokenRef.current += 1;
     const markupWithWatchdog = injectCompletionWatchdog(svgMarkup, String(watchdogTokenRef.current), nativeAnimationId);
-    const blobUrl = URL.createObjectURL(new Blob([markupWithWatchdog], { type: "image/svg+xml" }));
-    setAnimatedSvgUrl(blobUrl);
-    return () => URL.revokeObjectURL(blobUrl);
-  }, [nativeAnimationId, svgMarkup]);
+    setAnimatedSvgDoc(buildIframeDoc(markupWithWatchdog));
+  }, [nativeAnimationId, onAspectRatioDetected, svgMarkup]);
 
   useEffect(() => {
-    if (!animatedSvgUrl || !animate || !onComplete) return;
+    if (!animatedSvgDoc || !animate || !onComplete) return;
     let done = false;
     const currentToken = String(watchdogTokenRef.current);
 
@@ -562,7 +655,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
       window.removeEventListener("message", handleMessage);
       window.clearTimeout(failsafe);
     };
-  }, [animatedSvgUrl, animate, durationMs, maxEsperaMs, onComplete]);
+  }, [animatedSvgDoc, animate, durationMs, maxEsperaMs, onComplete]);
 
   const clearRunningAnimations = useCallback(() => {
     for (const animation of animationsRef.current) {
@@ -825,16 +918,17 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
         overflow: "visible",
         aspectRatio: detectedAspectRatio ? `${detectedAspectRatio.width} / ${detectedAspectRatio.height}` : undefined,
       }}
-      dangerouslySetInnerHTML={!nativeMarkupDetected && !animatedSvgUrl
+      dangerouslySetInnerHTML={!nativeMarkupDetected && !animatedSvgDoc
         ? (isInline ? { __html: svgSource } : svgMarkup ? { __html: svgMarkup } : undefined)
         : undefined}
     >
-      {animatedSvgUrl ? (
+      {animatedSvgDoc ? (
         <iframe
           title="SVG animado"
-          src={animatedSvgUrl}
-          sandbox="allow-scripts"
+          srcDoc={animatedSvgDoc}
+          sandbox="allow-scripts allow-same-origin"
           className="h-full w-full border-0"
+          style={{ background: "transparent" }}
           aria-hidden="true"
         />
       ) : null}
