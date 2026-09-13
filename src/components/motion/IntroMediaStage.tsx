@@ -35,6 +35,10 @@ export default function IntroMediaStage({ mediaUrl, fondo, maxEsperaMs = 9000, o
 
   useEffect(() => {
     firedRef.current = false;
+    if (!mediaUrl) {
+      fireOnce();
+      return;
+    }
     const timer = window.setTimeout(fireOnce, Math.max(1000, maxEsperaMs));
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -42,21 +46,23 @@ export default function IntroMediaStage({ mediaUrl, fondo, maxEsperaMs = 9000, o
 
   return (
     <div className={className} style={{ backgroundColor: fondo }}>
-      {isHtml ? (
-        <LineAliveEmbed
-          src={resolvedSrc}
-          title="Animación de introducción"
-          fit="cover"
-          lockAspectRatio={false}
-          className="h-full w-full rounded-none border-0"
-          iframeClassName="rounded-none"
-          loadingLabel=""
-          onEnded={fireOnce}
-        />
-      ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={resolvedSrc} alt="" className="h-full w-full object-cover" onLoad={fireOnce} />
-      )}
+      {mediaUrl ? (
+        isHtml ? (
+          <LineAliveEmbed
+            src={resolvedSrc}
+            title="Animación de introducción"
+            fit="cover"
+            lockAspectRatio={false}
+            className="h-full w-full rounded-none border-0"
+            iframeClassName="rounded-none"
+            loadingLabel=""
+            onEnded={fireOnce}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={resolvedSrc} alt="" className="h-full w-full object-cover" onLoad={fireOnce} />
+        )
+      ) : null}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 export type DeviceViewport = "desktop" | "movil";
 
-const MOBILE_QUERY = "(max-width: 767px)";
+const MOBILE_QUERY = "(max-width: 768px)";
 
 /**
  * Detecta si el viewport actual corresponde a móvil o escritorio usando el
