@@ -2,13 +2,57 @@
 
 import { useCallback, useEffect, useSyncExternalStore, useState, type CSSProperties, type ReactNode } from "react";
 import { IntroProvider } from "@/contexts/IntroContext";
-import AutoDrawSVG from "@/components/motion/AutoDrawSVG";
+import AutoDrawSVG, { parseNativeSvgAnimations, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
 import IntroAnimationStage from "@/components/motion/IntroAnimationStage";
 import { useDeviceViewport } from "@/components/motion/useDeviceViewport";
 import { normalizeIntroConfig, type IntroDeviceConfig, type IntroSeccionConfig } from "@/config/wedding.config";
 
 const DEFAULT_LACRE = "/images/Sello.svg";
 const DEFAULT_DEVICE_CONFIG: IntroDeviceConfig = { tipo: "revealBook" };
+
+/**
+ * Detecta una sola vez si el SVG del lacre tiene animación nativa (SMIL/script).
+ * Solo detecta cuando el SVG se carga la primera vez; cambios posteriores en la URL
+ * no afectan a este hook (se asume que la URL del lacre no cambia durante la sesión).
+ */
+function useLacreNativeAnimationDetection(lacreUrl: string): { hasNativeAnimation: boolean; nativeAnimationOptions: NativeSvgAnimationOption[]; } {
+  const [state, setState] = useState({ hasNativeAnimation: false, nativeAnimationOptions: [] as NativeSvgAnimationOption[] });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const detectAnimation = async () => {
+      try {
+        const res = await fetch(lacreUrl);
+        if (!isMounted || !res.ok) {
+          if (isMounted) setState({ hasNativeAnimation: false, nativeAnimationOptions: [] });
+          return;
+        }
+
+        const text = await res.text();
+        if (!isMounted) return;
+
+        const options = parseNativeSvgAnimations(text);
+        setState({
+          hasNativeAnimation: options.length > 0 || /<(?:script|animate|animateTransform|set)\b/i.test(text),
+          nativeAnimationOptions: options,
+        });
+      } catch {
+        if (isMounted) {
+          setState({ hasNativeAnimation: false, nativeAnimationOptions: [] });
+        }
+      }
+    };
+
+    void detectAnimation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [lacreUrl]);
+
+  return state;
+}
 
 type Props = {
   config: IntroSeccionConfig;
@@ -32,10 +76,29 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
     () => false,
   );
 
+  const { hasNativeAnimation: lacreHasNativeAnimation, nativeAnimationOptions } = useLacreNativeAnimationDetection(config.lacreUrl || DEFAULT_LACRE);
+  const configuredNativeAnimationId = config.lacreTriggerAnimationId;
+  const selectedNativeAnimationId = configuredNativeAnimationId && nativeAnimationOptions.some((animation) => animation.id === configuredNativeAnimationId)
+    ? configuredNativeAnimationId
+    : (nativeAnimationOptions.length === 1 ? nativeAnimationOptions[0].id : undefined);
+  const hasSelectedNativeTrigger = nativeAnimationOptions.length <= 1 || Boolean(selectedNativeAnimationId);
+
   const completeIntro = useCallback(() => {
     window.localStorage.setItem(storageKey, "1");
     setUnlocked(true);
   }, [storageKey]);
+
+  const startIntro = () => {
+    if (closingLacre) return;
+    setClosingLacre(true);
+  };
+
+  const finishLacre = useCallback(() => {
+    if (!closingLacre) return;
+    setLacreGone(true);
+    setStarted(true);
+    setClosingLacre(false);
+  }, [closingLacre]);
 
   const themeValue = (name: string): string | undefined =>
     (themeStyle as (CSSProperties & Record<string, unknown>) | undefined)?.[name] as string | undefined;
@@ -68,17 +131,29 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
     };
   }, [config.activo, unlocked, visitRecorded]);
 
-  const startIntro = () => {
-    if (closingLacre) return;
-    setClosingLacre(true);
-  };
+  const finishLacreWithDelay = useCallback(() => {
+    const delay = Math.max(0, config.pausaTrasTriggerMs ?? 0);
+    if (delay > 0) {
+      setTimeout(() => {
+        finishLacre();
+      }, delay);
+    } else {
+      finishLacre();
+    }
+  }, [config.pausaTrasTriggerMs, finishLacre]);
 
-  const finishLacre = useCallback(() => {
-    if (!closingLacre) return;
-    setLacreGone(true);
-    setStarted(true);
-    setClosingLacre(false);
-  }, [closingLacre]);
+  const finishAutoLacre = useCallback(() => {
+    const delay = Math.max(0, config.pausaTrasTriggerMs ?? 0);
+    if (delay > 0) {
+      setTimeout(() => {
+        setLacreGone(true);
+        setStarted(true);
+      }, delay);
+    } else {
+      setLacreGone(true);
+      setStarted(true);
+    }
+  }, [config.pausaTrasTriggerMs]);
 
   if (!config.activo || unlocked || visitRecorded) {
     return <>{children}</>;
@@ -102,28 +177,51 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
               <p className="mt-2 text-xs uppercase tracking-[0.24em] text-[var(--cream)] opacity-70">{introSubtitle}</p>
             ) : null}
             {!lacreGone ? (
-              <button
-                type="button"
-                className="group mx-auto mt-8 block focus:outline-none"
-                onClick={startIntro}
-                aria-label="Abrir invitación"
-              >
+              lacreHasNativeAnimation ? (
+                // El lacre tiene animación nativa: se reproduce automáticamente,
+                // y su finalización dispara automáticamente la siguiente etapa.
                 <span
-                  className="mx-auto block aspect-square w-[clamp(7rem,24vw,13rem)]"
+                  className="mx-auto mt-8 block aspect-square w-[clamp(7rem,24vw,13rem)]"
                   style={{ color: themeValue("--bronze-light") || "#C4964A", backgroundColor: introBackground }}
+                  aria-label="Abriendo invitación"
                 >
                   <AutoDrawSVG
                     svgSource={config.lacreUrl || DEFAULT_LACRE}
-                    direction={closingLacre ? "reverse" : "forward"}
-                    animate={closingLacre}
+                    animate
                     strokeColorOverride={themeValue("--bronze-light")}
                     durationMs={Math.max(300, config.duracionLacreMs ?? 900)}
                     sequential={false}
-                    onComplete={finishLacre}
+                    nativeAnimationId={selectedNativeAnimationId}
+                    onComplete={hasSelectedNativeTrigger ? finishAutoLacre : undefined}
                     className="h-full w-full"
                   />
                 </span>
-              </button>
+              ) : (
+                // El lacre es un SVG estático: espera clic para dibujarse y luego otro
+                // clic (u onComplete) para abrir la siguiente etapa.
+                <button
+                  type="button"
+                  className="group mx-auto mt-8 block focus:outline-none"
+                  onClick={startIntro}
+                  aria-label="Abrir invitación"
+                >
+                  <span
+                    className="mx-auto block aspect-square w-[clamp(7rem,24vw,13rem)]"
+                    style={{ color: themeValue("--bronze-light") || "#C4964A", backgroundColor: introBackground }}
+                  >
+                    <AutoDrawSVG
+                      svgSource={config.lacreUrl || DEFAULT_LACRE}
+                      direction={closingLacre ? "reverse" : "forward"}
+                      animate={closingLacre}
+                      strokeColorOverride={themeValue("--bronze-light")}
+                      durationMs={Math.max(300, config.duracionLacreMs ?? 900)}
+                      sequential={false}
+                      onComplete={finishLacreWithDelay}
+                      className="h-full w-full"
+                    />
+                  </span>
+                </button>
+              )
             ) : null}
             {showIntroSkip ? (
               <button type="button" onClick={completeIntro} className="mx-auto mt-8 block text-xs uppercase tracking-[0.2em] text-[var(--cream)] underline underline-offset-4 opacity-80 hover:opacity-100">

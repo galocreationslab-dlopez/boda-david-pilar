@@ -178,6 +178,14 @@ export type IntroCustomConfig = {
   maxEsperaMs?: number;
 };
 
+export type NativeSvgAnimationOption = {
+  id: string;
+  label: string;
+  begin?: string;
+  duration?: string;
+  tagName: string;
+};
+
 export type IntroDeviceConfig = {
   tipo: IntroAnimationType;
   revealBook?: IntroRevealBookConfig;
@@ -195,7 +203,9 @@ export type IntroSeccionConfig = {
   textoSubtitulo?: string;
   textoSaltar?: string;
   lacreUrl?: string;
+  lacreTriggerAnimationId?: string;
   duracionLacreMs?: number;
+  pausaTrasTriggerMs?: number;
   bordeIntroPx?: number;
   // Animación tras el lacre, configurable por separado para PC y móvil.
   pc?: IntroDeviceConfig;

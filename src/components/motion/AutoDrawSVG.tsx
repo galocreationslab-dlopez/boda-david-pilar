@@ -18,6 +18,19 @@ export const MAX_ELEMENTOS_INDIVIDUALES = 60;
 const DRAWABLE_SELECTOR = "path,line,circle,ellipse,polyline,polygon";
 const DEFAULT_STAGGER_MS = 80;
 const DEFAULT_DURATION_MS = 900;
+const DEFAULT_MAX_ESPERA_MS = 12000;
+// Si el SVG trae su propia animacion (SMIL o Web Animations API via <script>),
+// dejamos de fiarnos de un numero de duracion introducido a mano y esperamos
+// a que esa animacion realmente termine dentro del iframe aislado.
+const NATIVE_ANIMATION_PATTERN = /<(?:script|animate|animateTransform|set)\b/i;
+
+export type NativeSvgAnimationOption = {
+  id: string;
+  label: string;
+  begin?: string;
+  duration?: string;
+  tagName: string;
+};
 
 export type AutoDrawSVGProps = {
   svgSource: string;
@@ -27,11 +40,113 @@ export type AutoDrawSVGProps = {
   strokeColorOverride?: string;
   staggerMs?: number;
   durationMs?: number;
+  /** Tope de seguridad si el SVG trae animacion propia y nunca avisa que termino. */
+  maxEsperaMs?: number;
   sequential?: boolean;
   onComplete?: () => void;
   onAspectRatioDetected?: (ratio: number) => void;
+  /** Avisa si el SVG cargado trae animacion propia (script/SMIL) en vez del dibujo manual. */
+  onNativeAnimationDetected?: (detected: boolean) => void;
+  /** Devuelve las animaciones nativas detectadas para que el editor pueda elegir el trigger. */
+  onNativeAnimationsDetected?: (animations: NativeSvgAnimationOption[]) => void;
+  /** Si está definido, espera la finalización de la animación nativa concreta elegida. */
+  nativeAnimationId?: string;
   respectReducedMotion?: boolean;
 };
+
+export function parseNativeSvgAnimations(markup: string): NativeSvgAnimationOption[] {
+  if (typeof DOMParser === "undefined") return [];
+
+  try {
+    const doc = new DOMParser().parseFromString(markup, "image/svg+xml");
+    const parserError = doc.querySelector("parsererror");
+    if (parserError) return [];
+
+    const candidates = Array.from(doc.querySelectorAll("animate, animateTransform, animateMotion, set"));
+    const animations: NativeSvgAnimationOption[] = candidates.map((element, index) => {
+      const originalId = element.getAttribute("id");
+      const id = originalId || `__auto_draw_animation_${index}`;
+      if (!element.getAttribute("id")) {
+        element.setAttribute("id", id);
+      }
+      const tagName = element.tagName.toLowerCase();
+      return {
+        id,
+        label: originalId || `${tagName}-${index + 1}`,
+        begin: element.getAttribute("begin") ?? undefined,
+        duration: element.getAttribute("dur") ?? undefined,
+        tagName,
+      };
+    });
+
+    const scripts = Array.from(doc.querySelectorAll("script")).map((script) => script.textContent ?? "").join("\n");
+    const customEvents = new Set<string>();
+    const eventPattern = /new\s+CustomEvent\s*\(\s*["']([^"']+)["']/g;
+    let eventMatch: RegExpExecArray | null;
+    while ((eventMatch = eventPattern.exec(scripts)) !== null) {
+      customEvents.add(eventMatch[1]);
+    }
+
+    for (const eventName of customEvents) {
+      animations.push({
+        id: `__auto_draw_event_${eventName}`,
+        label: `Evento: ${eventName}`,
+        tagName: "script",
+      });
+    }
+
+    return animations;
+  } catch {
+    return [];
+  }
+}
+
+function injectCompletionWatchdog(markup: string, token: string, targetAnimationId?: string): string {
+  // Se inyecta dentro del propio documento del iframe: sondea document.getAnimations()
+  // hasta que las animaciones que el SVG dispara por su cuenta se hayan asentado, y
+  // entonces avisa al padre por postMessage para usar ese instante como disparador real.
+  const watchdog = `
+<script><![CDATA[
+(function () {
+  var token = ${JSON.stringify(token)};
+  var targetAnimationId = ${JSON.stringify(targetAnimationId ?? null)};
+  function finish() {
+    try { window.parent.postMessage({ __autoDrawWatchdog: token }, '*'); } catch (e) {}
+  }
+  var svgRoot = document.querySelector('svg');
+  function bindAnimation(el, index) {
+    if (!el || typeof el.addEventListener !== 'function') return;
+    var id = el.getAttribute && el.getAttribute('id');
+    if (!id) {
+      id = '__auto_draw_animation_' + index;
+      el.setAttribute('id', id);
+    }
+    if (targetAnimationId && id === targetAnimationId) {
+      el.addEventListener('endEvent', finish, { once: true });
+    }
+  }
+  var animations = document.querySelectorAll('animate, animateTransform, animateMotion, set');
+  for (var i = 0; i < animations.length; i += 1) {
+    bindAnimation(animations[i], i);
+  }
+  if (svgRoot && targetAnimationId && targetAnimationId.indexOf('__auto_draw_event_') === 0) {
+    var eventName = targetAnimationId.slice('__auto_draw_event_'.length);
+    svgRoot.addEventListener(eventName, finish, { once: true });
+  }
+  var watchdogTimer = window.setTimeout(function () {
+    finish();
+  }, 12000);
+  window.addEventListener('beforeunload', function () {
+    window.clearTimeout(watchdogTimer);
+  });
+})();
+]]></script>`;
+
+  if (/<\/svg>\s*$/i.test(markup)) {
+    return markup.replace(/<\/svg>\s*$/i, `${watchdog}\n</svg>`);
+  }
+  return `${markup}${watchdog}`;
+}
 
 export type AutoDrawSVGHandle = {
   restart: () => void;
@@ -366,38 +481,88 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     strokeColorOverride,
     staggerMs = DEFAULT_STAGGER_MS,
     durationMs = DEFAULT_DURATION_MS,
+    maxEsperaMs = DEFAULT_MAX_ESPERA_MS,
     sequential = true,
     onComplete,
     onAspectRatioDetected,
+    onNativeAnimationDetected,
+    onNativeAnimationsDetected,
+    nativeAnimationId,
     respectReducedMotion = true,
   },
   ref,
 ) {
   const isInline = useMemo(() => isInlineSvg(svgSource), [svgSource]);
   const [svgMarkup, setSvgMarkup] = useState<string | null>(() => (isInline ? svgSource : null));
+  const nativeMarkupDetected = useMemo(
+    () => !!svgMarkup && (parseNativeSvgAnimations(svgMarkup).length > 0 || NATIVE_ANIMATION_PATTERN.test(svgMarkup)),
+    [svgMarkup],
+  );
   const containerRef = useRef<HTMLDivElement | null>(null);
   const animationsRef = useRef<Animation[]>([]);
   const timersRef = useRef<number[]>([]);
   const [restartTick, setRestartTick] = useState(0);
   const [detectedAspectRatio, setDetectedAspectRatio] = useState<{ width: number; height: number } | null>(null);
   const [animatedSvgUrl, setAnimatedSvgUrl] = useState<string | null>(null);
+  const watchdogTokenRef = useRef(0);
+  const onNativeAnimationDetectedRef = useRef(onNativeAnimationDetected);
+  const onNativeAnimationsDetectedRef = useRef(onNativeAnimationsDetected);
+  onNativeAnimationDetectedRef.current = onNativeAnimationDetected;
+  onNativeAnimationsDetectedRef.current = onNativeAnimationsDetected;
 
   useEffect(() => {
-    if (!svgMarkup || !/<(?:script|animate|animateTransform|set)\b/i.test(svgMarkup)) {
+    if (!svgMarkup) {
+      setAnimatedSvgUrl(null);
+      onNativeAnimationsDetectedRef.current?.([]);
+      return;
+    }
+
+    const nativeAnimations = parseNativeSvgAnimations(svgMarkup);
+    onNativeAnimationsDetectedRef.current?.(nativeAnimations);
+
+    const hasNativeAnimation = nativeAnimations.length > 0 || NATIVE_ANIMATION_PATTERN.test(svgMarkup);
+    onNativeAnimationDetectedRef.current?.(hasNativeAnimation);
+
+    if (!hasNativeAnimation) {
       setAnimatedSvgUrl(null);
       return;
     }
 
-    const blobUrl = URL.createObjectURL(new Blob([svgMarkup], { type: "image/svg+xml" }));
+    watchdogTokenRef.current += 1;
+    const markupWithWatchdog = injectCompletionWatchdog(svgMarkup, String(watchdogTokenRef.current), nativeAnimationId);
+    const blobUrl = URL.createObjectURL(new Blob([markupWithWatchdog], { type: "image/svg+xml" }));
     setAnimatedSvgUrl(blobUrl);
     return () => URL.revokeObjectURL(blobUrl);
-  }, [svgMarkup]);
+  }, [nativeAnimationId, svgMarkup]);
 
   useEffect(() => {
     if (!animatedSvgUrl || !animate || !onComplete) return;
-    const timer = window.setTimeout(onComplete, Math.max(0, durationMs));
-    return () => window.clearTimeout(timer);
-  }, [animatedSvgUrl, animate, durationMs, onComplete]);
+    let done = false;
+    const currentToken = String(watchdogTokenRef.current);
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      onComplete();
+    };
+
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data as { __autoDrawWatchdog?: string } | null | undefined;
+      if (data && data.__autoDrawWatchdog === currentToken) {
+        finish();
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    // Tope de seguridad: si el watchdog interno nunca avisa (navegador sin
+    // getAnimations, SVG sin animacion real pese al regex, etc.), no bloqueamos la intro.
+    const failsafe = window.setTimeout(finish, Math.max(durationMs, maxEsperaMs));
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      window.clearTimeout(failsafe);
+    };
+  }, [animatedSvgUrl, animate, durationMs, maxEsperaMs, onComplete]);
 
   const clearRunningAnimations = useCallback(() => {
     for (const animation of animationsRef.current) {
@@ -660,7 +825,9 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
         overflow: "visible",
         aspectRatio: detectedAspectRatio ? `${detectedAspectRatio.width} / ${detectedAspectRatio.height}` : undefined,
       }}
-      dangerouslySetInnerHTML={!animatedSvgUrl ? (isInline ? { __html: svgSource } : svgMarkup ? { __html: svgMarkup } : undefined) : undefined}
+      dangerouslySetInnerHTML={!nativeMarkupDetected && !animatedSvgUrl
+        ? (isInline ? { __html: svgSource } : svgMarkup ? { __html: svgMarkup } : undefined)
+        : undefined}
     >
       {animatedSvgUrl ? (
         <iframe

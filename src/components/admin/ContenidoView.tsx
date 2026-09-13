@@ -5,6 +5,7 @@ import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig } from "@/config/wedding.config";
+import { parseNativeSvgAnimations, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
 import type {
   EventoHistoria,
   EventoTimeline,
@@ -70,6 +71,7 @@ function buildDefaultIntroConfig(): IntroSeccionConfig {
     textoSaltar: "",
     lacreUrl: "",
     duracionLacreMs: 900,
+    pausaTrasTriggerMs: 0,
     bordeIntroPx: 0,
     pc: buildDefaultIntroDeviceConfig(),
     movil: buildDefaultIntroDeviceConfig(),
@@ -507,6 +509,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [uploadingHistoriaId, setUploadingHistoriaId] = useState<string | null>(null);
   const [uploadingAssetKey, setUploadingAssetKey] = useState<string | null>(null);
   const [introDeviceTab, setIntroDeviceTab] = useState<"pc" | "movil">("pc");
+  const [lacreNativeAnimations, setLacreNativeAnimations] = useState<NativeSvgAnimationOption[]>([]);
   const [lineAliveGenerating, setLineAliveGenerating] = useState<Record<string, boolean>>({});
   const [contextMenu, setContextMenu] = useState<{ itemId: string; x: number; y: number } | null>(null);
 
@@ -521,6 +524,31 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     () => (selectedSection?.tipo === "intro" ? normalizeIntroConfig(selectedSection.intro) ?? buildDefaultIntroConfig() : undefined),
     [selectedSection],
   );
+
+  useEffect(() => {
+    const lacreUrl = introConfig?.lacreUrl?.trim();
+    if (!lacreUrl) {
+      setLacreNativeAnimations([]);
+      return;
+    }
+
+    let cancelled = false;
+    const loadAnimations = async () => {
+      try {
+        const response = await fetch(lacreUrl, { cache: "no-store" });
+        if (!response.ok) throw new Error("No se pudo leer el SVG");
+        const markup = await response.text();
+        if (!cancelled) setLacreNativeAnimations(parseNativeSvgAnimations(markup));
+      } catch {
+        if (!cancelled) setLacreNativeAnimations([]);
+      }
+    };
+
+    void loadAnimations();
+    return () => {
+      cancelled = true;
+    };
+  }, [introConfig?.lacreUrl]);
 
   const resourcesForHistoria = useMemo(
     () =>
@@ -1130,18 +1158,51 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     accept="image/*"
                   />
 
-                  <div>
-                    <label className="label-field">Duracion del lacre (ms)</label>
-                    <input
-                      type="number"
-                      min={300}
-                      max={5000}
-                      step={50}
-                      className="input-field max-w-xs"
-                      value={introConfig.duracionLacreMs ?? 900}
-                      onChange={(e) => patchIntro({ duracionLacreMs: Math.max(300, Number(e.target.value) || 300) })}
-                    />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="label-field">Duracion del lacre (ms)</label>
+                      <input
+                        type="number"
+                        min={300}
+                        max={5000}
+                        step={50}
+                        className="input-field"
+                        value={introConfig.duracionLacreMs ?? 900}
+                        onChange={(e) => patchIntro({ duracionLacreMs: Math.max(300, Number(e.target.value) || 300) })}
+                      />
+                    </div>
+                    <div>
+                      <label className="label-field">Espera tras trigger (ms)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={5000}
+                        step={50}
+                        className="input-field"
+                        value={introConfig.pausaTrasTriggerMs ?? 0}
+                        onChange={(e) => patchIntro({ pausaTrasTriggerMs: Math.max(0, Number(e.target.value) || 0) })}
+                      />
+                    </div>
                   </div>
+
+                  {lacreNativeAnimations.length > 0 && (
+                    <div>
+                      <label className="label-field">Animacion trigger del lacre</label>
+                      <select
+                        className="input-field"
+                        value={introConfig.lacreTriggerAnimationId ?? ""}
+                        onChange={(e) => patchIntro({ lacreTriggerAnimationId: e.target.value || undefined })}
+                      >
+                        <option value="">{lacreNativeAnimations.length === 1 ? "Automatica (unica animacion)" : "Selecciona una animacion"}</option>
+                        {lacreNativeAnimations.map((animation) => (
+                          <option key={animation.id} value={animation.id}>{animation.label}</option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-stone-500">
+                        Selecciona qué animación del SVG debe disparar la transición a la siguiente fase.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="border-t border-stone-200 pt-4">
                     <p className="label-field">Animacion tras el lacre (independiente por dispositivo)</p>
