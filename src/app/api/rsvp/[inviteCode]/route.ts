@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { computeInvitacionEstado } from "@/lib/rsvp-status";
 
 type RSVPUpdateBody = {
   asistencia_estimada?: "si" | "no" | "pendiente";
@@ -102,12 +103,11 @@ export async function POST(
       return NextResponse.json({ error: "Invitación no encontrada" }, { status: 404 });
     }
 
-    const estadoInvitacion =
-      body.asistencia_estimada === "si"
-        ? "confirmada"
-        : body.asistencia_estimada === "no"
-          ? "rechazada"
-          : "pendiente_respondida";
+    const personas = Array.isArray(body.personas) ? body.personas : [];
+
+    const estadoInvitacion = computeInvitacionEstado(
+      personas.map((persona) => (persona.asistira === "si" ? "si" : persona.asistira === "no" ? "no" : "pendiente")),
+    );
 
     const { error: updateError } = await supabase
       .from("invitaciones")
@@ -119,8 +119,6 @@ export async function POST(
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
-
-    const personas = Array.isArray(body.personas) ? body.personas : [];
 
     for (const persona of personas as RSVPPersona[]) {
       const payload = {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { computeInvitacionEstado } from "@/lib/rsvp-status";
 
 type RSVPCreateBody = {
   weddingSlug?: string;
@@ -54,6 +55,10 @@ export async function POST(request: Request) {
     const inviteCode = body.invite_code || crypto.randomUUID().slice(0, 8);
     const personas = Array.isArray(body.personas) ? body.personas : [];
 
+    const estadosAsistencia = personas.length
+      ? personas.map((persona) => (persona.asistira === "si" ? "si" : persona.asistira === "no" ? "no" : "pendiente"))
+      : [body.confirma === true ? "si" : body.confirma === false ? "no" : "pendiente"];
+
     const { data: invitacionData, error: invitacionError } = await supabase
       .from("invitaciones")
       .insert({
@@ -62,7 +67,7 @@ export async function POST(request: Request) {
         nombre_visible: body.nombre_visible || body.nombre || "Invitación",
         tipo_invitacion: body.tipo_invitacion || "individual",
         adultos_estimados: Number(body.adultos_estimados || personas.length || 1),
-        estado: body.confirma === true ? "confirmada" : "pendiente",
+        estado: computeInvitacionEstado(estadosAsistencia),
       })
       .select("id")
       .single();

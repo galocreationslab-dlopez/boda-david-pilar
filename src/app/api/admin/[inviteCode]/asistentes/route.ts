@@ -6,6 +6,16 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { validateAdminCode } from "@/lib/admin-auth";
+import { computeInvitacionEstado } from "@/lib/rsvp-status";
+
+async function syncInvitacionEstado(supabase: ReturnType<typeof createServerClient>, invitationId: string) {
+  const { data: asistentes } = await supabase
+    .from("asistentes")
+    .select("estado_asistencia")
+    .eq("invitation_id", invitationId);
+  const estado = computeInvitacionEstado((asistentes ?? []).map((a) => a.estado_asistencia));
+  await supabase.from("invitaciones").update({ estado }).eq("id", invitationId);
+}
 
 export async function POST(req: Request, { params }: { params: Promise<{ inviteCode: string }> }) {
   const { inviteCode } = await params;
@@ -27,5 +37,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ inviteC
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await syncInvitacionEstado(supabase, body.invitation_id);
   return NextResponse.json({ ok: true, asistente: data });
 }
+
