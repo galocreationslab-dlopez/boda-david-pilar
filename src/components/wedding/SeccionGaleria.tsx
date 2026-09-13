@@ -2,6 +2,7 @@
 
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
+import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 type PrivateMediaItem = {
@@ -205,10 +206,10 @@ export function SeccionGaleria({
                       </>
                     )}
                     {item.tipo === "video" ? (
-                      <video className="h-full w-full object-cover" controls src={item.url_publica ?? undefined} />
+                      <video className="h-full w-full object-cover" controls src={resolveDriveMediaSrc(item.url_publica) || undefined} />
                     ) : (
                       <img
-                        src={item.url_publica ?? ""}
+                        src={resolveDriveMediaSrc(item.url_publica)}
                         alt={item.nombre}
                         className="h-full w-full object-cover"
                         onClick={(event) => {
@@ -279,9 +280,9 @@ export function SeccionGaleria({
                   <article key={item.id} className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
                     <div className="aspect-[4/3] bg-stone-100">
                       {item.tipo === "video" ? (
-                        <video src={item.url_publica ?? undefined} className="h-full w-full object-cover" controls />
+                        <video src={resolveDriveMediaSrc(item.url_publica) || undefined} className="h-full w-full object-cover" controls />
                       ) : (
-                        <img src={item.url_publica ?? ""} alt={item.nombre} className="h-full w-full object-cover" />
+                        <img src={resolveDriveMediaSrc(item.url_publica)} alt={item.nombre} className="h-full w-full object-cover" />
                       )}
                     </div>
                     <div className="space-y-2 p-4">

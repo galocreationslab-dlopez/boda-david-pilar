@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import { isLikelyLineAliveHtmlUrl, resolvePublicLineAliveSrc } from "@/lib/linealive/utils";
+import { resolveDriveMediaSrc } from "@/lib/drive-image";
 
 export type IntroMediaStageProps = {
   mediaUrl?: string;
@@ -26,7 +27,7 @@ export default function IntroMediaStage({ mediaUrl = "", fondo, maxEsperaMs = 90
   onReadyRef.current = onReady;
   const hasMedia = Boolean(mediaUrl?.trim());
   const isHtml = hasMedia && isLikelyLineAliveHtmlUrl(mediaUrl);
-  const resolvedSrc = isHtml ? resolvePublicLineAliveSrc(mediaUrl) : mediaUrl;
+  const resolvedSrc = isHtml ? resolvePublicLineAliveSrc(mediaUrl) : resolveDriveMediaSrc(mediaUrl);
 
   const fireOnce = () => {
     if (firedRef.current) return;
