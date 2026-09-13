@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic";
 type InvitacionRow = {
   id: string;
   nombre_visible: string;
+  nombre1?: string | null;
+  nombre2?: string | null;
   adultos_estimados?: number | null;
   adolescentes_estimados?: number | null;
   ninos_estimados?: number | null;
@@ -17,6 +19,7 @@ type InvitacionRow = {
 type AsistenteRow = {
   id: string;
   nombre: string;
+  apellidos?: string;
   edad: number | null;
   tipo_persona: string;
   estado_asistencia: string;
@@ -31,7 +34,8 @@ function buildPersonasFromInvitation(invitacion: InvitacionRow) {
   for (let index = 0; index < Number(invitacion.adultos_estimados || 0); index += 1) {
     personas.push({
       id: "",
-      nombre: Number(invitacion.adultos_estimados || 0) === 1 ? invitacion.nombre_visible || "Invitado" : `${invitacion.nombre_visible || "Invitado"} - Adulto ${index + 1}`,
+      nombre: index === 0 ? invitacion.nombre1 || "" : index === 1 ? invitacion.nombre2 || "" : "",
+      apellidos: "",
       edad: null,
       tipo_persona: "adulto",
       estado_asistencia: "pendiente",
@@ -44,7 +48,8 @@ function buildPersonasFromInvitation(invitacion: InvitacionRow) {
   for (let index = 0; index < Number(invitacion.adolescentes_estimados || 0); index += 1) {
     personas.push({
       id: "",
-      nombre: `${invitacion.nombre_visible || "Invitado"} - Adolescente ${index + 1}`,
+      nombre: "",
+      apellidos: "",
       edad: null,
       tipo_persona: "adolescente",
       estado_asistencia: "pendiente",
@@ -57,7 +62,8 @@ function buildPersonasFromInvitation(invitacion: InvitacionRow) {
   for (let index = 0; index < Number(invitacion.ninos_estimados || 0); index += 1) {
     personas.push({
       id: "",
-      nombre: `${invitacion.nombre_visible || "Invitado"} - Niño ${index + 1}`,
+      nombre: "",
+      apellidos: "",
       edad: null,
       tipo_persona: "nino",
       estado_asistencia: "pendiente",
@@ -70,7 +76,8 @@ function buildPersonasFromInvitation(invitacion: InvitacionRow) {
   for (let index = 0; index < Number(invitacion.bebes_estimados || 0); index += 1) {
     personas.push({
       id: "",
-      nombre: `${invitacion.nombre_visible || "Invitado"} - Bebé ${index + 1}`,
+      nombre: "",
+      apellidos: "",
       edad: null,
       tipo_persona: "bebe",
       estado_asistencia: "pendiente",

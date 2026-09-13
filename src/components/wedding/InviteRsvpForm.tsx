@@ -7,6 +7,7 @@ import { InviteExtras } from "./InviteExtras";
 type PersonaProps = {
   id?: string;
   nombre: string;
+  apellidos?: string;
   tipo_persona?: string;
   edad?: number | null;
   estado_asistencia?: string;
@@ -151,7 +152,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, galeriaConfig
       return {
       id: p.id,
       nombre: nombreBase || p.nombre,
-      apellidos: resto.join(" "),
+      apellidos: p.apellidos ?? resto.join(" "),
       edad: p.edad?.toString() || "",
       tipo_persona: getTipoPersona(p.tipo_persona),
       asistira:
@@ -324,7 +325,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, galeriaConfig
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             {personasState.map((persona, index) => (
-              <div key={`${persona.nombre}-${index}`} className="rounded-2xl border border-stone-200 p-5">
+              <div key={persona.id || `new-${index}`} className="rounded-2xl border border-stone-200 p-5">
                 <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
                   <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                     <div>
