@@ -380,6 +380,24 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
   const timersRef = useRef<number[]>([]);
   const [restartTick, setRestartTick] = useState(0);
   const [detectedAspectRatio, setDetectedAspectRatio] = useState<{ width: number; height: number } | null>(null);
+  const [animatedSvgUrl, setAnimatedSvgUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!svgMarkup || !/<(?:script|animate|animateTransform|set)\b/i.test(svgMarkup)) {
+      setAnimatedSvgUrl(null);
+      return;
+    }
+
+    const blobUrl = URL.createObjectURL(new Blob([svgMarkup], { type: "image/svg+xml" }));
+    setAnimatedSvgUrl(blobUrl);
+    return () => URL.revokeObjectURL(blobUrl);
+  }, [svgMarkup]);
+
+  useEffect(() => {
+    if (!animatedSvgUrl || !animate || !onComplete) return;
+    const timer = window.setTimeout(onComplete, Math.max(0, durationMs));
+    return () => window.clearTimeout(timer);
+  }, [animatedSvgUrl, animate, durationMs, onComplete]);
 
   const clearRunningAnimations = useCallback(() => {
     for (const animation of animationsRef.current) {
@@ -642,8 +660,18 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
         overflow: "visible",
         aspectRatio: detectedAspectRatio ? `${detectedAspectRatio.width} / ${detectedAspectRatio.height}` : undefined,
       }}
-      dangerouslySetInnerHTML={isInline ? { __html: svgSource } : svgMarkup ? { __html: svgMarkup } : undefined}
-    />
+      dangerouslySetInnerHTML={!animatedSvgUrl ? (isInline ? { __html: svgSource } : svgMarkup ? { __html: svgMarkup } : undefined) : undefined}
+    >
+      {animatedSvgUrl ? (
+        <iframe
+          title="SVG animado"
+          src={animatedSvgUrl}
+          sandbox="allow-scripts"
+          className="h-full w-full border-0"
+          aria-hidden="true"
+        />
+      ) : null}
+    </div>
   );
 });
 

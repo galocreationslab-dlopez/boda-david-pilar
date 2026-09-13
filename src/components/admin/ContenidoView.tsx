@@ -24,6 +24,7 @@ type ResourceItem = {
   url_publica: string | null;
   mime_type: string | null;
   subido_por: string | null;
+  carpeta: string | null;
   created_at: string;
 };
 
@@ -88,13 +89,27 @@ type AssetPickerProps = {
 };
 
 function IntroAssetField({ label, value, onChangeValue, uploading, onUpload, disabled, resources, placeholder, accept }: AssetPickerProps) {
+  const selectedResource = resources.find((resource) => {
+    if (resource.url_publica === value) return true;
+    if (!value || !resource.url_publica) return false;
+    try {
+      const current = new URL(value, window.location.origin);
+      const candidate = new URL(resource.url_publica, window.location.origin);
+      const currentSource = current.searchParams.get("src") ?? current.href;
+      const candidateSource = candidate.searchParams.get("src") ?? candidate.href;
+      return currentSource === candidateSource;
+    } catch {
+      return false;
+    }
+  });
+
   return (
     <div className="space-y-2">
       <label className="label-field">{label}</label>
       <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
         <select
           className="input-field"
-          value={resources.find((resource) => resource.url_publica === value)?.id ?? ""}
+          value={selectedResource?.id ?? ""}
           onChange={(e) => {
             const resource = resources.find((entry) => entry.id === e.target.value) ?? null;
             onChangeValue(resource?.url_publica ?? "");
@@ -508,13 +523,23 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   );
 
   const resourcesForHistoria = useMemo(
-    () => resources.filter((item) => item.mime_type?.startsWith("image/") || item.mime_type === null),
+    () =>
+      resources.filter(
+        (item) =>
+          (item.mime_type?.startsWith("image/") || item.mime_type === null) &&
+          (item.carpeta ?? "").toLowerCase() === "historia",
+      ),
+    [resources],
+  );
+
+  const resourcesForIntro = useMemo(
+    () => resources.filter((item) => (item.carpeta ?? "").toLowerCase() === "intro"),
     [resources],
   );
 
   const findResourceByImageUrl = useCallback(
-    (imageUrl?: string) => resourcesForHistoria.find((item) => item.url_publica === imageUrl) ?? null,
-    [resourcesForHistoria],
+    (imageUrl?: string) => resources.find((item) => item.url_publica === imageUrl) ?? null,
+    [resources],
   );
 
   const buildAdminLineAliveSrc = useCallback(
@@ -531,7 +556,8 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     const loadResources = async () => {
       setLoadingResources(true);
       try {
-        const response = await fetch(`/api/admin/${inviteCode}/resources`);
+        const sectionParam = selectedSection?.tipo ?? "general";
+        const response = await fetch(`/api/admin/${inviteCode}/resources?section=${encodeURIComponent(sectionParam)}`);
         const data: unknown = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error((data as { error?: string }).error ?? "No se pudieron cargar los recursos");
@@ -549,7 +575,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     };
 
     void loadResources();
-  }, [inviteCode]);
+  }, [inviteCode, selectedSection?.tipo]);
 
   useEffect(() => {
     const closeMenu = () => setContextMenu(null);
@@ -1099,7 +1125,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     uploading={uploadingAssetKey === "lacre"}
                     onUpload={(file) => void uploadGenericAsset("lacre", file, (url) => patchIntro({ lacreUrl: url }))}
                     disabled={!recursosDriveConfigured}
-                    resources={resources}
+                    resources={resourcesForIntro}
                     placeholder="/images/archivo.svg o https://..."
                     accept="image/*"
                   />
@@ -1158,7 +1184,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                             {(deviceConfig.tipo === "revealBook" || deviceConfig.tipo === "cortinas") && (
                               <DualPanelFields
                                 values={deviceConfig[deviceConfig.tipo] ?? {}}
-                                resources={resources}
+                                resources={resourcesForIntro}
                                 uploadingKey={uploadingAssetKey?.startsWith(uploadPrefix) ? uploadingAssetKey.slice(uploadPrefix.length) : null}
                                 onUpload={(key, file) =>
                                   void uploadGenericAsset(`${uploadPrefix}${key}`, file, (url) =>
@@ -1182,7 +1208,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   uploading={uploadingAssetKey === `${uploadPrefix}fadeInMedia`}
                                   onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}fadeInMedia`, file, (url) => patchIntroDeviceSub(device, "fadeIn", { mediaUrl: url }))}
                                   disabled={!recursosDriveConfigured}
-                                  resources={resources}
+                                  resources={resourcesForIntro}
                                   placeholder="/images/archivo.jpg, /LineAlive/archivo.html o https://..."
                                 />
                                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1223,7 +1249,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   uploading={uploadingAssetKey === `${uploadPrefix}focusRegionMedia`}
                                   onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}focusRegionMedia`, file, (url) => patchIntroDeviceSub(device, "focusRegion", { mediaUrl: url }))}
                                   disabled={!recursosDriveConfigured}
-                                  resources={resources}
+                                  resources={resourcesForIntro}
                                   placeholder="/images/archivo.jpg, /LineAlive/archivo.html o https://..."
                                 />
                                 <PolygonRegionEditor
@@ -1282,7 +1308,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   uploading={uploadingAssetKey === `${uploadPrefix}slideUpMedia`}
                                   onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}slideUpMedia`, file, (url) => patchIntroDeviceSub(device, "slideUp", { mediaUrl: url }))}
                                   disabled={!recursosDriveConfigured}
-                                  resources={resources}
+                                  resources={resourcesForIntro}
                                   placeholder="/images/archivo.jpg, /LineAlive/archivo.html o https://..."
                                 />
                                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1323,7 +1349,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   uploading={uploadingAssetKey === `${uploadPrefix}customHtml`}
                                   onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}customHtml`, file, (url) => patchIntroDeviceSub(device, "custom", { htmlUrl: url }))}
                                   disabled={!recursosDriveConfigured}
-                                  resources={resources}
+                                  resources={resourcesForIntro}
                                   placeholder="/LineAlive/archivo.html o https://..."
                                   accept=".html,.htm"
                                 />

@@ -5,8 +5,12 @@
  */
 
 import crypto from "node:crypto";
+import { createServerClient } from "@/lib/supabase/server";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+const GOOGLE_DRIVE_OAUTH_SCOPE = "https://www.googleapis.com/auth/drive";
+const GOOGLE_DRIVE_TOKEN_ROW_ID = 1;
 const GOOGLE_DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 const GOOGLE_DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files";
 
@@ -54,22 +58,57 @@ function getServiceAccountCredentials() {
   return { clientEmail, privateKey };
 }
 
-function getOAuthRefreshCredentials() {
+function getOAuthClientCredentials() {
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
 
-  if (!clientId || !clientSecret || !refreshToken) {
+async function getStoredRefreshToken(): Promise<string | null> {
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase
+      .from("google_drive_oauth_tokens")
+      .select("refresh_token")
+      .eq("id", GOOGLE_DRIVE_TOKEN_ROW_ID)
+      .maybeSingle();
+    return data?.refresh_token ?? null;
+  } catch {
     return null;
   }
+}
 
-  return { clientId, clientSecret, refreshToken };
+async function markOAuthTokenHealth(ok: boolean, error?: string): Promise<void> {
+  try {
+    const supabase = createServerClient();
+    await supabase
+      .from("google_drive_oauth_tokens")
+      .update(
+        ok
+          ? { last_verified_at: new Date().toISOString(), last_error: null }
+          : { last_error: error ?? "Error desconocido" },
+      )
+      .eq("id", GOOGLE_DRIVE_TOKEN_ROW_ID);
+  } catch {
+    // La tabla puede no existir todavía (antes de aplicar la migración); no es crítico.
+  }
+}
+
+async function getOAuthRefreshCredentials() {
+  const clientCreds = getOAuthClientCredentials();
+  if (!clientCreds) return null;
+
+  const refreshToken = (await getStoredRefreshToken()) ?? process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+  if (!refreshToken) return null;
+
+  return { ...clientCreds, refreshToken };
 }
 
 async function getAccessTokenFromOAuthRefreshToken(): Promise<string> {
-  const creds = getOAuthRefreshCredentials();
+  const creds = await getOAuthRefreshCredentials();
   if (!creds) {
-    throw new Error("Faltan credenciales OAuth de Google Drive (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REFRESH_TOKEN)");
+    throw new Error("Faltan credenciales OAuth de Google Drive (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / refresh token)");
   }
 
   const response = await fetch(GOOGLE_TOKEN_URL, {
@@ -85,11 +124,119 @@ async function getAccessTokenFromOAuthRefreshToken(): Promise<string> {
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(`No se pudo obtener token OAuth de Google: ${response.status}${detail ? ` - ${detail}` : ""}`);
+    const message = `No se pudo obtener token OAuth de Google: ${response.status}${detail ? ` - ${detail}` : ""}`;
+    await markOAuthTokenHealth(false, message);
+    throw new Error(message);
   }
 
+  await markOAuthTokenHealth(true);
   const data = (await response.json()) as DriveAccessToken;
   return data.access_token;
+}
+
+/**
+ * Construye la URL de consentimiento de Google para (re)conectar Drive.
+ * access_type=offline + prompt=consent fuerza la emisión de un refresh_token nuevo.
+ */
+export function buildGoogleDriveOAuthUrl(redirectUri: string, state: string): string {
+  const creds = getOAuthClientCredentials();
+  if (!creds) {
+    throw new Error("Faltan GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET en el entorno");
+  }
+  const url = new URL(GOOGLE_AUTH_URL);
+  url.searchParams.set("client_id", creds.clientId);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", GOOGLE_DRIVE_OAUTH_SCOPE);
+  url.searchParams.set("access_type", "offline");
+  url.searchParams.set("prompt", "consent");
+  url.searchParams.set("state", state);
+  return url.toString();
+}
+
+/**
+ * Intercambia el código devuelto por Google por un refresh_token y lo guarda
+ * en Supabase para que la conexión sobreviva a redeploys.
+ */
+export async function exchangeGoogleDriveOAuthCode(code: string, redirectUri: string): Promise<void> {
+  const creds = getOAuthClientCredentials();
+  if (!creds) {
+    throw new Error("Faltan GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET en el entorno");
+  }
+
+  const response = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: creds.clientId,
+      client_secret: creds.clientSecret,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: redirectUri,
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo canjear el código OAuth de Google: ${response.status}${detail ? ` - ${detail}` : ""}`);
+  }
+
+  const data = (await response.json()) as DriveAccessToken & { refresh_token?: string };
+  if (!data.refresh_token) {
+    throw new Error(
+      "Google no devolvió un refresh_token. Revoca el acceso previo en https://myaccount.google.com/permissions y vuelve a intentarlo (prompt=consent ya está forzado).",
+    );
+  }
+
+  const supabase = createServerClient();
+  const { error } = await supabase.from("google_drive_oauth_tokens").upsert({
+    id: GOOGLE_DRIVE_TOKEN_ROW_ID,
+    refresh_token: data.refresh_token,
+    access_token: data.access_token ?? null,
+    access_token_expires_at: data.expires_in
+      ? new Date(Date.now() + data.expires_in * 1000).toISOString()
+      : null,
+    last_verified_at: new Date().toISOString(),
+    last_error: null,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    throw new Error(`No se pudo guardar el refresh_token en la base de datos: ${error.message}`);
+  }
+}
+
+export type GoogleDriveConnectionStatus = {
+  configured: boolean;
+  hasStoredToken: boolean;
+  lastVerifiedAt: string | null;
+  lastError: string | null;
+};
+
+export async function getGoogleDriveConnectionStatus(): Promise<GoogleDriveConnectionStatus> {
+  const configured = Boolean(getOAuthClientCredentials());
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase
+      .from("google_drive_oauth_tokens")
+      .select("refresh_token, last_verified_at, last_error")
+      .eq("id", GOOGLE_DRIVE_TOKEN_ROW_ID)
+      .maybeSingle();
+
+    return {
+      configured,
+      hasStoredToken: Boolean(data?.refresh_token) || Boolean(process.env.GOOGLE_OAUTH_REFRESH_TOKEN),
+      lastVerifiedAt: data?.last_verified_at ?? null,
+      lastError: data?.last_error ?? null,
+    };
+  } catch {
+    return {
+      configured,
+      hasStoredToken: Boolean(process.env.GOOGLE_OAUTH_REFRESH_TOKEN),
+      lastVerifiedAt: null,
+      lastError: null,
+    };
+  }
 }
 
 async function getAccessTokenFromServiceAccount(): Promise<string> {
@@ -139,7 +286,7 @@ async function getAccessToken(): Promise<string> {
   // de cuota al subir a carpetas en "Mi unidad". Si el refresh token expira o
   // queda revocado, caemos a la cuenta de servicio para no romper operaciones
   // de lectura/escritura ya accesibles para esa identidad.
-  if (getOAuthRefreshCredentials()) {
+  if (await getOAuthRefreshCredentials()) {
     try {
       return await getAccessTokenFromOAuthRefreshToken();
     } catch (error) {
@@ -273,6 +420,76 @@ export async function ensureDriveSubfolder(input: {
   return created.id;
 }
 
+/** Lista las subcarpetas directas (no recursivo) de una carpeta de Drive. */
+export async function listDriveSubfolders(input: {
+  parentFolderId: string;
+  sharedDriveId?: string;
+}): Promise<DriveFile[]> {
+  const token = await getAccessToken();
+  const url = new URL(GOOGLE_DRIVE_FILES_URL);
+  url.searchParams.set(
+    "q",
+    [
+      `mimeType='application/vnd.google-apps.folder'`,
+      `'${input.parentFolderId}' in parents`,
+      "trashed=false",
+    ].join(" and "),
+  );
+  url.searchParams.set("fields", "files(id,name)");
+  url.searchParams.set("supportsAllDrives", "true");
+  url.searchParams.set("includeItemsFromAllDrives", "true");
+  if (input.sharedDriveId) {
+    url.searchParams.set("driveId", input.sharedDriveId);
+    url.searchParams.set("corpora", "drive");
+  }
+
+  const response = await fetch(url, { method: "GET", headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo listar subcarpetas en Drive: ${response.status}${detail ? ` - ${detail}` : ""}`);
+  }
+  const listed = (await response.json()) as DriveListResponse;
+  return listed.files ?? [];
+}
+
+function isImageFile(file: DriveFile): boolean {
+  if (file.mimeType?.startsWith("image/")) return true;
+  return /\.(avif|gif|jpe?g|png|svg|webp)$/i.test(file.name ?? "");
+}
+
+/** Lista los archivos gráficos dentro de una carpeta de Drive (no incluye subcarpetas). */
+export async function listDriveImageFiles(input: {
+  folderId: string;
+  sharedDriveId?: string;
+}): Promise<DriveFile[]> {
+  const token = await getAccessToken();
+  const url = new URL(GOOGLE_DRIVE_FILES_URL);
+  url.searchParams.set(
+    "q",
+    [
+      `'${input.folderId}' in parents`,
+      "trashed=false",
+    ].join(" and "),
+  );
+  url.searchParams.set("fields", "files(id,name,mimeType,size,parents)");
+  url.searchParams.set("orderBy", "name_natural");
+  url.searchParams.set("pageSize", "200");
+  url.searchParams.set("supportsAllDrives", "true");
+  url.searchParams.set("includeItemsFromAllDrives", "true");
+  if (input.sharedDriveId) {
+    url.searchParams.set("driveId", input.sharedDriveId);
+    url.searchParams.set("corpora", "drive");
+  }
+
+  const response = await fetch(url, { method: "GET", headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo listar imágenes en Drive: ${response.status}${detail ? ` - ${detail}` : ""}`);
+  }
+  const listed = (await response.json()) as DriveListResponse;
+  return (listed.files ?? []).filter(isImageFile);
+}
+
 export async function deleteFileFromDrive(fileId: string): Promise<void> {
   const token = await getAccessToken();
   const response = await fetch(`${GOOGLE_DRIVE_FILES_URL}/${encodeURIComponent(fileId)}?supportsAllDrives=true`, {
@@ -342,6 +559,37 @@ export async function getDriveFileMetadata(fileId: string): Promise<DriveFile> {
   }
 
   return (await response.json()) as DriveFile;
+}
+
+export async function listDriveFilesForFolder(input: {
+  folderId: string;
+  sharedDriveId?: string;
+}): Promise<DriveFile[]> {
+  const token = await getAccessToken();
+  const url = new URL(GOOGLE_DRIVE_FILES_URL);
+  url.searchParams.set(
+    "q",
+    [
+      `'${input.folderId}' in parents`,
+      "trashed=false",
+    ].join(" and "),
+  );
+  url.searchParams.set("fields", "files(id,name,mimeType,size,parents)");
+  url.searchParams.set("pageSize", "500");
+  url.searchParams.set("supportsAllDrives", "true");
+  url.searchParams.set("includeItemsFromAllDrives", "true");
+  if (input.sharedDriveId) {
+    url.searchParams.set("driveId", input.sharedDriveId);
+    url.searchParams.set("corpora", "drive");
+  }
+
+  const response = await fetch(url, { method: "GET", headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`No se pudo listar archivos en Drive: ${response.status}${detail ? ` - ${detail}` : ""}`);
+  }
+  const listed = (await response.json()) as DriveListResponse;
+  return listed.files ?? [];
 }
 
 export function driveFilePublicUrl(fileId: string): string {

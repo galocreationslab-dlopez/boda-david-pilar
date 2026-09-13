@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { Localizacion, WeddingConfig } from "@/config/wedding.config";
+
+type DriveStatus = {
+  configured: boolean;
+  hasStoredToken: boolean;
+  lastVerifiedAt: string | null;
+  lastError: string | null;
+};
 
 type Props = {
   inviteCode: string;
@@ -34,6 +42,25 @@ function splitFechaHora(value: string): { fecha: string; hora: string } {
 export default function DatosBodaView({ inviteCode, config }: Props) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    fetch(`/api/admin/${inviteCode}/google-drive/status`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setDriveStatus(data))
+      .catch(() => setDriveStatus(null));
+  }, [inviteCode]);
+
+  useEffect(() => {
+    const driveResult = searchParams.get("drive");
+    if (driveResult === "connected") {
+      showMsg("ok", "Google Drive reconectado correctamente.");
+    } else if (driveResult === "error") {
+      showMsg("error", `No se pudo conectar Google Drive: ${searchParams.get("reason") ?? "error desconocido"}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const [noviaNombre, setNoviaNombre] = useState(config.novia.nombre ?? "");
   const [novioNombre, setNovioNombre] = useState(config.novio.nombre ?? "");
@@ -230,6 +257,37 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
       <section className="rounded-2xl border border-stone-200 bg-white p-6 space-y-4">
         <h2 className="text-base font-semibold text-stone-700">Google Drive</h2>
         <p className="text-sm text-stone-500">Define aquí la carpeta donde se guardan los recursos de la web y las subidas privadas de invitados.</p>
+
+        <div className={`rounded-xl border p-4 text-sm ${driveStatus?.lastError ? "border-red-200 bg-red-50 text-red-700" : driveStatus?.hasStoredToken ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-medium">
+                {driveStatus === null
+                  ? "Comprobando conexión con Google Drive…"
+                  : driveStatus.lastError
+                    ? "Conexión con Google Drive interrumpida"
+                    : driveStatus.hasStoredToken
+                      ? "Conectado a Google Drive"
+                      : "Google Drive no está conectado"}
+              </p>
+              {driveStatus?.lastVerifiedAt && (
+                <p className="mt-1 text-xs opacity-80">
+                  Última verificación correcta: {new Date(driveStatus.lastVerifiedAt).toLocaleString("es-ES")}
+                </p>
+              )}
+              {driveStatus?.lastError && (
+                <p className="mt-1 text-xs opacity-80">{driveStatus.lastError}</p>
+              )}
+            </div>
+            <a
+              href={`/api/admin/google-drive/oauth/start?code=${encodeURIComponent(inviteCode)}`}
+              className="whitespace-nowrap rounded-lg border border-current px-3 py-1.5 text-xs font-semibold hover:opacity-80"
+            >
+              {driveStatus?.hasStoredToken ? "Reconectar" : "Conectar"} Google Drive
+            </a>
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="label-field">Ruta visible recursos web</label>

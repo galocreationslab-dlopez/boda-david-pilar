@@ -18,6 +18,15 @@ const nextConfig: NextConfig = {
         hostname: "lh3.googleusercontent.com",
       },
     ],
+    // Nuestros proxies locales de Drive usan query string (?src=...)
+    localPatterns: [
+      {
+        pathname: "/api/resources/preview",
+      },
+      {
+        pathname: "/api/admin/**/resources/preview",
+      },
+    ],
   },
 
   // Cabeceras de seguridad bÃ¡sicas
