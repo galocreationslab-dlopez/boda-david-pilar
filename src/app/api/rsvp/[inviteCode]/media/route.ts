@@ -86,7 +86,7 @@ export async function POST(
   try {
     invitationFolderId = await ensureDriveSubfolder({
       parentFolderId,
-      folderName: invitacion.id,
+      folderName: inviteCode,
       sharedDriveId: effectiveSharedDriveId,
     });
   } catch (error) {
@@ -95,7 +95,7 @@ export async function POST(
       effectiveSharedDriveId = undefined;
       invitationFolderId = await ensureDriveSubfolder({
         parentFolderId,
-        folderName: invitacion.id,
+        folderName: inviteCode,
       });
     } else {
       throw error;

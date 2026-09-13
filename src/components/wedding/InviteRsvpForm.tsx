@@ -38,10 +38,6 @@ type InvitacionProps = {
     bebes_estimados?: number | null;
   };
   personas: PersonaProps[];
-  galeriaConfig: {
-    mostrarSeleccionNovios: boolean;
-    mostrarSubidasPorMi: boolean;
-  };
 };
 
 type PersonaForm = {
@@ -63,7 +59,7 @@ type PersonaForm = {
   necesita_ayuda: boolean;
 };
 
-export function InviteRsvpForm({ inviteCode, invitacion, personas, galeriaConfig }: InvitacionProps) {
+export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionProps) {
   const defaultAsistencia: "si" | "no" | "puede" =
     invitacion.estado === "confirmada"
       ? "si"
@@ -411,7 +407,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, galeriaConfig
           </div>
         </form>
 
-        <InviteExtras inviteCode={inviteCode} invitacionNombre={invitacion.nombre_visible} galeriaConfig={galeriaConfig} />
+        <InviteExtras inviteCode={inviteCode} invitacionNombre={invitacion.nombre_visible} />
       </div>
     </main>
   );

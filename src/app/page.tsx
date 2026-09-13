@@ -457,6 +457,7 @@ export default async function PaginaPrincipal() {
                     media={getGalleryMediaForSection(section.source)}
                     componentStyles={componentStyles}
                     headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
+                    galeriaConfig={section.source?.galeriaConfig}
                   />
                 </SeccionColapsable>
               )}
