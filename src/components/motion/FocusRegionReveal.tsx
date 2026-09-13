@@ -5,7 +5,7 @@ import IntroMediaStage from "@/components/motion/IntroMediaStage";
 import { quadToRectMatrix3d, DEFAULT_QUAD, type Quad } from "@/lib/quadTransform";
 
 export type FocusRegionRevealProps = {
-  mediaUrl: string;
+  mediaUrl?: string;
   region?: Quad;
   fondo?: string;
   duracionZoomMs?: number;
@@ -22,7 +22,7 @@ export type FocusRegionRevealProps = {
  * portada que ya estaba detrás.
  */
 export default function FocusRegionReveal({
-  mediaUrl,
+  mediaUrl = "",
   region = DEFAULT_QUAD,
   fondo,
   duracionZoomMs = 1400,
@@ -37,9 +37,28 @@ export default function FocusRegionReveal({
   const [matrix, setMatrix] = useState<string>("none");
 
   const markReady = useCallback(() => {
+    const hasMedia = Boolean(mediaUrl?.trim());
     const el = containerRef.current;
-    if (!el || typeof window === "undefined") return;
+    if (!hasMedia || !el || typeof window === "undefined") {
+      // Sin imagen: fade directo
+      requestAnimationFrame(() => setFading(true));
+      window.setTimeout(() => {
+        setMediaHidden(true);
+        onComplete?.();
+      }, Math.max(200, duracionFadeMs));
+      return;
+    }
+
     const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      requestAnimationFrame(() => setFading(true));
+      window.setTimeout(() => {
+        setMediaHidden(true);
+        onComplete?.();
+      }, Math.max(200, duracionFadeMs));
+      return;
+    }
+
     const source: Quad = {
       tl: { x: region.tl.x * rect.width, y: region.tl.y * rect.height },
       tr: { x: region.tr.x * rect.width, y: region.tr.y * rect.height },
@@ -58,7 +77,7 @@ export default function FocusRegionReveal({
         onComplete?.();
       }, Math.max(200, duracionFadeMs));
     }, Math.max(200, duracionZoomMs));
-  }, [duracionFadeMs, duracionZoomMs, onComplete, region]);
+  }, [duracionFadeMs, duracionZoomMs, mediaUrl, onComplete, region]);
 
   const mediaTransitionStyle: CSSProperties = {
     transform: matrix,

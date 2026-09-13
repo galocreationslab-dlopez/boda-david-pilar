@@ -8,9 +8,6 @@ import SlideUpReveal from "@/components/motion/SlideUpReveal";
 import CustomHtmlReveal from "@/components/motion/CustomHtmlReveal";
 import type { IntroDeviceConfig } from "@/config/wedding.config";
 
-const DEFAULT_LEFT_PANEL = "/images/Vidriera_Catedral.svg";
-const DEFAULT_RIGHT_PANEL = "/images/Ventana_Alhambra.svg";
-
 export type IntroAnimationStageProps = {
   deviceConfig: IntroDeviceConfig;
   colorMarco?: string;
@@ -38,8 +35,8 @@ export default function IntroAnimationStage({
       return (
         <RevealBook
           modo="cortinas"
-          panelIzquierdo={{ svgSource: cfg.panelIzquierdoUrl || DEFAULT_LEFT_PANEL, alt: "Ilustración de la invitación" }}
-          panelDerecho={{ svgSource: cfg.panelDerechoUrl || DEFAULT_RIGHT_PANEL, alt: "Ilustración de la invitación" }}
+          panelIzquierdo={{ svgSource: cfg.panelIzquierdoUrl ?? "", alt: "Ilustración de la invitación" }}
+          panelDerecho={{ svgSource: cfg.panelDerechoUrl ?? "", alt: "Ilustración de la invitación" }}
           duracionAperturaMs={cfg.duracionAperturaMs ?? 900}
           duracionDibujoMs={cfg.duracionDibujoMs ?? 650}
           pausaAntesDeAbrirMs={cfg.pausaAntesDeAbrirMs ?? 120}
@@ -56,10 +53,9 @@ export default function IntroAnimationStage({
     }
     case "fadeIn": {
       const cfg = deviceConfig.fadeIn ?? {};
-      if (!cfg.mediaUrl) return <>{children}</>;
       return (
         <FadeInReveal
-          mediaUrl={cfg.mediaUrl}
+          mediaUrl={cfg.mediaUrl ?? ""}
           fondo={fondoPanel}
           duracionFadeMs={cfg.duracionFadeMs ?? 1200}
           maxEsperaMs={cfg.maxEsperaMs ?? 9000}
@@ -71,10 +67,9 @@ export default function IntroAnimationStage({
     }
     case "focusRegion": {
       const cfg = deviceConfig.focusRegion ?? {};
-      if (!cfg.mediaUrl) return <>{children}</>;
       return (
         <FocusRegionReveal
-          mediaUrl={cfg.mediaUrl}
+          mediaUrl={cfg.mediaUrl ?? ""}
           region={cfg.region}
           fondo={fondoPanel}
           duracionZoomMs={cfg.duracionZoomMs ?? 1400}
@@ -88,10 +83,9 @@ export default function IntroAnimationStage({
     }
     case "slideUp": {
       const cfg = deviceConfig.slideUp ?? {};
-      if (!cfg.mediaUrl) return <>{children}</>;
       return (
         <SlideUpReveal
-          mediaUrl={cfg.mediaUrl}
+          mediaUrl={cfg.mediaUrl ?? ""}
           fondo={fondoPanel}
           duracionDeslizamientoMs={cfg.duracionDeslizamientoMs ?? 900}
           maxEsperaMs={cfg.maxEsperaMs ?? 9000}
@@ -103,9 +97,8 @@ export default function IntroAnimationStage({
     }
     case "custom": {
       const cfg = deviceConfig.custom ?? {};
-      if (!cfg.htmlUrl) return <>{children}</>;
       return (
-        <CustomHtmlReveal htmlUrl={cfg.htmlUrl} fondo={fondoPanel} maxEsperaMs={cfg.maxEsperaMs ?? 20000} onComplete={onComplete}>
+        <CustomHtmlReveal htmlUrl={cfg.htmlUrl ?? ""} fondo={fondoPanel} maxEsperaMs={cfg.maxEsperaMs ?? 20000} onComplete={onComplete}>
           {children}
         </CustomHtmlReveal>
       );
@@ -116,8 +109,8 @@ export default function IntroAnimationStage({
       return (
         <RevealBook
           modo="libro"
-          panelIzquierdo={{ svgSource: cfg.panelIzquierdoUrl || DEFAULT_LEFT_PANEL, alt: "Ilustración de la invitación" }}
-          panelDerecho={{ svgSource: cfg.panelDerechoUrl || DEFAULT_RIGHT_PANEL, alt: "Ilustración de la invitación" }}
+          panelIzquierdo={{ svgSource: cfg.panelIzquierdoUrl ?? "", alt: "Ilustración de la invitación" }}
+          panelDerecho={{ svgSource: cfg.panelDerechoUrl ?? "", alt: "Ilustración de la invitación" }}
           duracionAperturaMs={cfg.duracionAperturaMs ?? 1800}
           duracionDibujoMs={cfg.duracionDibujoMs ?? 650}
           pausaAntesDeAbrirMs={cfg.pausaAntesDeAbrirMs ?? 120}

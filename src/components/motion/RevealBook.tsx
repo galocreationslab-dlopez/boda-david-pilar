@@ -6,13 +6,13 @@ import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import { isLikelyLineAliveHtmlUrl, resolvePublicLineAliveSrc } from "@/lib/linealive/utils";
 
 type RevealPanel = {
-  svgSource: string;
+  svgSource?: string;
   alt: string;
 };
 
 export type RevealBookProps = {
-  panelIzquierdo: RevealPanel;
-  panelDerecho: RevealPanel;
+  panelIzquierdo?: RevealPanel;
+  panelDerecho?: RevealPanel;
   children: ReactNode;
   duracionAperturaMs?: number;
   duracionDibujoMs?: number;
@@ -30,8 +30,8 @@ export type RevealBookProps = {
 const MAX_ESPERA_DIBUJO_MS = 15000;
 
 export default function RevealBook({
-  panelIzquierdo,
-  panelDerecho,
+  panelIzquierdo = { svgSource: "", alt: "" },
+  panelDerecho = { svgSource: "", alt: "" },
   children,
   duracionAperturaMs = 1800,
   duracionDibujoMs = 650,
@@ -54,12 +54,17 @@ export default function RevealBook({
   const markLeftReady = useCallback(() => setIzquierdoListo(true), []);
   const markRightReady = useCallback(() => setDerechoListo(true), []);
 
-  const leftIsHtml = isLikelyLineAliveHtmlUrl(panelIzquierdo.svgSource) && Boolean(panelIzquierdo.svgSource);
-  const rightIsHtml = isLikelyLineAliveHtmlUrl(panelDerecho.svgSource) && Boolean(panelDerecho.svgSource);
-  const leftHtmlSrc = leftIsHtml ? resolvePublicLineAliveSrc(panelIzquierdo.svgSource) : panelIzquierdo.svgSource;
-  const rightHtmlSrc = rightIsHtml ? resolvePublicLineAliveSrc(panelDerecho.svgSource) : panelDerecho.svgSource;
-  const leftReady = izquierdoListo;
-  const rightReady = derechoListo;
+  const leftSource = panelIzquierdo.svgSource ?? "";
+  const rightSource = panelDerecho.svgSource ?? "";
+  const leftHasSource = Boolean(leftSource.trim());
+  const rightHasSource = Boolean(rightSource.trim());
+
+  const leftIsHtml = leftHasSource && isLikelyLineAliveHtmlUrl(leftSource);
+  const rightIsHtml = rightHasSource && isLikelyLineAliveHtmlUrl(rightSource);
+  const leftHtmlSrc = leftIsHtml ? resolvePublicLineAliveSrc(leftSource) : leftSource;
+  const rightHtmlSrc = rightIsHtml ? resolvePublicLineAliveSrc(rightSource) : rightSource;
+  const leftReady = !leftHasSource || izquierdoListo;
+  const rightReady = !rightHasSource || derechoListo;
 
   const panelStyle = useMemo(() => (tintColor ? { color: tintColor } : undefined), [tintColor]);
 
@@ -82,6 +87,9 @@ export default function RevealBook({
       return;
     }
 
+    if (!leftHasSource) setIzquierdoListo(true);
+    if (!rightHasSource) setDerechoListo(true);
+
     // Fallback para SVGs extremadamente pesados: si el autodibujado tarda demasiado,
     // no bloqueamos la narrativa y permitimos abrir el libro igualmente.
     const failSafeTimer = window.setTimeout(() => {
@@ -89,7 +97,7 @@ export default function RevealBook({
       setDerechoListo(true);
     }, Math.max(2000, maxEsperaDibujoMs));
     timersRef.current.push(failSafeTimer);
-  }, [maxEsperaDibujoMs, panelIzquierdo.svgSource, panelDerecho.svgSource, reduceMotion]);
+  }, [leftHasSource, maxEsperaDibujoMs, panelIzquierdo.svgSource, panelDerecho.svgSource, reduceMotion, rightHasSource]);
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -180,16 +188,16 @@ export default function RevealBook({
                         loadingLabel=""
                         onEnded={markLeftReady}
                       />
-                    ) : (
+                    ) : leftHasSource ? (
                       <AutoDrawSVG
-                        svgSource={panelIzquierdo.svgSource}
+                        svgSource={panelIzquierdo.svgSource ?? ""}
                         onComplete={markLeftReady}
                         durationMs={duracionDibujoMs}
                         staggerMs={24}
                         sequential={false}
                         respectReducedMotion
                       />
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -218,16 +226,16 @@ export default function RevealBook({
                         loadingLabel=""
                         onEnded={markRightReady}
                       />
-                    ) : (
+                    ) : rightHasSource ? (
                       <AutoDrawSVG
-                        svgSource={panelDerecho.svgSource}
+                        svgSource={panelDerecho.svgSource ?? ""}
                         onComplete={markRightReady}
                         durationMs={duracionDibujoMs}
                         staggerMs={24}
                         sequential={false}
                         respectReducedMotion
                       />
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>

@@ -5,7 +5,7 @@ import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import { isLikelyLineAliveHtmlUrl, resolvePublicLineAliveSrc } from "@/lib/linealive/utils";
 
 export type IntroMediaStageProps = {
-  mediaUrl: string;
+  mediaUrl?: string;
   /** Fondo opaco tras el media (evita que se transparente la portada mientras carga/dibuja). */
   fondo?: string;
   /** Failsafe: si el media nunca avisa que terminó, se continúa igualmente. */
@@ -20,11 +20,12 @@ export type IntroMediaStageProps = {
  * portada. Aislar esto aquí permite en el futuro configurar el media por
  * separado de la transición.
  */
-export default function IntroMediaStage({ mediaUrl, fondo, maxEsperaMs = 9000, onReady, className }: IntroMediaStageProps) {
+export default function IntroMediaStage({ mediaUrl = "", fondo, maxEsperaMs = 9000, onReady, className }: IntroMediaStageProps) {
   const firedRef = useRef(false);
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
-  const isHtml = isLikelyLineAliveHtmlUrl(mediaUrl);
+  const hasMedia = Boolean(mediaUrl?.trim());
+  const isHtml = hasMedia && isLikelyLineAliveHtmlUrl(mediaUrl);
   const resolvedSrc = isHtml ? resolvePublicLineAliveSrc(mediaUrl) : mediaUrl;
 
   const fireOnce = () => {
@@ -35,18 +36,18 @@ export default function IntroMediaStage({ mediaUrl, fondo, maxEsperaMs = 9000, o
 
   useEffect(() => {
     firedRef.current = false;
-    if (!mediaUrl) {
+    if (!hasMedia) {
       fireOnce();
       return;
     }
     const timer = window.setTimeout(fireOnce, Math.max(1000, maxEsperaMs));
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mediaUrl, maxEsperaMs]);
+  }, [hasMedia, maxEsperaMs]);
 
   return (
     <div className={className} style={{ backgroundColor: fondo }}>
-      {mediaUrl ? (
+      {hasMedia ? (
         isHtml ? (
           <LineAliveEmbed
             src={resolvedSrc}

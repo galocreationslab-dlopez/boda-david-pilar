@@ -4,7 +4,7 @@ import { useCallback, useState, type CSSProperties, type ReactNode } from "react
 import IntroMediaStage from "@/components/motion/IntroMediaStage";
 
 export type SlideUpRevealProps = {
-  mediaUrl: string;
+  mediaUrl?: string;
   fondo?: string;
   duracionDeslizamientoMs?: number;
   maxEsperaMs?: number;
@@ -16,12 +16,14 @@ export type SlideUpRevealProps = {
  * Tras finalizar el media inicial, la portada (children) sube desde abajo
  * cubriendo el último fotograma del media hasta ocupar toda la ventana.
  */
-export default function SlideUpReveal({ mediaUrl, fondo, duracionDeslizamientoMs = 900, maxEsperaMs = 9000, onComplete, children }: SlideUpRevealProps) {
+export default function SlideUpReveal({ mediaUrl = "", fondo, duracionDeslizamientoMs = 900, maxEsperaMs = 9000, onComplete, children }: SlideUpRevealProps) {
   const [sliding, setSliding] = useState(false);
   const [mediaHidden, setMediaHidden] = useState(false);
 
   const startSlide = useCallback(() => {
-    setSliding(true);
+    requestAnimationFrame(() => {
+      setSliding(true);
+    });
     window.setTimeout(() => {
       setMediaHidden(true);
       onComplete?.();

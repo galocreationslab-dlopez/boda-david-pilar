@@ -697,6 +697,16 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
   useEffect(() => {
     let isCancelled = false;
 
+    if (!svgSource?.trim()) {
+      setSvgMarkup(null);
+      if (onComplete) {
+        onComplete();
+      }
+      return () => {
+        isCancelled = true;
+      };
+    }
+
     if (isInline) {
       return () => {
         isCancelled = true;
@@ -725,7 +735,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     return () => {
       isCancelled = true;
     };
-  }, [isInline, svgSource]);
+  }, [isInline, onComplete, svgSource]);
 
   useEffect(() => {
     if (!svgMarkup || !containerRef.current) return;

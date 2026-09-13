@@ -4,7 +4,7 @@ import { useCallback, useState, type ReactNode } from "react";
 import IntroMediaStage from "@/components/motion/IntroMediaStage";
 
 export type FadeInRevealProps = {
-  mediaUrl: string;
+  mediaUrl?: string;
   fondo?: string;
   duracionFadeMs?: number;
   maxEsperaMs?: number;
@@ -17,12 +17,14 @@ export type FadeInRevealProps = {
  * fondo opaco. Al terminar el media, toda esa capa se desvanece (opacidad
  * 100→0) revelando la portada que ya estaba detrás.
  */
-export default function FadeInReveal({ mediaUrl, fondo, duracionFadeMs = 1200, maxEsperaMs = 9000, onComplete, children }: FadeInRevealProps) {
+export default function FadeInReveal({ mediaUrl = "", fondo, duracionFadeMs = 1200, maxEsperaMs = 9000, onComplete, children }: FadeInRevealProps) {
   const [fading, setFading] = useState(false);
   const [mediaHidden, setMediaHidden] = useState(false);
 
   const startFade = useCallback(() => {
-    setFading(true);
+    requestAnimationFrame(() => {
+      setFading(true);
+    });
     window.setTimeout(() => {
       setMediaHidden(true);
       onComplete?.();
