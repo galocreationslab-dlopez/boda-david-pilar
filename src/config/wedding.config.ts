@@ -187,16 +187,16 @@ export type IntroEnvelopeModoFondo = "colores" | "textura" | "svgPersonalizado";
 export type IntroEnvelopeConfig = {
   modoFondo?: IntroEnvelopeModoFondo;
   imagenUrl?: string; // textura o sobre completo, según modoFondo
-  anchoPx?: number;
-  altoPx?: number;
   colorBase?: string;
   colorBorde?: string;
-  grosorBordePx?: number;
-  radioEsquinasPx?: number;
+  // Todas las medidas se expresan como porcentaje del lado menor de la pantalla
+  // (unidad "vmin"), ya que el sobre ocupa siempre la pantalla completa.
+  grosorBordePorcentaje?: number;
+  radioEsquinasPorcentaje?: number;
   colorSolapaInterior?: string;
   colorCostura?: string;
   sombraColor?: string;
-  sombraDesenfoquePx?: number;
+  sombraDesenfoquePorcentaje?: number;
   alturaSolapaPorcentaje?: number; // 0-100: altura de la solapa triangular respecto al alto del sobre
   duracionAperturaMs?: number; // tiempo en abrir la solapa
   duracionExtraccionMs?: number; // tiempo en que la portada "sale" del sobre hasta ocupar toda la pantalla

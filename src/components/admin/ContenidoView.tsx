@@ -1463,32 +1463,9 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   />
                                 )}
 
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                  <div>
-                                    <label className="label-field">Ancho (px)</label>
-                                    <input
-                                      type="number"
-                                      min={160}
-                                      max={900}
-                                      step={10}
-                                      className="input-field"
-                                      value={deviceConfig.envelope?.anchoPx ?? 340}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { anchoPx: Math.max(160, Number(e.target.value) || 160) })}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="label-field">Alto (px)</label>
-                                    <input
-                                      type="number"
-                                      min={120}
-                                      max={700}
-                                      step={10}
-                                      className="input-field"
-                                      value={deviceConfig.envelope?.altoPx ?? 230}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { altoPx: Math.max(120, Number(e.target.value) || 120) })}
-                                    />
-                                  </div>
-                                </div>
+                                <p className="text-xs text-stone-500">
+                                  El sobre ocupa siempre la pantalla completa. Las medidas de abajo se expresan en % del lado menor de la pantalla, para que la composición se mantenga proporcional en cualquier dispositivo.
+                                </p>
 
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <div>
@@ -1522,27 +1499,27 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                     />
                                   </div>
                                   <div>
-                                    <label className="label-field">Grosor del borde (px)</label>
+                                    <label className="label-field">Grosor del borde (% pantalla)</label>
                                     <input
                                       type="number"
                                       min={0}
-                                      max={12}
-                                      step={1}
+                                      max={5}
+                                      step={0.1}
                                       className="input-field"
-                                      value={deviceConfig.envelope?.grosorBordePx ?? 2}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { grosorBordePx: Math.max(0, Number(e.target.value) || 0) })}
+                                      value={deviceConfig.envelope?.grosorBordePorcentaje ?? 0.6}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { grosorBordePorcentaje: Math.max(0, Number(e.target.value) || 0) })}
                                     />
                                   </div>
                                   <div>
-                                    <label className="label-field">Radio de esquinas (px)</label>
+                                    <label className="label-field">Radio de esquinas (% pantalla)</label>
                                     <input
                                       type="number"
                                       min={0}
-                                      max={60}
-                                      step={1}
+                                      max={20}
+                                      step={0.5}
                                       className="input-field"
-                                      value={deviceConfig.envelope?.radioEsquinasPx ?? 6}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { radioEsquinasPx: Math.max(0, Number(e.target.value) || 0) })}
+                                      value={deviceConfig.envelope?.radioEsquinasPorcentaje ?? 2}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { radioEsquinasPorcentaje: Math.max(0, Number(e.target.value) || 0) })}
                                     />
                                   </div>
                                 </div>
@@ -1568,15 +1545,15 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                     />
                                   </div>
                                   <div>
-                                    <label className="label-field">Difuminado de sombra (px)</label>
+                                    <label className="label-field">Difuminado de sombra (% pantalla)</label>
                                     <input
                                       type="number"
                                       min={0}
-                                      max={80}
-                                      step={2}
+                                      max={15}
+                                      step={0.5}
                                       className="input-field"
-                                      value={deviceConfig.envelope?.sombraDesenfoquePx ?? 28}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { sombraDesenfoquePx: Math.max(0, Number(e.target.value) || 0) })}
+                                      value={deviceConfig.envelope?.sombraDesenfoquePorcentaje ?? 3}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { sombraDesenfoquePorcentaje: Math.max(0, Number(e.target.value) || 0) })}
                                     />
                                   </div>
                                 </div>

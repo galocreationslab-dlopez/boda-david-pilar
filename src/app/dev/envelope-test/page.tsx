@@ -6,16 +6,14 @@ import type { IntroEnvelopeConfig, IntroEnvelopeModoFondo } from "@/config/weddi
 
 const DEFAULT_CONFIG: IntroEnvelopeConfig = {
   modoFondo: "colores",
-  anchoPx: 340,
-  altoPx: 230,
   colorBase: "#e8ddc7",
   colorBorde: "#a9895f",
-  grosorBordePx: 2,
-  radioEsquinasPx: 6,
+  grosorBordePorcentaje: 0.6,
+  radioEsquinasPorcentaje: 2,
   colorSolapaInterior: "#c9b48c",
   colorCostura: "#8a6a44",
   sombraColor: "rgba(0,0,0,0.35)",
-  sombraDesenfoquePx: 28,
+  sombraDesenfoquePorcentaje: 3,
   alturaSolapaPorcentaje: 42,
   duracionAperturaMs: 900,
   duracionExtraccionMs: 700,
@@ -69,17 +67,6 @@ export default function EnvelopeTestPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label-field">Ancho (px)</label>
-              <input type="number" className="input-field" value={config.anchoPx} onChange={(e) => patch({ anchoPx: Number(e.target.value) })} />
-            </div>
-            <div>
-              <label className="label-field">Alto (px)</label>
-              <input type="number" className="input-field" value={config.altoPx} onChange={(e) => patch({ altoPx: Number(e.target.value) })} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
               <label className="label-field">Color base</label>
               <input type="color" className="input-field h-10 w-full" value={config.colorBase} onChange={(e) => patch({ colorBase: e.target.value })} />
             </div>
@@ -95,9 +82,14 @@ export default function EnvelopeTestPage() {
               <input type="color" className="input-field h-10 w-full" value={config.colorBorde} onChange={(e) => patch({ colorBorde: e.target.value })} />
             </div>
             <div>
-              <label className="label-field">Grosor borde (px)</label>
-              <input type="number" className="input-field" value={config.grosorBordePx} onChange={(e) => patch({ grosorBordePx: Number(e.target.value) })} />
+              <label className="label-field">Grosor borde (% pantalla)</label>
+              <input type="number" step={0.1} className="input-field" value={config.grosorBordePorcentaje} onChange={(e) => patch({ grosorBordePorcentaje: Number(e.target.value) })} />
             </div>
+          </div>
+
+          <div>
+            <label className="label-field">Radio esquinas (% pantalla)</label>
+            <input type="number" step={0.5} className="input-field" value={config.radioEsquinasPorcentaje} onChange={(e) => patch({ radioEsquinasPorcentaje: Number(e.target.value) })} />
           </div>
 
           <div>
@@ -117,7 +109,7 @@ export default function EnvelopeTestPage() {
           </div>
         </aside>
 
-        <article className="card-wedding relative min-h-[560px] overflow-hidden p-0">
+        <article className="card-wedding relative h-[80vh] min-h-[560px] overflow-hidden p-0">
           <EnvelopeOpenReveal
             key={runId}
             config={config}

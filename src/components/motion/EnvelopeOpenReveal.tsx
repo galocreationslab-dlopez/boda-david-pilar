@@ -16,29 +16,29 @@ export type EnvelopeOpenRevealProps = {
 
 type Phase = "closed" | "opening" | "extracting" | "done";
 
-const DEFAULT_ANCHO = 340;
-const DEFAULT_ALTO = 230;
-
 /**
  * Anima la apertura de un sobre postal tras el lacre: la solapa triangular
  * gira hacia arriba dejando ver la portada solo a través de ese hueco y,
  * a continuación, el cuerpo del sobre se abre por completo dejando que la
  * portada (ya montada a pantalla completa detrás) ocupe toda la ventana.
+ *
+ * El sobre siempre ocupa la pantalla completa; el resto de medidas (bordes,
+ * radios, sombra) se expresan como porcentaje del lado menor de la pantalla
+ * (unidad `vmin`) para que la composición se mantenga proporcional en
+ * cualquier dispositivo.
  */
 export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot, onComplete, children }: EnvelopeOpenRevealProps) {
   const [phase, setPhase] = useState<Phase>("closed");
 
-  const ancho = Math.max(160, config.anchoPx ?? DEFAULT_ANCHO);
-  const alto = Math.max(120, config.altoPx ?? DEFAULT_ALTO);
   const modoFondo = config.modoFondo ?? "colores";
   const colorBase = config.colorBase || "#e8ddc7";
   const colorBorde = config.colorBorde || "#a9895f";
-  const grosorBorde = Math.max(0, config.grosorBordePx ?? 2);
-  const radioEsquinas = Math.max(0, config.radioEsquinasPx ?? 6);
+  const grosorBorde = Math.max(0, config.grosorBordePorcentaje ?? 0.6);
+  const radioEsquinas = Math.max(0, config.radioEsquinasPorcentaje ?? 2);
   const colorSolapaInterior = config.colorSolapaInterior || "#c9b48c";
   const colorCostura = config.colorCostura || "#8a6a44";
   const sombraColor = config.sombraColor || "rgba(0,0,0,0.35)";
-  const sombraDesenfoque = Math.max(0, config.sombraDesenfoquePx ?? 28);
+  const sombraDesenfoque = Math.max(0, config.sombraDesenfoquePorcentaje ?? 3);
   const flapPct = Math.min(70, Math.max(20, config.alturaSolapaPorcentaje ?? 42));
   const duracionApertura = Math.max(300, config.duracionAperturaMs ?? 900);
   const duracionExtraccion = Math.max(300, config.duracionExtraccionMs ?? 700);
@@ -90,16 +90,13 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   }, [phase, flapPct]);
 
   const flapRotation = phase === "opening" || phase === "extracting" || phase === "done" ? -172 : 0;
-  const flapOpacity = phase === "extracting" || phase === "done" ? 0 : 1;
   const sealVisible = phase === "closed";
 
   const envelopeWrapperStyle: CSSProperties = {
-    width: `min(${ancho}px, 88vw)`,
-    aspectRatio: `${ancho} / ${alto}`,
     transition: `transform ${duracionExtraccion}ms ease-in, opacity ${duracionExtraccion}ms ease-in`,
     transform: phase === "extracting" || phase === "done" ? "scale(1.06) translateY(-3%)" : "scale(1)",
     opacity: phase === "done" ? 0 : 1,
-    filter: `drop-shadow(0 ${sombraDesenfoque / 2}px ${sombraDesenfoque}px ${sombraColor})`,
+    filter: `drop-shadow(0 ${sombraDesenfoque / 2}vmin ${sombraDesenfoque}vmin ${sombraColor})`,
   };
 
   return (
@@ -108,11 +105,11 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
       <div className="absolute inset-0 z-0">{children}</div>
 
       {phase !== "done" ? (
-        <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ perspective: "1800px" }}>
-          <div className="relative" style={envelopeWrapperStyle}>
+        <div className="absolute inset-0 z-10" style={{ perspective: "180vmin" }}>
+          <div className="relative h-full w-full" style={envelopeWrapperStyle}>
             <div
               className="absolute inset-0 overflow-hidden"
-              style={{ borderRadius: radioEsquinas, boxShadow: grosorBorde > 0 ? `inset 0 0 0 ${grosorBorde}px ${colorBorde}` : undefined }}
+              style={{ borderRadius: `${radioEsquinas}vmin`, boxShadow: grosorBorde > 0 ? `inset 0 0 0 ${grosorBorde}vmin ${colorBorde}` : undefined }}
             >
               {/* Cuerpo del sobre */}
               <div
@@ -140,7 +137,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                   style={{
                     ...bodyFill,
                     clipPath: "polygon(0% 0%, 100% 0%, 50% 100%)",
-                    boxShadow: colorCostura ? `inset 0 0 0 1px ${colorCostura}` : undefined,
+                    boxShadow: colorCostura ? `inset 0 0 0 0.2vmin ${colorCostura}` : undefined,
                     backfaceVisibility: "hidden",
                   }}
                 />
@@ -166,7 +163,8 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                       pointerEvents: sealVisible ? "auto" : "none",
                     }}
                   >
-                    <div className="mt-[8%] aspect-square w-[38%]">{sealSlot}</div>
+                    {/* Tamaño del lacre fijado a un rango razonable (vmin) para no crecer sin límite en pantallas anchas. */}
+                    <div className="mt-[6vmin] aspect-square w-[clamp(6rem,20vmin,12rem)]">{sealSlot}</div>
                   </div>
                 ) : null}
               </div>
