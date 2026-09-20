@@ -235,11 +235,15 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
           >
             <div className="relative h-full w-full" style={{ perspective: "180vmin" }}>
               <div
-                className="absolute left-0 top-0 w-full origin-top overflow-hidden"
+                className="absolute left-0 top-0 w-full origin-top"
                 style={{
                   height: `${flapPct}%`,
                   borderTopLeftRadius: `${radioEsquinas}vmin`,
                   borderTopRightRadius: `${radioEsquinas}vmin`,
+                  // Solo se recorta con el sobre cerrado (para redondear las esquinas
+                  // superiores a juego con el sobre); si se recorta también al abrirse,
+                  // la solapa no puede extenderse hacia arriba y parece desaparecer.
+                  overflow: phase === "closed" ? "hidden" : "visible",
                 }}
               >
                 <div
@@ -276,24 +280,6 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                       backfaceVisibility: "hidden",
                     }}
                   />
-
-                  {sealSlot ? (
-                    // Centrado exactamente en el pico de la solapa (50%, 100% de su propia caja);
-                    // z-index muy alto para quedar siempre por encima del frontal del sobre.
-                    <div
-                      className="absolute z-50 aspect-square w-[clamp(6rem,20vmin,12rem)]"
-                      style={{
-                        left: "50%",
-                        top: "100%",
-                        transform: "translate(-50%, -50%)",
-                        opacity: sealVisible ? 1 : 0,
-                        transition: "opacity 250ms ease",
-                        pointerEvents: sealVisible ? "auto" : "none",
-                      }}
-                    >
-                      {sealSlot}
-                    </div>
-                  ) : null}
                 </div>
               </div>
             </div>
@@ -319,12 +305,18 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
               className="absolute inset-0 overflow-hidden"
               style={{
                 borderRadius: `${radioEsquinas}vmin`,
-                boxShadow: [
-                  grosorBorde > 0 ? `inset 0 0 0 ${grosorBorde}vmin ${colorBorde}` : null,
-                  phase === "closed" ? `0 ${sombraDesenfoque / 2}vmin ${sombraDesenfoque}vmin ${sombraColor}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(", "),
+                // El borde y la sombra solo existen con el sobre cerrado: el frontal es
+                // una sola pieza y, al desplazarse, arrastraría ambos por encima del
+                // contenido si siguieran pintándose mientras desciende.
+                boxShadow:
+                  phase === "closed"
+                    ? [
+                        grosorBorde > 0 ? `inset 0 0 0 ${grosorBorde}vmin ${colorBorde}` : null,
+                        `0 ${sombraDesenfoque / 2}vmin ${sombraDesenfoque}vmin ${sombraColor}`,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")
+                    : undefined,
               }}
             >
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
@@ -338,6 +330,28 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                 <path d={frontPath} {...patternFillProps(`${patternId}-front`)} />
               </svg>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Lacre: capa independiente con su propio z-index de nivel superior, para
+          quedar siempre por encima del frontal. Anidarlo dentro del grupo de la
+          solapa (z-20) lo limitaba a ese contexto de apilamiento y quedaba por
+          debajo del frontal (z-30) aunque tuviera un z-index local más alto. */}
+      {phase !== "done" && sealSlot ? (
+        <div className="fixed inset-0 z-50" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}>
+          <div
+            className="absolute aspect-square w-[clamp(6rem,20vmin,12rem)]"
+            style={{
+              left: "50%",
+              top: `${flapPct}%`,
+              transform: "translate(-50%, -50%)",
+              opacity: sealVisible ? 1 : 0,
+              transition: "opacity 250ms ease",
+              pointerEvents: sealVisible ? "auto" : "none",
+            }}
+          >
+            {sealSlot}
           </div>
         </div>
       ) : null}
