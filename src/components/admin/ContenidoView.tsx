@@ -1571,7 +1571,83 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   />
                                 </div>
 
+                                <div className="border-t border-stone-200 pt-3">
+                                  <p className="label-field">Escena (fondo exterior y márgenes)</p>
+                                  <p className="mt-1 text-xs text-stone-500">
+                                    Ni el sobre ni la portada ocupan toda la pantalla: queda un margen alrededor con un fondo propio (la &quot;mesa&quot;), y la portada queda un poco más metida que el sobre para que se note que está dentro.
+                                  </p>
+                                </div>
+
                                 <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Color del fondo exterior (mesa)</label>
+                                    <input
+                                      type="color"
+                                      className="input-field h-10 w-full"
+                                      value={deviceConfig.envelope?.fondoExteriorColor ?? "#2E1F0E"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { fondoExteriorColor: e.target.value })}
+                                    />
+                                  </div>
+                                  <IntroAssetField
+                                    label="Textura del fondo exterior (opcional)"
+                                    value={deviceConfig.envelope?.fondoExteriorImagenUrl ?? ""}
+                                    onChangeValue={(v) => patchIntroDeviceSub(device, "envelope", { fondoExteriorImagenUrl: v })}
+                                    uploading={uploadingAssetKey === `${uploadPrefix}envelopeFondoExterior`}
+                                    onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}envelopeFondoExterior`, file, (url) => patchIntroDeviceSub(device, "envelope", { fondoExteriorImagenUrl: url }))}
+                                    disabled={!recursosDriveConfigured}
+                                    resources={resourcesForIntro}
+                                    placeholder="/images/archivo.jpg"
+                                  />
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Margen del sobre respecto a la pantalla (%)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={35}
+                                      step={1}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.margenPantallaPorcentaje ?? 6}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { margenPantallaPorcentaje: Math.max(0, Number(e.target.value) || 0) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Margen adicional de la portada respecto al sobre (%)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={35}
+                                      step={1}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.margenContenidoPorcentaje ?? 4}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { margenContenidoPorcentaje: Math.max(0, Number(e.target.value) || 0) })}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="border-t border-stone-200 pt-3">
+                                  <p className="label-field">Secuencia tras el lacre</p>
+                                  <p className="mt-1 text-xs text-stone-500">
+                                    Se abre la solapa, luego el sobre desciende dejando ver la portada, y por último la portada hace zoom hasta ocupar toda la pantalla (momento en el que se activa).
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <label className="label-field">Al descender, el sobre...</label>
+                                  <select
+                                    className="input-field max-w-xs"
+                                    value={deviceConfig.envelope?.modoDescensoSobre ?? "desplazamiento"}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { modoDescensoSobre: e.target.value })}
+                                  >
+                                    <option value="desplazamiento">Solo se desplaza hacia abajo</option>
+                                    <option value="fade">Solo se desvanece (fade out)</option>
+                                    <option value="ambos">Se desplaza y se desvanece a la vez</option>
+                                  </select>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-3">
                                   <div>
                                     <label className="label-field">Duracion de apertura de la solapa (ms)</label>
                                     <input
@@ -1585,20 +1661,32 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                     />
                                   </div>
                                   <div>
-                                    <label className="label-field">Duracion de extraccion de la portada (ms)</label>
+                                    <label className="label-field">Duracion del descenso del sobre (ms)</label>
                                     <input
                                       type="number"
                                       min={300}
                                       max={5000}
                                       step={50}
                                       className="input-field"
-                                      value={deviceConfig.envelope?.duracionExtraccionMs ?? 700}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { duracionExtraccionMs: Math.max(300, Number(e.target.value) || 300) })}
+                                      value={deviceConfig.envelope?.duracionDescensoMs ?? 700}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { duracionDescensoMs: Math.max(300, Number(e.target.value) || 300) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Duracion del zoom de la portada (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={300}
+                                      max={5000}
+                                      step={50}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.duracionZoomMs ?? 900}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { duracionZoomMs: Math.max(300, Number(e.target.value) || 300) })}
                                     />
                                   </div>
                                 </div>
                                 <p className="text-xs text-stone-500">
-                                  El lacre configurado arriba se mostrará centrado sobre la solapa del sobre cerrado; al completarse su animación, la solapa se abrirá y la portada saldrá del sobre.
+                                  El lacre configurado arriba se mostrará centrado en el pico de la solapa del sobre cerrado; al completarse su animación, la solapa se abrirá y comenzará la secuencia de salida.
                                 </p>
                               </div>
                             )}

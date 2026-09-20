@@ -184,13 +184,16 @@ export type IntroCustomConfig = {
 // - "svgPersonalizado": una imagen/SVG propio sustituye por completo el acabado del sobre (el código solo anima la apertura).
 export type IntroEnvelopeModoFondo = "colores" | "textura" | "svgPersonalizado";
 
+// Cómo se comporta el sobre al descender tras abrirse la solapa.
+export type IntroEnvelopeDescensoModo = "desplazamiento" | "fade" | "ambos";
+
 export type IntroEnvelopeConfig = {
   modoFondo?: IntroEnvelopeModoFondo;
   imagenUrl?: string; // textura o sobre completo, según modoFondo
   colorBase?: string;
   colorBorde?: string;
   // Todas las medidas se expresan como porcentaje del lado menor de la pantalla
-  // (unidad "vmin"), ya que el sobre ocupa siempre la pantalla completa.
+  // (unidad "vmin"), ya que el sobre y la carta se dimensionan proporcionalmente.
   grosorBordePorcentaje?: number;
   radioEsquinasPorcentaje?: number;
   colorSolapaInterior?: string;
@@ -198,8 +201,16 @@ export type IntroEnvelopeConfig = {
   sombraColor?: string;
   sombraDesenfoquePorcentaje?: number;
   alturaSolapaPorcentaje?: number; // 0-100: altura de la solapa triangular respecto al alto del sobre
+  // Escena: ni el sobre ni el contenido ocupan el 100% de la pantalla.
+  margenPantallaPorcentaje?: number; // margen entre el sobre y el borde de la pantalla
+  margenContenidoPorcentaje?: number; // margen adicional del contenido respecto al sobre (para que se note que está dentro)
+  fondoExteriorColor?: string; // color de fondo detrás del sobre (la "mesa")
+  fondoExteriorImagenUrl?: string; // textura opcional superpuesta al fondo exterior
+  // Secuencia tras el lacre: abrir solapa -> el sobre desciende -> la portada hace zoom a pantalla completa.
+  modoDescensoSobre?: IntroEnvelopeDescensoModo;
   duracionAperturaMs?: number; // tiempo en abrir la solapa
-  duracionExtraccionMs?: number; // tiempo en que la portada "sale" del sobre hasta ocupar toda la pantalla
+  duracionDescensoMs?: number; // tiempo en que el sobre desciende tras abrirse
+  duracionZoomMs?: number; // tiempo en que la portada hace zoom hasta ocupar toda la pantalla
 };
 
 export type NativeSvgAnimationOption = {

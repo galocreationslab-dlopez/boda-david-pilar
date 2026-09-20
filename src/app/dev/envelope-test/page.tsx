@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
-import type { IntroEnvelopeConfig, IntroEnvelopeModoFondo } from "@/config/wedding.config";
+import type { IntroEnvelopeConfig, IntroEnvelopeDescensoModo, IntroEnvelopeModoFondo } from "@/config/wedding.config";
 
 const DEFAULT_CONFIG: IntroEnvelopeConfig = {
   modoFondo: "colores",
@@ -15,8 +15,13 @@ const DEFAULT_CONFIG: IntroEnvelopeConfig = {
   sombraColor: "rgba(0,0,0,0.35)",
   sombraDesenfoquePorcentaje: 3,
   alturaSolapaPorcentaje: 42,
+  margenPantallaPorcentaje: 6,
+  margenContenidoPorcentaje: 4,
+  fondoExteriorColor: "#2E1F0E",
+  modoDescensoSobre: "desplazamiento",
   duracionAperturaMs: 900,
-  duracionExtraccionMs: 700,
+  duracionDescensoMs: 700,
+  duracionZoomMs: 900,
 };
 
 export default function EnvelopeTestPage() {
@@ -99,12 +104,45 @@ export default function EnvelopeTestPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
+              <label className="label-field">Margen sobre/pantalla (%)</label>
+              <input type="number" className="input-field" value={config.margenPantallaPorcentaje} onChange={(e) => patch({ margenPantallaPorcentaje: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className="label-field">Margen portada/sobre (%)</label>
+              <input type="number" className="input-field" value={config.margenContenidoPorcentaje} onChange={(e) => patch({ margenContenidoPorcentaje: Number(e.target.value) })} />
+            </div>
+          </div>
+
+          <div>
+            <label className="label-field">Color fondo exterior (mesa)</label>
+            <input type="color" className="input-field h-10 w-full" value={config.fondoExteriorColor} onChange={(e) => patch({ fondoExteriorColor: e.target.value })} />
+          </div>
+
+          <div>
+            <label className="label-field">Al descender, el sobre...</label>
+            <select
+              className="input-field"
+              value={config.modoDescensoSobre}
+              onChange={(e) => patch({ modoDescensoSobre: e.target.value as IntroEnvelopeDescensoModo })}
+            >
+              <option value="desplazamiento">Solo se desplaza</option>
+              <option value="fade">Solo se desvanece</option>
+              <option value="ambos">Ambos a la vez</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
               <label className="label-field">Apertura (ms)</label>
               <input type="number" className="input-field" value={config.duracionAperturaMs} onChange={(e) => patch({ duracionAperturaMs: Number(e.target.value) })} />
             </div>
             <div>
-              <label className="label-field">Extraccion (ms)</label>
-              <input type="number" className="input-field" value={config.duracionExtraccionMs} onChange={(e) => patch({ duracionExtraccionMs: Number(e.target.value) })} />
+              <label className="label-field">Descenso (ms)</label>
+              <input type="number" className="input-field" value={config.duracionDescensoMs} onChange={(e) => patch({ duracionDescensoMs: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className="label-field">Zoom (ms)</label>
+              <input type="number" className="input-field" value={config.duracionZoomMs} onChange={(e) => patch({ duracionZoomMs: Number(e.target.value) })} />
             </div>
           </div>
         </aside>
