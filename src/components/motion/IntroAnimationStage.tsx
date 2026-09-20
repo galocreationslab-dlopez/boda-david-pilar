@@ -6,6 +6,7 @@ import FadeInReveal from "@/components/motion/FadeInReveal";
 import FocusRegionReveal from "@/components/motion/FocusRegionReveal";
 import SlideUpReveal from "@/components/motion/SlideUpReveal";
 import CustomHtmlReveal from "@/components/motion/CustomHtmlReveal";
+import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
 import type { IntroDeviceConfig } from "@/config/wedding.config";
 
 export type IntroAnimationStageProps = {
@@ -101,6 +102,17 @@ export default function IntroAnimationStage({
         <CustomHtmlReveal htmlUrl={cfg.htmlUrl ?? ""} fondo={fondoPanel} maxEsperaMs={cfg.maxEsperaMs ?? 20000} onComplete={onComplete}>
           {children}
         </CustomHtmlReveal>
+      );
+    }
+    case "envelope": {
+      // Normalmente IntroReveal gestiona el tipo "envelope" directamente (para
+      // mostrar el lacre sobre la solapa cerrada). Este caso es un fallback por
+      // si se llega aquí sin esa integración: el sobre se abre inmediatamente.
+      const cfg = deviceConfig.envelope ?? {};
+      return (
+        <EnvelopeOpenReveal config={cfg} fondo={fondoPanel} sealBroken onComplete={onComplete}>
+          {children}
+        </EnvelopeOpenReveal>
       );
     }
     case "revealBook":

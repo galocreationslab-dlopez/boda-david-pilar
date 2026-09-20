@@ -4,6 +4,7 @@ import { useCallback, useEffect, useSyncExternalStore, useState, type CSSPropert
 import { IntroProvider } from "@/contexts/IntroContext";
 import AutoDrawSVG, { parseNativeSvgAnimations, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
 import IntroAnimationStage from "@/components/motion/IntroAnimationStage";
+import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
 import { useDeviceViewport } from "@/components/motion/useDeviceViewport";
 import { normalizeIntroConfig, type IntroDeviceConfig, type IntroSeccionConfig } from "@/config/wedding.config";
 
@@ -161,6 +162,84 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
 
   const isLacreStep = !started || !lacreGone;
   const introIsCurrentlyActive = config.activo && !unlocked && !visitRecorded;
+  const isEnvelopeMode = deviceConfig.tipo === "envelope";
+
+  const renderSealVisual = (sizeClassName: string, sealBackground?: string) =>
+    !lacreGone ? (
+      lacreHasNativeAnimation ? (
+        // El lacre tiene animación nativa: se reproduce automáticamente,
+        // y su finalización dispara automáticamente la siguiente etapa.
+        <span
+          className={`block ${sizeClassName}`}
+          style={{ color: themeValue("--bronze-light") || "#C4964A", backgroundColor: sealBackground }}
+          aria-label="Abriendo invitación"
+        >
+          <AutoDrawSVG
+            svgSource={config.lacreUrl || DEFAULT_LACRE}
+            animate
+            strokeColorOverride={themeValue("--bronze-light")}
+            durationMs={Math.max(300, config.duracionLacreMs ?? 900)}
+            sequential={false}
+            nativeAnimationId={selectedNativeAnimationId}
+            onComplete={hasSelectedNativeTrigger ? finishAutoLacre : undefined}
+            className="h-full w-full"
+          />
+        </span>
+      ) : (
+        // El lacre es un SVG estático: espera clic para dibujarse y luego otro
+        // clic (u onComplete) para abrir la siguiente etapa.
+        <button type="button" className="group mx-auto block focus:outline-none" onClick={startIntro} aria-label="Abrir invitación">
+          <span className={`block ${sizeClassName}`} style={{ color: themeValue("--bronze-light") || "#C4964A", backgroundColor: sealBackground }}>
+            <AutoDrawSVG
+              svgSource={config.lacreUrl || DEFAULT_LACRE}
+              direction={closingLacre ? "reverse" : "forward"}
+              animate={closingLacre}
+              strokeColorOverride={themeValue("--bronze-light")}
+              durationMs={Math.max(300, config.duracionLacreMs ?? 900)}
+              sequential={false}
+              onComplete={finishLacreWithDelay}
+              className="h-full w-full"
+            />
+          </span>
+        </button>
+      )
+    ) : null;
+
+  if (isEnvelopeMode) {
+    return (
+      <IntroProvider introActive={introIsCurrentlyActive}>
+        <>
+          {children}
+          <div className="fixed inset-0 z-[100] flex min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden bg-[var(--brown-dark)] px-4 py-8" style={{ ...themeStyle, ...introStyle }}>
+            {(showIntroTitle || showIntroSubtitle) && !lacreGone ? (
+              <div className="mb-6 text-center" style={introFrameStyle}>
+                {showIntroTitle ? <p className="font-display text-2xl text-[var(--cream)] sm:text-3xl">{introTitle}</p> : null}
+                {showIntroSubtitle ? (
+                  <p className="mt-2 text-xs uppercase tracking-[0.24em] text-[var(--cream)] opacity-70">{introSubtitle}</p>
+                ) : null}
+              </div>
+            ) : null}
+            <div className="relative w-full flex-1">
+              <EnvelopeOpenReveal
+                config={deviceConfig.envelope ?? {}}
+                fondo={introBackground}
+                sealBroken={lacreGone}
+                sealSlot={renderSealVisual("h-full w-full")}
+                onComplete={completeIntro}
+              >
+                {children}
+              </EnvelopeOpenReveal>
+            </div>
+            {showIntroSkip && !lacreGone ? (
+              <button type="button" onClick={completeIntro} className="mt-6 block text-xs uppercase tracking-[0.2em] text-[var(--cream)] underline underline-offset-4 opacity-80 hover:opacity-100">
+                {introSkipLabel}
+              </button>
+            ) : null}
+          </div>
+        </>
+      </IntroProvider>
+    );
+  }
 
   return (
     <IntroProvider introActive={introIsCurrentlyActive}>
@@ -176,53 +255,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
             {showIntroSubtitle ? (
               <p className="mt-2 text-xs uppercase tracking-[0.24em] text-[var(--cream)] opacity-70">{introSubtitle}</p>
             ) : null}
-            {!lacreGone ? (
-              lacreHasNativeAnimation ? (
-                // El lacre tiene animación nativa: se reproduce automáticamente,
-                // y su finalización dispara automáticamente la siguiente etapa.
-                <span
-                  className="mx-auto mt-8 block aspect-square w-[clamp(7rem,24vw,13rem)]"
-                  style={{ color: themeValue("--bronze-light") || "#C4964A", backgroundColor: introBackground }}
-                  aria-label="Abriendo invitación"
-                >
-                  <AutoDrawSVG
-                    svgSource={config.lacreUrl || DEFAULT_LACRE}
-                    animate
-                    strokeColorOverride={themeValue("--bronze-light")}
-                    durationMs={Math.max(300, config.duracionLacreMs ?? 900)}
-                    sequential={false}
-                    nativeAnimationId={selectedNativeAnimationId}
-                    onComplete={hasSelectedNativeTrigger ? finishAutoLacre : undefined}
-                    className="h-full w-full"
-                  />
-                </span>
-              ) : (
-                // El lacre es un SVG estático: espera clic para dibujarse y luego otro
-                // clic (u onComplete) para abrir la siguiente etapa.
-                <button
-                  type="button"
-                  className="group mx-auto mt-8 block focus:outline-none"
-                  onClick={startIntro}
-                  aria-label="Abrir invitación"
-                >
-                  <span
-                    className="mx-auto block aspect-square w-[clamp(7rem,24vw,13rem)]"
-                    style={{ color: themeValue("--bronze-light") || "#C4964A", backgroundColor: introBackground }}
-                  >
-                    <AutoDrawSVG
-                      svgSource={config.lacreUrl || DEFAULT_LACRE}
-                      direction={closingLacre ? "reverse" : "forward"}
-                      animate={closingLacre}
-                      strokeColorOverride={themeValue("--bronze-light")}
-                      durationMs={Math.max(300, config.duracionLacreMs ?? 900)}
-                      sequential={false}
-                      onComplete={finishLacreWithDelay}
-                      className="h-full w-full"
-                    />
-                  </span>
-                </button>
-              )
-            ) : null}
+            {renderSealVisual("mx-auto mt-8 aspect-square w-[clamp(7rem,24vw,13rem)]", introBackground)}
             {showIntroSkip ? (
               <button type="button" onClick={completeIntro} className="mx-auto mt-8 block text-xs uppercase tracking-[0.2em] text-[var(--cream)] underline underline-offset-4 opacity-80 hover:opacity-100">
                 {introSkipLabel}

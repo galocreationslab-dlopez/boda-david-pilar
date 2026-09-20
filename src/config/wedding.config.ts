@@ -123,7 +123,7 @@ export type TipoSeccionDiseno = "intro" | "invitacion" | "portada" | "historia" 
 export const DEFAULT_TEXTO_INVITACION =
   "Con mucha alegría os invitamos a compartir con nosotros el día más especial de nuestras vidas.";
 
-export type IntroAnimationType = "revealBook" | "cortinas" | "fadeIn" | "focusRegion" | "slideUp" | "custom";
+export type IntroAnimationType = "revealBook" | "cortinas" | "fadeIn" | "focusRegion" | "slideUp" | "custom" | "envelope";
 
 // Región de interés (polígono de 4 vértices) usada por el tipo "focusRegion".
 // Coordenadas normalizadas (0-1) relativas al contenedor del media, en orden
@@ -178,6 +178,30 @@ export type IntroCustomConfig = {
   maxEsperaMs?: number;
 };
 
+// Modo de apariencia del sobre para el tipo de animación "envelope":
+// - "colores": el sobre se dibuja íntegramente con los colores/parámetros CSS de abajo.
+// - "textura": los colores de abajo actúan de base y se superpone una imagen de textura (papel, kraft, etc.).
+// - "svgPersonalizado": una imagen/SVG propio sustituye por completo el acabado del sobre (el código solo anima la apertura).
+export type IntroEnvelopeModoFondo = "colores" | "textura" | "svgPersonalizado";
+
+export type IntroEnvelopeConfig = {
+  modoFondo?: IntroEnvelopeModoFondo;
+  imagenUrl?: string; // textura o sobre completo, según modoFondo
+  anchoPx?: number;
+  altoPx?: number;
+  colorBase?: string;
+  colorBorde?: string;
+  grosorBordePx?: number;
+  radioEsquinasPx?: number;
+  colorSolapaInterior?: string;
+  colorCostura?: string;
+  sombraColor?: string;
+  sombraDesenfoquePx?: number;
+  alturaSolapaPorcentaje?: number; // 0-100: altura de la solapa triangular respecto al alto del sobre
+  duracionAperturaMs?: number; // tiempo en abrir la solapa
+  duracionExtraccionMs?: number; // tiempo en que la portada "sale" del sobre hasta ocupar toda la pantalla
+};
+
 export type NativeSvgAnimationOption = {
   id: string;
   label: string;
@@ -194,6 +218,7 @@ export type IntroDeviceConfig = {
   focusRegion?: IntroFocusRegionConfig;
   slideUp?: IntroSlideUpConfig;
   custom?: IntroCustomConfig;
+  envelope?: IntroEnvelopeConfig;
 };
 
 export type IntroSeccionConfig = {
