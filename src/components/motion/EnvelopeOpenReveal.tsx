@@ -32,12 +32,13 @@ function roundedApex(apexX: number, apexY: number, cornerY: number, f: number) {
 
 /**
  * Anima la apertura de un sobre postal tras el lacre, en cuatro tiempos:
- * 1. "opening": la solapa gira hacia arriba dejando ver la portada (ya
- *    montada detrás, en tamaño de "carta") solo a través del hueco triangular.
- * 2. "descending": con la solapa ya abierta, el frontal del sobre desciende
+ * 1. "opening": la solapa gira hacia arriba hasta quedar extendida (mostrando
+ *    su cara interior), dejando ver la portada (ya montada detrás, en tamaño
+ *    de "carta") solo a través del hueco triangular.
+ * 2. "descending": el sobre entero (trasera + solapa + frontal, siempre en
+ *    ese orden respecto a la portada) desciende como un conjunto único
  *    (desplazamiento y/o desvanecido, según configuración) dejando a la vista
- *    la carta. La solapa pasa a estar detrás de la portada (como la trasera),
- *    para que su contorno no se dibuje sobre la portada al descender.
+ *    la carta.
  * 3. "zooming": la carta crece (zoom) hasta ocupar toda la pantalla.
  * 4. "done": la portada real ya ocupa toda la pantalla y se activa (el padre
  *    desmonta este componente y la deja interactiva).
@@ -132,7 +133,10 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
 
   const isOpenOrLater = phase !== "closed";
   const isDescendingOrLater = phase === "descending" || phase === "zooming" || phase === "done";
-  const flapRotation = isOpenOrLater ? -172 : 0;
+  // Un poco menos de -180° (en vez de p.ej. -172°) para que la solapa quede
+  // extendida hacia arriba, mostrando su cara interior, en vez de desaparecer
+  // de canto a medio camino.
+  const flapRotation = isOpenOrLater ? -179 : 0;
   const sealVisible = phase === "closed";
 
   // Muesca del frontal (rectángulo con el hueco triangular donde encaja la solapa,
@@ -192,10 +196,21 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
     // si el padre las dimensiona de forma distinta (p. ej. por padding o flex), la portada
     // queda visible fuera del área del sobre.
     <div className="fixed inset-0 overflow-hidden" style={fondoExteriorStyle}>
-      {/* Trasera del sobre: rectángulo liso del mismo color, siempre detrás de la portada. */}
+      {/* Trasera del sobre: rectángulo liso del mismo color, siempre detrás de la
+          portada; desciende en sincronía con el frontal para que el sobre se retire
+          como un conjunto único. */}
       {phase !== "done" ? (
         <div className="fixed inset-0 z-0" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}>
-          <div className="absolute inset-0" style={{ ...bodyFill, borderRadius: `${radioEsquinas}vmin` }} />
+          <div
+            className="h-full w-full"
+            style={{
+              transform: descendTransform,
+              opacity: descendOpacity,
+              transition: `transform ${duracionDescenso}ms ease-in, opacity ${duracionDescenso}ms ease-in`,
+            }}
+          >
+            <div className="absolute inset-0" style={{ ...bodyFill, borderRadius: `${radioEsquinas}vmin` }} />
+          </div>
         </div>
       ) : null}
 
@@ -205,82 +220,91 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
       </div>
       <div style={paperBevelStyle} />
 
-      {/* Solapa: por delante de la portada mientras está cerrada/abriéndose; en cuanto
-          termina de abrirse pasa a la trasera (detrás de la portada) y ya no vuelve a
-          dibujarse por encima, aunque el frontal descienda después. */}
+      {/* Solapa: siempre por delante de la portada (también al abrirse queda
+          extendida hacia arriba, fuera del área de la portada); desciende junto
+          con el frontal para que el sobre se retire como un conjunto único. */}
       {phase !== "done" ? (
-        <div
-          className="fixed inset-0"
-          style={{ zIndex: isDescendingOrLater ? 5 : 20, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}
-        >
-          <div className="relative h-full w-full" style={{ perspective: "180vmin" }}>
-            <div
-              className="absolute left-0 top-0 w-full origin-top overflow-hidden"
-              style={{
-                height: `${flapPct}%`,
-                borderTopLeftRadius: `${radioEsquinas}vmin`,
-                borderTopRightRadius: `${radioEsquinas}vmin`,
-              }}
-            >
+        <div className="fixed inset-0 z-20" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}>
+          <div
+            className="h-full w-full"
+            style={{
+              transform: descendTransform,
+              opacity: descendOpacity,
+              transition: `transform ${duracionDescenso}ms ease-in, opacity ${duracionDescenso}ms ease-in`,
+            }}
+          >
+            <div className="relative h-full w-full" style={{ perspective: "180vmin" }}>
               <div
-                className="h-full w-full origin-top"
+                className="absolute left-0 top-0 w-full origin-top overflow-hidden"
                 style={{
-                  transformStyle: "preserve-3d",
-                  transform: `rotateX(${flapRotation}deg)`,
-                  transition: `transform ${duracionApertura}ms cubic-bezier(0.22,1,0.36,1)`,
+                  height: `${flapPct}%`,
+                  borderTopLeftRadius: `${radioEsquinas}vmin`,
+                  borderTopRightRadius: `${radioEsquinas}vmin`,
                 }}
               >
-                {/* Cara frontal de la solapa */}
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" style={{ backfaceVisibility: "hidden" }}>
-                  {usaImagen ? (
-                    <defs>
-                      <pattern id={`${patternId}-flap`} patternUnits="objectBoundingBox" width={1} height={1}>
-                        <image href={config.imagenUrl} width={100} height={100} preserveAspectRatio="xMidYMid slice" />
-                      </pattern>
-                    </defs>
-                  ) : null}
-                  <path d={flapPath} {...patternFillProps(`${patternId}-flap`)} />
-                  <path
-                    d={flapPath}
-                    fill="none"
-                    style={{ stroke: colorCostura, strokeWidth: "0.35vmin", vectorEffect: "non-scaling-stroke" } as CSSProperties}
-                  />
-                </svg>
-                {/* Cara interior de la solapa, visible al girar más de 90º */}
                 <div
-                  className="absolute inset-0"
+                  className="h-full w-full origin-top"
                   style={{
-                    backgroundColor: colorSolapaInterior,
-                    clipPath: "polygon(0% 0%, 100% 0%, 50% 100%)",
-                    transform: "rotateY(180deg)",
-                    backfaceVisibility: "hidden",
+                    transformStyle: "preserve-3d",
+                    transform: `rotateX(${flapRotation}deg)`,
+                    transition: `transform ${duracionApertura}ms cubic-bezier(0.22,1,0.36,1)`,
                   }}
-                />
-
-                {sealSlot ? (
-                  // Centrado exactamente en el pico de la solapa (50%, 100% de su propia caja).
+                >
+                  {/* Cara frontal de la solapa */}
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" style={{ backfaceVisibility: "hidden" }}>
+                    {usaImagen ? (
+                      <defs>
+                        <pattern id={`${patternId}-flap`} patternUnits="objectBoundingBox" width={1} height={1}>
+                          <image href={config.imagenUrl} width={100} height={100} preserveAspectRatio="xMidYMid slice" />
+                        </pattern>
+                      </defs>
+                    ) : null}
+                    <path d={flapPath} {...patternFillProps(`${patternId}-flap`)} />
+                    <path
+                      d={flapPath}
+                      fill="none"
+                      style={{ stroke: colorCostura, strokeWidth: "0.35vmin", vectorEffect: "non-scaling-stroke" } as CSSProperties}
+                    />
+                  </svg>
+                  {/* Cara interior de la solapa, visible al girar más de 90º */}
                   <div
-                    className="absolute aspect-square w-[clamp(6rem,20vmin,12rem)]"
+                    className="absolute inset-0"
                     style={{
-                      left: "50%",
-                      top: "100%",
-                      transform: "translate(-50%, -50%)",
-                      opacity: sealVisible ? 1 : 0,
-                      transition: "opacity 250ms ease",
-                      pointerEvents: sealVisible ? "auto" : "none",
+                      backgroundColor: colorSolapaInterior,
+                      clipPath: "polygon(0% 0%, 100% 0%, 50% 100%)",
+                      transform: "rotateY(180deg)",
+                      backfaceVisibility: "hidden",
                     }}
-                  >
-                    {sealSlot}
-                  </div>
-                ) : null}
+                  />
+
+                  {sealSlot ? (
+                    // Centrado exactamente en el pico de la solapa (50%, 100% de su propia caja);
+                    // z-index muy alto para quedar siempre por encima del frontal del sobre.
+                    <div
+                      className="absolute z-50 aspect-square w-[clamp(6rem,20vmin,12rem)]"
+                      style={{
+                        left: "50%",
+                        top: "100%",
+                        transform: "translate(-50%, -50%)",
+                        opacity: sealVisible ? 1 : 0,
+                        transition: "opacity 250ms ease",
+                        pointerEvents: sealVisible ? "auto" : "none",
+                      }}
+                    >
+                      {sealSlot}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
         </div>
       ) : null}
 
-      {/* Frontal del sobre: por delante de la portada; es la única pieza que
-          desciende (o se desvanece) para dejarla al descubierto. */}
+      {/* Frontal del sobre: por delante de la portada; desciende junto con la trasera
+          y la solapa para que el sobre se retire como un conjunto único. La sombra
+          exterior solo existe con el sobre cerrado: al empezar a abrirse desaparece,
+          para no barrer la portada mientras el frontal desciende. */}
       {phase !== "done" ? (
         <div className="fixed inset-0 z-30" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}>
           <div
@@ -297,7 +321,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                 borderRadius: `${radioEsquinas}vmin`,
                 boxShadow: [
                   grosorBorde > 0 ? `inset 0 0 0 ${grosorBorde}vmin ${colorBorde}` : null,
-                  `0 ${sombraDesenfoque / 2}vmin ${sombraDesenfoque}vmin ${sombraColor}`,
+                  phase === "closed" ? `0 ${sombraDesenfoque / 2}vmin ${sombraDesenfoque}vmin ${sombraColor}` : null,
                 ]
                   .filter(Boolean)
                   .join(", "),
