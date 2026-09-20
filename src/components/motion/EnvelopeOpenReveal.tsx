@@ -44,14 +44,22 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const duracionExtraccion = Math.max(300, config.duracionExtraccionMs ?? 700);
   const usaImagen = modoFondo !== "colores" && Boolean(config.imagenUrl);
 
+  // Se separan en dos efectos: uno dispara la apertura al romperse el sello,
+  // y el otro programa la transición a "extracting" mientras dura la apertura.
+  // Combinarlos en un único efecto con `phase` como dependencia provoca que la
+  // limpieza cancele el propio temporizador en cuanto se llama a setPhase.
   useEffect(() => {
     if (!sealBroken || phase !== "closed") return;
     setPhase("opening");
+  }, [sealBroken, phase]);
+
+  useEffect(() => {
+    if (phase !== "opening") return;
     const openTimer = window.setTimeout(() => {
       setPhase("extracting");
     }, duracionApertura);
     return () => window.clearTimeout(openTimer);
-  }, [sealBroken, phase, duracionApertura]);
+  }, [phase, duracionApertura]);
 
   useEffect(() => {
     if (phase !== "extracting") return;
@@ -72,14 +80,13 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
       }
     : { backgroundColor: colorBase };
 
-  // Polígono del cuerpo del sobre: rectángulo con un corte en "V" arriba, donde
-  // encaja la solapa. Durante la extracción el corte "crece" hacia abajo hasta
-  // consumir todo el sobre, dando la sensación de que este se abre por completo.
+  // Polígono del cuerpo del sobre: rectángulo con una muesca triangular (apice
+  // hacia abajo) en la parte superior, donde encaja la solapa. Durante la
+  // extracción la muesca "crece" hasta consumir todo el sobre, dando la
+  // sensación de que este se abre por completo.
   const bodyClipPath = useMemo(() => {
-    const extracted = phase === "extracting" || phase === "done";
-    const sideY = extracted ? 100 : flapPct;
-    const apexY = extracted ? 100 : 0;
-    return `polygon(0% ${sideY}%, 50% ${apexY}%, 100% ${sideY}%, 100% 100%, 0% 100%)`;
+    const apexY = phase === "extracting" || phase === "done" ? 100 : flapPct;
+    return `polygon(0% 0%, 50% ${apexY}%, 100% 0%, 100% 100%, 0% 100%)`;
   }, [phase, flapPct]);
 
   const flapRotation = phase === "opening" || phase === "extracting" || phase === "done" ? -172 : 0;
@@ -124,7 +131,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                   height: `${flapPct}%`,
                   transformStyle: "preserve-3d",
                   transform: `rotateX(${flapRotation}deg)`,
-                  transition: `transform ${duracionApertura}ms cubic-bezier(0.45,0.05,0.35,1)`,
+                  transition: `transform ${duracionApertura}ms cubic-bezier(0.22,1,0.36,1)`,
                 }}
               >
                 {/* Cara frontal de la solapa */}

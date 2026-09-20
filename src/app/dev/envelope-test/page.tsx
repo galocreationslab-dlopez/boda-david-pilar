@@ -1,0 +1,152 @@
+"use client";
+
+import { useState } from "react";
+import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
+import type { IntroEnvelopeConfig, IntroEnvelopeModoFondo } from "@/config/wedding.config";
+
+const DEFAULT_CONFIG: IntroEnvelopeConfig = {
+  modoFondo: "colores",
+  anchoPx: 340,
+  altoPx: 230,
+  colorBase: "#e8ddc7",
+  colorBorde: "#a9895f",
+  grosorBordePx: 2,
+  radioEsquinasPx: 6,
+  colorSolapaInterior: "#c9b48c",
+  colorCostura: "#8a6a44",
+  sombraColor: "rgba(0,0,0,0.35)",
+  sombraDesenfoquePx: 28,
+  alturaSolapaPorcentaje: 42,
+  duracionAperturaMs: 900,
+  duracionExtraccionMs: 700,
+};
+
+export default function EnvelopeTestPage() {
+  const [config, setConfig] = useState<IntroEnvelopeConfig>(DEFAULT_CONFIG);
+  const [sealBroken, setSealBroken] = useState(false);
+  const [runId, setRunId] = useState(0);
+
+  const patch = (p: Partial<IntroEnvelopeConfig>) => setConfig((prev) => ({ ...prev, ...p }));
+
+  const replay = () => {
+    setSealBroken(false);
+    setRunId((id) => id + 1);
+  };
+
+  return (
+    <main className="mx-auto max-w-6xl px-6 py-10">
+      <h1 className="section-title text-left">Envelope Opening Playground</h1>
+      <p className="mb-6 text-sm text-[var(--brown-mid)]">
+        Prueba aislada de la animación de apertura de sobre. Pulsa el lacre para romperlo y observa cómo se abre la solapa
+        y la portada sale del sobre.
+      </p>
+
+      <section className="grid gap-6 lg:grid-cols-[340px,1fr]">
+        <aside className="card-wedding space-y-4">
+          <button type="button" className="btn-secondary w-full" onClick={replay}>
+            Reiniciar animación
+          </button>
+
+          <div>
+            <label className="label-field">Acabado</label>
+            <select
+              className="input-field"
+              value={config.modoFondo}
+              onChange={(e) => patch({ modoFondo: e.target.value as IntroEnvelopeModoFondo })}
+            >
+              <option value="colores">Solo colores</option>
+              <option value="textura">Textura</option>
+              <option value="svgPersonalizado">Imagen propia</option>
+            </select>
+          </div>
+
+          {config.modoFondo !== "colores" && (
+            <div>
+              <label className="label-field">URL de imagen</label>
+              <input className="input-field" value={config.imagenUrl ?? ""} onChange={(e) => patch({ imagenUrl: e.target.value })} placeholder="/images/archivo.jpg" />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label-field">Ancho (px)</label>
+              <input type="number" className="input-field" value={config.anchoPx} onChange={(e) => patch({ anchoPx: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className="label-field">Alto (px)</label>
+              <input type="number" className="input-field" value={config.altoPx} onChange={(e) => patch({ altoPx: Number(e.target.value) })} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label-field">Color base</label>
+              <input type="color" className="input-field h-10 w-full" value={config.colorBase} onChange={(e) => patch({ colorBase: e.target.value })} />
+            </div>
+            <div>
+              <label className="label-field">Interior solapa</label>
+              <input type="color" className="input-field h-10 w-full" value={config.colorSolapaInterior} onChange={(e) => patch({ colorSolapaInterior: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label-field">Color borde</label>
+              <input type="color" className="input-field h-10 w-full" value={config.colorBorde} onChange={(e) => patch({ colorBorde: e.target.value })} />
+            </div>
+            <div>
+              <label className="label-field">Grosor borde (px)</label>
+              <input type="number" className="input-field" value={config.grosorBordePx} onChange={(e) => patch({ grosorBordePx: Number(e.target.value) })} />
+            </div>
+          </div>
+
+          <div>
+            <label className="label-field">Altura solapa (%): {config.alturaSolapaPorcentaje}</label>
+            <input type="range" min={20} max={70} className="w-full" value={config.alturaSolapaPorcentaje} onChange={(e) => patch({ alturaSolapaPorcentaje: Number(e.target.value) })} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label-field">Apertura (ms)</label>
+              <input type="number" className="input-field" value={config.duracionAperturaMs} onChange={(e) => patch({ duracionAperturaMs: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className="label-field">Extraccion (ms)</label>
+              <input type="number" className="input-field" value={config.duracionExtraccionMs} onChange={(e) => patch({ duracionExtraccionMs: Number(e.target.value) })} />
+            </div>
+          </div>
+        </aside>
+
+        <article className="card-wedding relative min-h-[560px] overflow-hidden p-0">
+          <EnvelopeOpenReveal
+            key={runId}
+            config={config}
+            fondo="#2E1F0E"
+            sealBroken={sealBroken}
+            sealSlot={
+              !sealBroken ? (
+                <button
+                  type="button"
+                  onClick={() => setSealBroken(true)}
+                  className="flex h-full w-full items-center justify-center rounded-full bg-[#C4964A] text-xs font-semibold uppercase tracking-wide text-white shadow-md"
+                >
+                  Abrir
+                </button>
+              ) : null
+            }
+            onComplete={() => console.log("envelope intro complete")}
+          >
+            <div className="flex h-full min-h-[560px] w-full items-center justify-center bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.95),rgba(241,234,224,0.9))] p-6">
+              <div className="max-w-xl rounded-3xl border border-[rgba(0,0,0,0.1)] bg-[rgba(255,255,255,0.85)] p-6 text-center shadow-[0_18px_45px_rgba(0,0,0,0.08)] sm:p-8">
+                <h2 className="font-display text-3xl text-[var(--brown-dark)] sm:text-4xl">Portada revelada</h2>
+                <p className="mt-3 text-sm text-[var(--brown-mid)] sm:text-base">
+                  Este bloque simula la portada real que aparece tras la apertura del sobre.
+                </p>
+              </div>
+            </div>
+          </EnvelopeOpenReveal>
+        </article>
+      </section>
+    </main>
+  );
+}
