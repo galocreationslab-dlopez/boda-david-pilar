@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
-import type { IntroEnvelopeConfig, IntroEnvelopeDescensoModo, IntroEnvelopeModoFondo } from "@/config/wedding.config";
+import type { IntroEnvelopeAspectoModo, IntroEnvelopeConfig, IntroEnvelopeDescensoModo, IntroEnvelopeModoFondo } from "@/config/wedding.config";
 
 const DEFAULT_CONFIG: IntroEnvelopeConfig = {
   modoFondo: "colores",
@@ -19,6 +19,9 @@ const DEFAULT_CONFIG: IntroEnvelopeConfig = {
   radioPicoSolapaPorcentaje: 10,
   margenPantallaPorcentaje: 6,
   margenContenidoPorcentaje: 4,
+  modoAspectoSobre: "automatico",
+  aspectoAnchoSobre: 3,
+  aspectoAltoSobre: 2,
   fondoExteriorColor: "#2E1F0E",
   modoDescensoSobre: "desplazamiento",
   duracionAperturaMs: 900,
@@ -126,6 +129,31 @@ export default function EnvelopeTestPage() {
               <input type="number" className="input-field" value={config.margenContenidoPorcentaje} onChange={(e) => patch({ margenContenidoPorcentaje: Number(e.target.value) })} />
             </div>
           </div>
+
+          <div>
+            <label className="label-field">Relación de aspecto</label>
+            <select
+              className="input-field"
+              value={config.modoAspectoSobre}
+              onChange={(e) => patch({ modoAspectoSobre: e.target.value as IntroEnvelopeAspectoModo })}
+            >
+              <option value="automatico">Automática</option>
+              <option value="fijo">Fija</option>
+            </select>
+          </div>
+
+          {config.modoAspectoSobre === "fijo" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label-field">Ancho relación</label>
+                <input type="number" step={0.1} className="input-field" value={config.aspectoAnchoSobre} onChange={(e) => patch({ aspectoAnchoSobre: Number(e.target.value) })} />
+              </div>
+              <div>
+                <label className="label-field">Alto relación</label>
+                <input type="number" step={0.1} className="input-field" value={config.aspectoAltoSobre} onChange={(e) => patch({ aspectoAltoSobre: Number(e.target.value) })} />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="label-field">Color fondo exterior (mesa)</label>

@@ -1653,6 +1653,45 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   </div>
                                 </div>
 
+                                <div>
+                                  <label className="label-field">Relación de aspecto del sobre</label>
+                                  <select
+                                    className="input-field"
+                                    value={deviceConfig.envelope?.modoAspectoSobre ?? "automatico"}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { modoAspectoSobre: e.target.value })}
+                                  >
+                                    <option value="automatico">Automática (igual que la pantalla, con el margen de arriba)</option>
+                                    <option value="fijo">Fija (el margen de arriba pasa a ser un mínimo)</option>
+                                  </select>
+                                </div>
+
+                                {deviceConfig.envelope?.modoAspectoSobre === "fijo" && (
+                                  <div className="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                      <label className="label-field">Ancho (unidades de relación)</label>
+                                      <input
+                                        type="number"
+                                        min={0.1}
+                                        step={0.1}
+                                        className="input-field"
+                                        value={deviceConfig.envelope?.aspectoAnchoSobre ?? 3}
+                                        onChange={(e) => patchIntroDeviceSub(device, "envelope", { aspectoAnchoSobre: Math.max(0.1, Number(e.target.value) || 0.1) })}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="label-field">Alto (unidades de relación)</label>
+                                      <input
+                                        type="number"
+                                        min={0.1}
+                                        step={0.1}
+                                        className="input-field"
+                                        value={deviceConfig.envelope?.aspectoAltoSobre ?? 2}
+                                        onChange={(e) => patchIntroDeviceSub(device, "envelope", { aspectoAltoSobre: Math.max(0.1, Number(e.target.value) || 0.1) })}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
                                 <div className="border-t border-stone-200 pt-3">
                                   <p className="label-field">Secuencia tras el lacre</p>
                                   <p className="mt-1 text-xs text-stone-500">

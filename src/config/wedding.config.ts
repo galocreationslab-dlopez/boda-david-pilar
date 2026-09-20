@@ -187,6 +187,12 @@ export type IntroEnvelopeModoFondo = "colores" | "textura" | "svgPersonalizado";
 // Cómo se comporta el sobre al descender tras abrirse la solapa.
 export type IntroEnvelopeDescensoModo = "desplazamiento" | "fade" | "ambos";
 
+// "automatico": el sobre ocupa el área disponible (pantalla menos el margen) con la
+// misma relación de aspecto que la pantalla, como hasta ahora.
+// "fijo": el sobre mantiene una relación de aspecho ancho/alto fija; el margen pasa a
+// ser un mínimo y el lado que sobre se reparte como margen extra, quedando centrado.
+export type IntroEnvelopeAspectoModo = "automatico" | "fijo";
+
 export type IntroEnvelopeConfig = {
   modoFondo?: IntroEnvelopeModoFondo;
   imagenUrl?: string; // textura o sobre completo, según modoFondo
@@ -204,8 +210,11 @@ export type IntroEnvelopeConfig = {
   alturaSolapaPorcentaje?: number; // 0-100: altura de la solapa triangular respecto al alto del sobre
   radioPicoSolapaPorcentaje?: number; // 0-50: redondeo del pico de la solapa (y de la muesca a juego en el frontal)
   // Escena: ni el sobre ni el contenido ocupan el 100% de la pantalla.
-  margenPantallaPorcentaje?: number; // margen entre el sobre y el borde de la pantalla
+  margenPantallaPorcentaje?: number; // margen (mínimo, en modo "fijo") entre el sobre y el borde de la pantalla
   margenContenidoPorcentaje?: number; // margen adicional del contenido respecto al sobre (para que se note que está dentro)
+  modoAspectoSobre?: IntroEnvelopeAspectoModo;
+  aspectoAnchoSobre?: number; // unidades de ancho de la relación de aspecto (solo en modo "fijo")
+  aspectoAltoSobre?: number; // unidades de alto de la relación de aspecto (solo en modo "fijo")
   fondoExteriorColor?: string; // color de fondo detrás del sobre (la "mesa")
   fondoExteriorImagenUrl?: string; // textura opcional superpuesta al fondo exterior
   // Secuencia tras el lacre: abrir solapa -> el sobre desciende -> la portada hace zoom a pantalla completa.

@@ -31,6 +31,25 @@ function roundedApex(apexX: number, apexY: number, cornerY: number, f: number) {
 }
 
 /**
+ * Ancho/alto reales de la ventana. Solo se necesita en modo de relación de
+ * aspecto "fijo": el propio recuadro del sobre puede dimensionarse con CSS
+ * puro (`min()`/`aspect-ratio`), pero la portada se escala con `transform:
+ * scale()` sobre un elemento a tamaño de ventana, y ese factor de escala debe
+ * ser un número (no se puede dividir una longitud CSS entre otra en calc()),
+ * así que aquí sí hace falta medir la ventana.
+ */
+function useViewportSize() {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const update = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return size;
+}
+
+/**
  * Anima la apertura de un sobre postal tras el lacre, en cuatro tiempos:
  * 1. "opening": la solapa gira hacia arriba hasta quedar extendida (mostrando
  *    su cara interior), dejando ver la portada (ya montada detrás, en tamaño
@@ -43,15 +62,20 @@ function roundedApex(apexX: number, apexY: number, cornerY: number, f: number) {
  * 4. "done": la portada real ya ocupa toda la pantalla y se activa (el padre
  *    desmonta este componente y la deja interactiva).
  *
- * El sobre se compone de 3 piezas independientes (trasera, frontal y solapa),
- * todas dimensionadas mediante `transform: scale()` desde el centro del área
- * disponible: escalar un elemento que ocupa el 100% del contenedor por un
- * factor S desde su centro dibuja exactamente un recuadro con un margen de
- * (1 - S) / 2 en cada lado, sin necesitar medir el DOM.
+ * El sobre se compone de 3 piezas independientes (trasera, frontal y solapa).
+ * En modo de relación de aspecto "automático" se dimensionan mediante
+ * `transform: scale()` desde el centro del área disponible: escalar un
+ * elemento que ocupa el 100% del contenedor por un factor S desde su centro
+ * dibuja exactamente un recuadro con un margen de (1 - S) / 2 en cada lado,
+ * sin necesitar medir el DOM. En modo "fijo" se dimensionan con un ancho/alto
+ * explícitos (CSS `min()` + `aspect-ratio`) centrados en la pantalla: el
+ * margen configurado pasa a ser un mínimo, y el lado sobrante se reparte como
+ * margen extra en el eje que le sobre espacio.
  */
 export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot, onComplete, children }: EnvelopeOpenRevealProps) {
   const [phase, setPhase] = useState<Phase>("closed");
   const patternId = useId();
+  const viewport = useViewportSize();
 
   const modoFondo = config.modoFondo ?? "colores";
   const colorBase = config.colorBase || "#e8ddc7";
@@ -73,15 +97,44 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const margenContenido = Math.min(40, Math.max(0, config.margenContenidoPorcentaje ?? 4));
   const fondoExteriorColor = config.fondoExteriorColor || fondo || "#2E1F0E";
   const modoDescenso = config.modoDescensoSobre ?? "desplazamiento";
+  const modoAspecto = config.modoAspectoSobre ?? "automatico";
+  const aspectoAncho = Math.max(0.1, config.aspectoAnchoSobre ?? 3);
+  const aspectoAlto = Math.max(0.1, config.aspectoAltoSobre ?? 2);
+  const aspectRatio = aspectoAncho / aspectoAlto;
   const duracionApertura = Math.max(300, config.duracionAperturaMs ?? 900);
   const duracionDescenso = Math.max(300, config.duracionDescensoMs ?? 700);
   const duracionZoom = Math.max(300, config.duracionZoomMs ?? 900);
 
   // Factor de escala = 1 - 2 * (margen / 100): al aplicarse desde el centro
   // de un elemento que ocupa el 100% del área, deja exactamente ese margen (%)
-  // a cada lado, sin necesitar medir nada del DOM.
+  // a cada lado, sin necesitar medir nada del DOM. Se usa en modo "automático".
   const envelopeScale = 1 - (margenPantalla * 2) / 100;
-  const contentScale = 1 - ((margenPantalla + margenContenido) * 2) / 100;
+  const contentScaleAutomatico = 1 - ((margenPantalla + margenContenido) * 2) / 100;
+
+  // Recuadro del sobre en modo "fijo": ancho = min(ancho disponible, alto disponible
+  // * relación), lo que reproduce exactamente un ajuste "contain" con margen mínimo
+  // en los 4 lados y el sobrante repartido en el eje más corto, sin medir el DOM.
+  const margenDisponiblePct = 100 - margenPantalla * 2;
+  const envelopeFixedWidthExpr = `min(calc(${margenDisponiblePct} * 1vw), calc(${margenDisponiblePct} * ${aspectRatio} * 1vh))`;
+
+  const envelopeBoxStyle: CSSProperties =
+    modoAspecto === "fijo"
+      ? { position: "fixed", left: "50%", top: "50%", width: envelopeFixedWidthExpr, aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
+      : { position: "fixed", inset: 0, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})` };
+
+  // La portada se escala con transform (no con un ancho/alto explícitos) para no
+  // alterar su maquetación interna; por eso, en modo "fijo", el factor de escala se
+  // calcula a partir de la ventana medida en vez de con porcentajes puros de CSS.
+  let contentScale = contentScaleAutomatico;
+  if (modoAspecto === "fijo" && viewport.width > 0 && viewport.height > 0) {
+    const availW = viewport.width * (margenDisponiblePct / 100);
+    const availH = viewport.height * (margenDisponiblePct / 100);
+    const envW = Math.min(availW, availH * aspectRatio);
+    const envH = envW / aspectRatio;
+    const contentTargetW = envW * (1 - (margenContenido * 2) / 100);
+    const contentTargetH = envH * (1 - (margenContenido * 2) / 100);
+    contentScale = Math.min(contentTargetW / viewport.width, contentTargetH / viewport.height);
+  }
 
   // Se separan en efectos independientes por fase: programar el temporizador
   // de la SIGUIENTE fase dentro del mismo efecto que cambia el estado actual
@@ -203,7 +256,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
           portada; desciende en sincronía con el frontal para que el sobre se retire
           como un conjunto único. */}
       {phase !== "done" ? (
-        <div className="fixed inset-0 z-0" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}>
+        <div className="z-0" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
           <div
             className="h-full w-full"
             style={{
@@ -228,10 +281,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
           abrirse pasa a la misma capa que la trasera (detrás de la portada) y desciende
           junto con ella y el frontal, como un conjunto único. */}
       {phase !== "done" ? (
-        <div
-          className="fixed inset-0"
-          style={{ zIndex: isDescendingOrLater ? 0 : 20, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}
-        >
+        <div style={{ ...envelopeBoxStyle, zIndex: isDescendingOrLater ? 0 : 20, pointerEvents: "none" }}>
           <div
             className="h-full w-full"
             style={{
@@ -299,7 +349,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
           exterior solo existe con el sobre cerrado: al empezar a abrirse desaparece,
           para no barrer la portada mientras el frontal desciende. */}
       {phase !== "done" ? (
-        <div className="fixed inset-0 z-30" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}>
+        <div className="z-30" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
           <div
             className="h-full w-full"
             style={{
@@ -346,7 +396,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
           solapa (z-20) lo limitaba a ese contexto de apilamiento y quedaba por
           debajo del frontal (z-30) aunque tuviera un z-index local más alto. */}
       {phase !== "done" && sealSlot ? (
-        <div className="fixed inset-0 z-50" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}>
+        <div className="z-50" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
           <div
             className="absolute aspect-square w-[clamp(6rem,20vmin,12rem)]"
             style={{
