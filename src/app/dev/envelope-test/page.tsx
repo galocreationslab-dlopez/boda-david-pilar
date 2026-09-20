@@ -7,6 +7,7 @@ import type { IntroEnvelopeConfig, IntroEnvelopeDescensoModo, IntroEnvelopeModoF
 const DEFAULT_CONFIG: IntroEnvelopeConfig = {
   modoFondo: "colores",
   colorBase: "#e8ddc7",
+  colorTrasera: "#e0d2ab",
   colorBorde: "#a9895f",
   grosorBordePorcentaje: 0.6,
   radioEsquinasPorcentaje: 2,
@@ -73,9 +74,16 @@ export default function EnvelopeTestPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label-field">Color base</label>
+              <label className="label-field">Color frontal</label>
               <input type="color" className="input-field h-10 w-full" value={config.colorBase} onChange={(e) => patch({ colorBase: e.target.value })} />
             </div>
+            <div>
+              <label className="label-field">Color trasera/solapa</label>
+              <input type="color" className="input-field h-10 w-full" value={config.colorTrasera} onChange={(e) => patch({ colorTrasera: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label-field">Interior solapa</label>
               <input type="color" className="input-field h-10 w-full" value={config.colorSolapaInterior} onChange={(e) => patch({ colorSolapaInterior: e.target.value })} />

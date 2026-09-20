@@ -190,7 +190,8 @@ export type IntroEnvelopeDescensoModo = "desplazamiento" | "fade" | "ambos";
 export type IntroEnvelopeConfig = {
   modoFondo?: IntroEnvelopeModoFondo;
   imagenUrl?: string; // textura o sobre completo, según modoFondo
-  colorBase?: string;
+  colorBase?: string; // color del frontal (la cara exterior/visible del sobre)
+  colorTrasera?: string; // color de la trasera y la cara exterior de la solapa (misma pieza de papel)
   colorBorde?: string;
   // Todas las medidas se expresan como porcentaje del lado menor de la pantalla
   // (unidad "vmin"), ya que el sobre y la carta se dimensionan proporcionalmente.

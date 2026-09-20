@@ -55,6 +55,9 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
 
   const modoFondo = config.modoFondo ?? "colores";
   const colorBase = config.colorBase || "#e8ddc7";
+  // Color de la trasera y la cara exterior de la solapa: son la misma pieza de papel,
+  // por eso comparten color, independiente del color del frontal.
+  const colorTrasera = config.colorTrasera || colorBase;
   const colorBorde = config.colorBorde || "#a9895f";
   const grosorBorde = Math.max(0, config.grosorBordePorcentaje ?? 0.6);
   const radioEsquinas = Math.max(0, config.radioEsquinasPorcentaje ?? 2);
@@ -116,10 +119,10 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
         backgroundImage: `url(${config.imagenUrl})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
-        backgroundColor: colorBase,
+        backgroundColor: colorTrasera,
         backgroundBlendMode: modoFondo === "textura" ? "multiply" : "normal",
       }
-    : { backgroundColor: colorBase };
+    : { backgroundColor: colorTrasera };
 
   const fondoExteriorStyle: CSSProperties = config.fondoExteriorImagenUrl
     ? {
@@ -182,13 +185,13 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
     pointerEvents: "none",
   };
 
-  const patternFillProps = (fillId: string) =>
+  const patternFillProps = (fillId: string, baseColor: string) =>
     usaImagen
       ? {
           fill: `url(#${fillId})`,
           style: modoFondo === "textura" ? ({ mixBlendMode: "multiply" } as CSSProperties) : undefined,
         }
-      : { fill: colorBase };
+      : { fill: baseColor };
 
   return (
     // `fixed inset-0` (en vez de heredar el tamaño del contenedor padre) garantiza que
@@ -220,11 +223,15 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
       </div>
       <div style={paperBevelStyle} />
 
-      {/* Solapa: siempre por delante de la portada (también al abrirse queda
-          extendida hacia arriba, fuera del área de la portada); desciende junto
-          con el frontal para que el sobre se retire como un conjunto único. */}
+      {/* Solapa: por delante de la portada mientras está cerrada/abriéndose (también
+          extendida hacia arriba, fuera del área de la portada); en cuanto termina de
+          abrirse pasa a la misma capa que la trasera (detrás de la portada) y desciende
+          junto con ella y el frontal, como un conjunto único. */}
       {phase !== "done" ? (
-        <div className="fixed inset-0 z-20" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}>
+        <div
+          className="fixed inset-0"
+          style={{ zIndex: isDescendingOrLater ? 0 : 20, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}
+        >
           <div
             className="h-full w-full"
             style={{
@@ -263,7 +270,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                         </pattern>
                       </defs>
                     ) : null}
-                    <path d={flapPath} {...patternFillProps(`${patternId}-flap`)} />
+                    <path d={flapPath} {...patternFillProps(`${patternId}-flap`, colorTrasera)} />
                     <path
                       d={flapPath}
                       fill="none"
@@ -327,7 +334,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                     </pattern>
                   </defs>
                 ) : null}
-                <path d={frontPath} {...patternFillProps(`${patternId}-front`)} />
+                <path d={frontPath} {...patternFillProps(`${patternId}-front`, colorBase)} />
               </svg>
             </div>
           </div>

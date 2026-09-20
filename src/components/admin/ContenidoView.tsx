@@ -1469,7 +1469,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
 
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <div>
-                                    <label className="label-field">Color base</label>
+                                    <label className="label-field">Color del frontal</label>
                                     <input
                                       type="color"
                                       className="input-field h-10 w-full"
@@ -1477,6 +1477,18 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                       onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorBase: e.target.value })}
                                     />
                                   </div>
+                                  <div>
+                                    <label className="label-field">Color de la trasera y la solapa</label>
+                                    <input
+                                      type="color"
+                                      className="input-field h-10 w-full"
+                                      value={deviceConfig.envelope?.colorTrasera ?? deviceConfig.envelope?.colorBase ?? "#e8ddc7"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorTrasera: e.target.value })}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
                                   <div>
                                     <label className="label-field">Color interior de la solapa</label>
                                     <input
