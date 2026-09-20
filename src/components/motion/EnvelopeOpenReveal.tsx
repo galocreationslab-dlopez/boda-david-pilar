@@ -233,14 +233,23 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
 
   const isFinalSize = phase === "zooming" || phase === "done";
 
+  // Mientras el sobre está cerrado, la portada permanece oculta: aunque su tamaño ya
+  // esté bien calculado desde el primer render, el `useLayoutEffect` que mide la
+  // ventana real para corregirlo se dispara justo después, y ese reajuste podía verse
+  // como un "resize" de pantalla completa a su tamaño dentro del sobre. Ocultándola
+  // hasta que la solapa empieza a abrirse (momento en el que ya lleva un buen rato
+  // medida y corregida), la primera vez que se ve ya tiene el tamaño definitivo.
+  const contentVisible = phase !== "closed";
+
   // La portada se desplaza (sin escalar) para pasar de centrada a pegada arriba de su
   // hueco, y por separado se escala desde su propio centro; hacerlo en dos elementos
   // anidados evita que ambas transformaciones se compongan de forma no lineal.
   const contentOuterStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
+    opacity: contentVisible ? 1 : 0,
     transform: `translateY(${isFinalSize ? 0 : contentOffsetY}px)`,
-    transition: `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
+    transition: `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1), opacity 150ms ease`,
   };
 
   const contentWrapperStyle: CSSProperties = {
