@@ -1666,31 +1666,106 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                 </div>
 
                                 {deviceConfig.envelope?.modoAspectoSobre === "fijo" && (
-                                  <div className="grid gap-3 sm:grid-cols-2">
+                                  <div className="space-y-3">
                                     <div>
-                                      <label className="label-field">Ancho (unidades de relación)</label>
-                                      <input
-                                        type="number"
-                                        min={0.1}
-                                        step={0.1}
+                                      <label className="label-field">Ajustar exactamente a...</label>
+                                      <select
                                         className="input-field"
-                                        value={deviceConfig.envelope?.aspectoAnchoSobre ?? 3}
-                                        onChange={(e) => patchIntroDeviceSub(device, "envelope", { aspectoAnchoSobre: Math.max(0.1, Number(e.target.value) || 0.1) })}
-                                      />
+                                        value={deviceConfig.envelope?.ajusteAspectoSobre ?? "ancho"}
+                                        onChange={(e) => patchIntroDeviceSub(device, "envelope", { ajusteAspectoSobre: e.target.value })}
+                                      >
+                                        <option value="ancho">Ancho (con margen a los lados; puede sobresalir arriba/abajo)</option>
+                                        <option value="alto">Alto (con margen arriba/abajo; puede sobresalir a los lados)</option>
+                                      </select>
                                     </div>
-                                    <div>
-                                      <label className="label-field">Alto (unidades de relación)</label>
-                                      <input
-                                        type="number"
-                                        min={0.1}
-                                        step={0.1}
-                                        className="input-field"
-                                        value={deviceConfig.envelope?.aspectoAltoSobre ?? 2}
-                                        onChange={(e) => patchIntroDeviceSub(device, "envelope", { aspectoAltoSobre: Math.max(0.1, Number(e.target.value) || 0.1) })}
-                                      />
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                      <div>
+                                        <label className="label-field">Ancho (unidades de relación)</label>
+                                        <input
+                                          type="number"
+                                          min={0.1}
+                                          step={0.1}
+                                          className="input-field"
+                                          value={deviceConfig.envelope?.aspectoAnchoSobre ?? 3}
+                                          onChange={(e) => patchIntroDeviceSub(device, "envelope", { aspectoAnchoSobre: Math.max(0.1, Number(e.target.value) || 0.1) })}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="label-field">Alto (unidades de relación)</label>
+                                        <input
+                                          type="number"
+                                          min={0.1}
+                                          step={0.1}
+                                          className="input-field"
+                                          value={deviceConfig.envelope?.aspectoAltoSobre ?? 2}
+                                          onChange={(e) => patchIntroDeviceSub(device, "envelope", { aspectoAltoSobre: Math.max(0.1, Number(e.target.value) || 0.1) })}
+                                        />
+                                      </div>
                                     </div>
                                   </div>
                                 )}
+
+                                <div className="border-t border-stone-200 pt-3">
+                                  <p className="label-field">Sombra al abrir la solapa</p>
+                                  <p className="mt-1 text-xs text-stone-500">
+                                    Se proyecta sobre la cara interior de la solapa y sobre la portada vista por el hueco, y se desvanece a la vez que la solapa termina de abrirse.
+                                  </p>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Color de la sombra</label>
+                                    <input
+                                      type="text"
+                                      className="input-field"
+                                      placeholder="rgba(0,0,0,0.55)"
+                                      value={deviceConfig.envelope?.colorSombraApertura ?? "rgba(0,0,0,0.55)"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorSombraApertura: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Intensidad (%)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      step={5}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.intensidadSombraAperturaPorcentaje ?? 45}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { intensidadSombraAperturaPorcentaje: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="border-t border-stone-200 pt-3">
+                                  <p className="label-field">Grosor de papel en los bordes</p>
+                                  <p className="mt-1 text-xs text-stone-500">
+                                    Sombra sutil en el contorno recortado del frontal y la solapa, para que parezca que tienen grosor de papel.
+                                  </p>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Color</label>
+                                    <input
+                                      type="text"
+                                      className="input-field"
+                                      placeholder="rgba(0,0,0,0.4)"
+                                      value={deviceConfig.envelope?.colorGrosorPapel ?? "rgba(0,0,0,0.4)"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorGrosorPapel: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Intensidad (%)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      step={5}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.intensidadGrosorPapelPorcentaje ?? 35}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { intensidadGrosorPapelPorcentaje: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
+                                    />
+                                  </div>
+                                </div>
 
                                 <div className="border-t border-stone-200 pt-3">
                                   <p className="label-field">Secuencia tras el lacre</p>
