@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useState, type CSSProperties, type ReactNode } from "react";
 import type { IntroEnvelopeConfig } from "@/config/wedding.config";
 
 export type EnvelopeOpenRevealProps = {
@@ -37,10 +37,16 @@ function roundedApex(apexX: number, apexY: number, cornerY: number, f: number) {
  * scale()` sobre un elemento a tamaño de ventana, y ese factor de escala debe
  * ser un número (no se puede dividir una longitud CSS entre otra en calc()),
  * así que aquí sí hace falta medir la ventana.
+ *
+ * Se mide en `useLayoutEffect` (síncrono, antes de pintar) en vez de
+ * `useEffect`: así la primera pintura ya usa las medidas reales y no se ve
+ * un salto/animación desde un valor de reserva (0) al real nada más cargar.
  */
+const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 function useViewportSize() {
   const [size, setSize] = useState({ width: 0, height: 0 });
-  useEffect(() => {
+  useIsoLayoutEffect(() => {
     const update = () => setSize({ width: window.innerWidth, height: window.innerHeight });
     update();
     window.addEventListener("resize", update);
@@ -122,14 +128,14 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
       ? { position: "fixed", left: "50%", top: "50%", width: envelopeFixedWidthExpr, aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
       : { position: "fixed", inset: 0, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})` };
 
-  // La portada se ajusta SIEMPRE al ancho disponible (sobre menos su margen); el alto
-  // que sobre respecto al sobre se recorta (no se ve), en vez de encogerla más para
-  // que quepa entera. Como el factor de escala es un número (no se puede dividir una
-  // longitud CSS entre otra en calc()), y la portada debe quedar pegada arriba dentro
-  // de su hueco (no centrada), esto necesita medir la ventana real.
+  // La portada se ajusta SIEMPRE al ancho disponible (sobre menos su margen), centrada
+  // horizontalmente, con su borde superior pegado al borde superior del hueco (no se
+  // recorta ni se encoge más para que quepa entera; el posible exceso de alto lo tapa
+  // el rectángulo "cobertor" de más abajo). Como el factor de escala es un número (no
+  // se puede dividir una longitud CSS entre otra en calc()), esto necesita medir la
+  // ventana real.
   let contentScale = contentScaleAutomatico;
   let contentOffsetY = 0;
-  let contentBottomClipPx = 0;
   if (viewport.width > 0 && viewport.height > 0) {
     const [envAncho, envAlto] =
       modoAspecto === "fijo"
@@ -142,7 +148,6 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
         : [viewport.width * envelopeScale, viewport.height * envelopeScale];
 
     const contentTargetW = envAncho * (1 - (margenContenido * 2) / 100);
-    const contentTargetH = envAlto * (1 - (margenContenido * 2) / 100);
     contentScale = contentTargetW / viewport.width;
 
     // Posición (en píxeles reales) del borde superior del hueco de la portada dentro
@@ -153,11 +158,6 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
     const targetTop = envTop + envAlto * (margenContenido / 100);
     const naturalTop = (viewport.height * (1 - contentScale)) / 2;
     contentOffsetY = targetTop - naturalTop;
-
-    // Alto (en el sistema de coordenadas local, previo al `scale()`) que le sobra a la
-    // portada respecto al hueco disponible; se recorta con `clip-path` para que no se vea.
-    const neededLocalHeight = contentTargetH / contentScale;
-    contentBottomClipPx = Math.max(0, viewport.height - neededLocalHeight);
   }
 
   // Se separan en efectos independientes por fase: programar el temporizador
@@ -246,13 +246,12 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const contentWrapperStyle: CSSProperties = {
     position: "absolute",
     inset: 0,
-    // Recorta el alto que le sobre a la portada respecto al hueco del sobre (en vez de
-    // encogerla más para que quepa entera): así siempre se ajusta al ancho disponible.
+    // Salvaguarda general por si el sitio real es más alto que un viewport; el exceso
+    // respecto al sobre en sí lo tapa el rectángulo "cobertor", no este recorte.
     overflow: "hidden",
-    clipPath: isFinalSize ? undefined : `inset(0px 0px ${contentBottomClipPx}px 0px)`,
     transformOrigin: "50% 50%",
     transform: `scale(${isFinalSize ? 1 : contentScale})`,
-    transition: `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1), clip-path ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
+    transition: `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
     // "Papel apilado": dos sombras planas y desplazadas simulan hojas debajo de la
     // portada, más una sombra difusa para separación del fondo; dan sensación de grosor.
     boxShadow: [
@@ -311,6 +310,24 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
         <div style={contentWrapperStyle}>{children}</div>
         <div style={paperBevelStyle} />
       </div>
+
+      {/* Cobertor: como ya no se recorta la portada, este rectángulo (del color de la
+          mesa) tapa lo que sobra de portada por debajo del sobre; arranca justo en el
+          borde inferior del sobre y desciende junto con él hasta dejarla ver entera. */}
+      {phase !== "done" ? (
+        <div className="z-[15]" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
+          <div
+            className="h-full w-full"
+            style={{
+              transform: descendTransform,
+              opacity: descendOpacity,
+              transition: `transform ${duracionDescenso}ms ease-in, opacity ${duracionDescenso}ms ease-in`,
+            }}
+          >
+            <div className="absolute left-0 top-full w-full" style={{ height: "200vh", ...fondoExteriorStyle }} />
+          </div>
+        </div>
+      ) : null}
 
       {/* Solapa: por delante de la portada mientras está cerrada/abriéndose (también
           extendida hacia arriba, fuera del área de la portada); en cuanto termina de
