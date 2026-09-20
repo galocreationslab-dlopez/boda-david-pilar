@@ -201,6 +201,7 @@ export type IntroEnvelopeConfig = {
   sombraColor?: string;
   sombraDesenfoquePorcentaje?: number;
   alturaSolapaPorcentaje?: number; // 0-100: altura de la solapa triangular respecto al alto del sobre
+  radioPicoSolapaPorcentaje?: number; // 0-50: redondeo del pico de la solapa (y de la muesca a juego en el frontal)
   // Escena: ni el sobre ni el contenido ocupan el 100% de la pantalla.
   margenPantallaPorcentaje?: number; // margen entre el sobre y el borde de la pantalla
   margenContenidoPorcentaje?: number; // margen adicional del contenido respecto al sobre (para que se note que está dentro)

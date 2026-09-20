@@ -210,28 +210,33 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
       <IntroProvider introActive={introIsCurrentlyActive}>
         <>
           {children}
-          <div className="fixed inset-0 z-[100] flex min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden bg-[var(--brown-dark)] px-4 py-8" style={{ ...themeStyle, ...introStyle }}>
+          <div className="fixed inset-0 z-[100] overflow-hidden" style={{ ...themeStyle, ...introStyle }}>
+            {/* EnvelopeOpenReveal siempre ocupa la ventana real (fixed inset-0 propio), por eso
+                el texto de la intro se superpone encima en vez de envolverlo en un layout con padding. */}
+            <EnvelopeOpenReveal
+              config={deviceConfig.envelope ?? {}}
+              fondo={introBackground}
+              sealBroken={lacreGone}
+              sealSlot={renderSealVisual("h-full w-full")}
+              onComplete={completeIntro}
+            >
+              {children}
+            </EnvelopeOpenReveal>
+
             {(showIntroTitle || showIntroSubtitle) && !lacreGone ? (
-              <div className="mb-6 text-center" style={introFrameStyle}>
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-8 text-center" style={introFrameStyle}>
                 {showIntroTitle ? <p className="font-display text-2xl text-[var(--cream)] sm:text-3xl">{introTitle}</p> : null}
                 {showIntroSubtitle ? (
                   <p className="mt-2 text-xs uppercase tracking-[0.24em] text-[var(--cream)] opacity-70">{introSubtitle}</p>
                 ) : null}
               </div>
             ) : null}
-            <div className="relative w-full flex-1">
-              <EnvelopeOpenReveal
-                config={deviceConfig.envelope ?? {}}
-                fondo={introBackground}
-                sealBroken={lacreGone}
-                sealSlot={renderSealVisual("h-full w-full")}
-                onComplete={completeIntro}
-              >
-                {children}
-              </EnvelopeOpenReveal>
-            </div>
             {showIntroSkip && !lacreGone ? (
-              <button type="button" onClick={completeIntro} className="mt-6 block text-xs uppercase tracking-[0.2em] text-[var(--cream)] underline underline-offset-4 opacity-80 hover:opacity-100">
+              <button
+                type="button"
+                onClick={completeIntro}
+                className="absolute inset-x-0 bottom-6 z-20 mx-auto block w-fit text-xs uppercase tracking-[0.2em] text-[var(--cream)] underline underline-offset-4 opacity-80 hover:opacity-100"
+              >
                 {introSkipLabel}
               </button>
             ) : null}

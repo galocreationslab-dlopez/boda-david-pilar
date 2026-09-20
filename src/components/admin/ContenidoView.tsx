@@ -1558,17 +1558,31 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   </div>
                                 </div>
 
-                                <div>
-                                  <label className="label-field">Altura de la solapa (% del sobre)</label>
-                                  <input
-                                    type="number"
-                                    min={20}
-                                    max={70}
-                                    step={1}
-                                    className="input-field max-w-xs"
-                                    value={deviceConfig.envelope?.alturaSolapaPorcentaje ?? 42}
-                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { alturaSolapaPorcentaje: Math.min(70, Math.max(20, Number(e.target.value) || 20)) })}
-                                  />
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Altura de la solapa (% del sobre)</label>
+                                    <input
+                                      type="number"
+                                      min={20}
+                                      max={70}
+                                      step={1}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.alturaSolapaPorcentaje ?? 42}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { alturaSolapaPorcentaje: Math.min(70, Math.max(20, Number(e.target.value) || 20)) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Redondeo del pico de la solapa (%)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={50}
+                                      step={1}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.radioPicoSolapaPorcentaje ?? 10}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { radioPicoSolapaPorcentaje: Math.min(50, Math.max(0, Number(e.target.value) || 0)) })}
+                                    />
+                                  </div>
                                 </div>
 
                                 <div className="border-t border-stone-200 pt-3">

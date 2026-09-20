@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
 import type { IntroEnvelopeConfig } from "@/config/wedding.config";
 
 export type EnvelopeOpenRevealProps = {
@@ -17,24 +17,40 @@ export type EnvelopeOpenRevealProps = {
 type Phase = "closed" | "opening" | "descending" | "zooming" | "done";
 
 /**
+ * Punto redondeado de un vértice en (apexX, apexY) cuyos dos lados van hacia
+ * (0, cornerY) y (2*apexX, cornerY): sustituye el ángulo vivo por dos puntos
+ * desplazados una fracción `f` del vértice hacia cada esquina, para unirlos
+ * después con una curva cuadrática (con el vértice original como control).
+ */
+function roundedApex(apexX: number, apexY: number, cornerY: number, f: number) {
+  return {
+    leftX: apexX - apexX * f,
+    rightX: apexX + apexX * f,
+    y: apexY + (cornerY - apexY) * f,
+  };
+}
+
+/**
  * Anima la apertura de un sobre postal tras el lacre, en cuatro tiempos:
  * 1. "opening": la solapa gira hacia arriba dejando ver la portada (ya
  *    montada detrás, en tamaño de "carta") solo a través del hueco triangular.
- * 2. "descending": con la solapa ya abierta, el sobre entero desciende
+ * 2. "descending": con la solapa ya abierta, el frontal del sobre desciende
  *    (desplazamiento y/o desvanecido, según configuración) dejando a la vista
- *    la carta.
+ *    la carta. La solapa pasa a estar detrás de la portada (como la trasera),
+ *    para que su contorno no se dibuje sobre la portada al descender.
  * 3. "zooming": la carta crece (zoom) hasta ocupar toda la pantalla.
  * 4. "done": la portada real ya ocupa toda la pantalla y se activa (el padre
  *    desmonta este componente y la deja interactiva).
  *
- * El sobre y la carta se dimensionan mediante `transform: scale()` desde el
- * centro mismo del área disponible, lo que produce un margen porcentual
- * uniforme en los 4 lados sin necesitar medir el DOM: escalar un elemento que
- * ocupa el 100% del contenedor por un factor S desde su centro dibuja
- * exactamente un recuadro con un margen de (1 - S) / 2 en cada lado.
+ * El sobre se compone de 3 piezas independientes (trasera, frontal y solapa),
+ * todas dimensionadas mediante `transform: scale()` desde el centro del área
+ * disponible: escalar un elemento que ocupa el 100% del contenedor por un
+ * factor S desde su centro dibuja exactamente un recuadro con un margen de
+ * (1 - S) / 2 en cada lado, sin necesitar medir el DOM.
  */
 export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot, onComplete, children }: EnvelopeOpenRevealProps) {
   const [phase, setPhase] = useState<Phase>("closed");
+  const patternId = useId();
 
   const modoFondo = config.modoFondo ?? "colores";
   const colorBase = config.colorBase || "#e8ddc7";
@@ -46,6 +62,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const sombraColor = config.sombraColor || "rgba(0,0,0,0.35)";
   const sombraDesenfoque = Math.max(0, config.sombraDesenfoquePorcentaje ?? 3);
   const flapPct = Math.min(70, Math.max(20, config.alturaSolapaPorcentaje ?? 42));
+  const radioPico = Math.min(50, Math.max(0, config.radioPicoSolapaPorcentaje ?? 10)) / 100;
   const usaImagen = modoFondo !== "colores" && Boolean(config.imagenUrl);
 
   const margenPantalla = Math.min(40, Math.max(0, config.margenPantallaPorcentaje ?? 6));
@@ -113,13 +130,19 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
       }
     : { backgroundColor: fondoExteriorColor };
 
+  const isOpenOrLater = phase !== "closed";
   const isDescendingOrLater = phase === "descending" || phase === "zooming" || phase === "done";
-  const flapRotation = phase !== "closed" ? -172 : 0;
+  const flapRotation = isOpenOrLater ? -172 : 0;
   const sealVisible = phase === "closed";
 
-  // El cuerpo tiene una muesca triangular fija (el hueco donde encaja la
-  // solapa); ya no se anima: el sobre entero desciende como una sola pieza.
-  const bodyClipPath = `polygon(0% 0%, 50% ${flapPct}%, 100% 0%, 100% 100%, 0% 100%)`;
+  // Muesca del frontal (rectángulo con el hueco triangular donde encaja la solapa,
+  // con el pico redondeado) y triángulo de la solapa (mismo redondeo, en su propio
+  // sistema de coordenadas local 0-100), calculados con la misma fracción de redondeo
+  // para que ambas piezas encajen visualmente.
+  const front = roundedApex(50, flapPct, 0, radioPico);
+  const frontPath = `M0,100 L0,0 L${front.leftX},${front.y} Q50,${flapPct} ${front.rightX},${front.y} L100,0 L100,100 Z`;
+  const flap = roundedApex(50, 100, 0, radioPico);
+  const flapPath = `M0,0 L100,0 L${flap.rightX},${flap.y} Q50,100 ${flap.leftX},${flap.y} Z`;
 
   const descendTransform = modoDescenso !== "fade" && isDescendingOrLater ? "translateY(220%)" : "translateY(0%)";
   const descendOpacity = modoDescenso !== "desplazamiento" && isDescendingOrLater ? 0 : 1;
@@ -127,23 +150,139 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const contentWrapperStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
+    // Recorta cualquier contenido que exceda la altura de la ventana (p. ej. si el sitio
+    // real es más alto que un viewport): sin esto, podía asomar por debajo del sobre.
+    overflow: "hidden",
     transformOrigin: "50% 50%",
     transform: `scale(${phase === "zooming" || phase === "done" ? 1 : contentScale})`,
     transition: `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
-    // Sombra sutil para que la carta escalada parezca papel con grosor saliendo del sobre.
-    boxShadow: "0 3vmin 6vmin rgba(0,0,0,0.35)",
+    // "Papel apilado": dos sombras planas y desplazadas simulan hojas debajo de la
+    // portada, más una sombra difusa para separación del fondo; dan sensación de grosor.
+    boxShadow: [
+      "1.4vmin 1.6vmin 0 0 rgba(255,252,244,0.85)",
+      "2.8vmin 3.2vmin 0 0 rgba(232,221,199,0.7)",
+      `0 ${sombraDesenfoque / 2}vmin ${sombraDesenfoque}vmin rgba(0,0,0,0.4)`,
+    ].join(", "),
     pointerEvents: phase === "done" ? "auto" : "none",
   };
 
+  // Reborde sutil (claro arriba-izq., oscuro abajo-der.) para insinuar el bisel del papel.
+  const paperBevelStyle: CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 11,
+    transformOrigin: "50% 50%",
+    transform: contentWrapperStyle.transform,
+    transition: contentWrapperStyle.transition,
+    background: "linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.1) 100%)",
+    pointerEvents: "none",
+  };
+
+  const patternFillProps = (fillId: string) =>
+    usaImagen
+      ? {
+          fill: `url(#${fillId})`,
+          style: modoFondo === "textura" ? ({ mixBlendMode: "multiply" } as CSSProperties) : undefined,
+        }
+      : { fill: colorBase };
+
   return (
-    <div className="relative h-full w-full overflow-hidden" style={fondoExteriorStyle}>
+    // `fixed inset-0` (en vez de heredar el tamaño del contenedor padre) garantiza que
+    // el sobre y la portada usen siempre el mismo marco de referencia (la ventana real);
+    // si el padre las dimensiona de forma distinta (p. ej. por padding o flex), la portada
+    // queda visible fuera del área del sobre.
+    <div className="fixed inset-0 overflow-hidden" style={fondoExteriorStyle}>
+      {/* Trasera del sobre: rectángulo liso del mismo color, siempre detrás de la portada. */}
+      {phase !== "done" ? (
+        <div className="fixed inset-0 z-0" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}>
+          <div className="absolute inset-0" style={{ ...bodyFill, borderRadius: `${radioEsquinas}vmin` }} />
+        </div>
+      ) : null}
+
       {/* Portada real, siempre montada a tamaño natural; se ve reducida como una carta hasta el zoom final. */}
-      <div className="z-0" style={contentWrapperStyle}>
+      <div className="z-10" style={contentWrapperStyle}>
         {children}
       </div>
+      <div style={paperBevelStyle} />
 
+      {/* Solapa: por delante de la portada mientras está cerrada/abriéndose; en cuanto
+          termina de abrirse pasa a la trasera (detrás de la portada) y ya no vuelve a
+          dibujarse por encima, aunque el frontal descienda después. */}
       {phase !== "done" ? (
-        <div className="absolute inset-0 z-10" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})` }}>
+        <div
+          className="fixed inset-0"
+          style={{ zIndex: isDescendingOrLater ? 5 : 20, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}
+        >
+          <div className="relative h-full w-full" style={{ perspective: "180vmin" }}>
+            <div
+              className="absolute left-0 top-0 w-full origin-top overflow-hidden"
+              style={{
+                height: `${flapPct}%`,
+                borderTopLeftRadius: `${radioEsquinas}vmin`,
+                borderTopRightRadius: `${radioEsquinas}vmin`,
+              }}
+            >
+              <div
+                className="h-full w-full origin-top"
+                style={{
+                  transformStyle: "preserve-3d",
+                  transform: `rotateX(${flapRotation}deg)`,
+                  transition: `transform ${duracionApertura}ms cubic-bezier(0.22,1,0.36,1)`,
+                }}
+              >
+                {/* Cara frontal de la solapa */}
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" style={{ backfaceVisibility: "hidden" }}>
+                  {usaImagen ? (
+                    <defs>
+                      <pattern id={`${patternId}-flap`} patternUnits="objectBoundingBox" width={1} height={1}>
+                        <image href={config.imagenUrl} width={100} height={100} preserveAspectRatio="xMidYMid slice" />
+                      </pattern>
+                    </defs>
+                  ) : null}
+                  <path d={flapPath} {...patternFillProps(`${patternId}-flap`)} />
+                  <path
+                    d={flapPath}
+                    fill="none"
+                    style={{ stroke: colorCostura, strokeWidth: "0.35vmin", vectorEffect: "non-scaling-stroke" } as CSSProperties}
+                  />
+                </svg>
+                {/* Cara interior de la solapa, visible al girar más de 90º */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundColor: colorSolapaInterior,
+                    clipPath: "polygon(0% 0%, 100% 0%, 50% 100%)",
+                    transform: "rotateY(180deg)",
+                    backfaceVisibility: "hidden",
+                  }}
+                />
+
+                {sealSlot ? (
+                  // Centrado exactamente en el pico de la solapa (50%, 100% de su propia caja).
+                  <div
+                    className="absolute aspect-square w-[clamp(6rem,20vmin,12rem)]"
+                    style={{
+                      left: "50%",
+                      top: "100%",
+                      transform: "translate(-50%, -50%)",
+                      opacity: sealVisible ? 1 : 0,
+                      transition: "opacity 250ms ease",
+                      pointerEvents: sealVisible ? "auto" : "none",
+                    }}
+                  >
+                    {sealSlot}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Frontal del sobre: por delante de la portada; es la única pieza que
+          desciende (o se desvanece) para dejarla al descubierto. */}
+      {phase !== "done" ? (
+        <div className="fixed inset-0 z-30" style={{ transformOrigin: "50% 50%", transform: `scale(${envelopeScale})`, pointerEvents: "none" }}>
           <div
             className="h-full w-full"
             style={{
@@ -152,71 +291,28 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
               transition: `transform ${duracionDescenso}ms ease-in, opacity ${duracionDescenso}ms ease-in`,
             }}
           >
-            <div className="relative h-full w-full" style={{ perspective: "180vmin" }}>
-              <div
-                className="absolute inset-0 overflow-hidden"
-                style={{
-                  borderRadius: `${radioEsquinas}vmin`,
-                  boxShadow: [
-                    grosorBorde > 0 ? `inset 0 0 0 ${grosorBorde}vmin ${colorBorde}` : null,
-                    `0 ${sombraDesenfoque / 2}vmin ${sombraDesenfoque}vmin ${sombraColor}`,
-                  ]
-                    .filter(Boolean)
-                    .join(", "),
-                }}
-              >
-                {/* Cuerpo del sobre */}
-                <div className="absolute inset-0" style={{ ...bodyFill, clipPath: bodyClipPath }} />
-
-                {/* Solapa triangular */}
-                <div
-                  className="absolute left-0 top-0 w-full origin-top"
-                  style={{
-                    height: `${flapPct}%`,
-                    transformStyle: "preserve-3d",
-                    transform: `rotateX(${flapRotation}deg)`,
-                    transition: `transform ${duracionApertura}ms cubic-bezier(0.22,1,0.36,1)`,
-                  }}
-                >
-                  {/* Cara frontal de la solapa */}
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      ...bodyFill,
-                      clipPath: "polygon(0% 0%, 100% 0%, 50% 100%)",
-                      boxShadow: colorCostura ? `inset 0 0 0 0.2vmin ${colorCostura}` : undefined,
-                      backfaceVisibility: "hidden",
-                    }}
-                  />
-                  {/* Cara interior de la solapa, visible al girar más de 90º */}
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      backgroundColor: colorSolapaInterior,
-                      clipPath: "polygon(0% 0%, 100% 0%, 50% 100%)",
-                      transform: "rotateY(180deg)",
-                      backfaceVisibility: "hidden",
-                    }}
-                  />
-
-                  {sealSlot ? (
-                    // Centrado exactamente en el pico de la solapa (50%, 100% de su propia caja).
-                    <div
-                      className="absolute aspect-square w-[clamp(6rem,20vmin,12rem)]"
-                      style={{
-                        left: "50%",
-                        top: "100%",
-                        transform: "translate(-50%, -50%)",
-                        opacity: sealVisible ? 1 : 0,
-                        transition: "opacity 250ms ease",
-                        pointerEvents: sealVisible ? "auto" : "none",
-                      }}
-                    >
-                      {sealSlot}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+            <div
+              className="absolute inset-0 overflow-hidden"
+              style={{
+                borderRadius: `${radioEsquinas}vmin`,
+                boxShadow: [
+                  grosorBorde > 0 ? `inset 0 0 0 ${grosorBorde}vmin ${colorBorde}` : null,
+                  `0 ${sombraDesenfoque / 2}vmin ${sombraDesenfoque}vmin ${sombraColor}`,
+                ]
+                  .filter(Boolean)
+                  .join(", "),
+              }}
+            >
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+                {usaImagen ? (
+                  <defs>
+                    <pattern id={`${patternId}-front`} patternUnits="objectBoundingBox" width={1} height={1}>
+                      <image href={config.imagenUrl} width={100} height={100} preserveAspectRatio="xMidYMid slice" />
+                    </pattern>
+                  </defs>
+                ) : null}
+                <path d={frontPath} {...patternFillProps(`${patternId}-front`)} />
+              </svg>
             </div>
           </div>
         </div>

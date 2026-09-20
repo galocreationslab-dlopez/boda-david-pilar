@@ -15,6 +15,7 @@ const DEFAULT_CONFIG: IntroEnvelopeConfig = {
   sombraColor: "rgba(0,0,0,0.35)",
   sombraDesenfoquePorcentaje: 3,
   alturaSolapaPorcentaje: 42,
+  radioPicoSolapaPorcentaje: 10,
   margenPantallaPorcentaje: 6,
   margenContenidoPorcentaje: 4,
   fondoExteriorColor: "#2E1F0E",
@@ -41,10 +42,10 @@ export default function EnvelopeTestPage() {
       <h1 className="section-title text-left">Envelope Opening Playground</h1>
       <p className="mb-6 text-sm text-[var(--brown-mid)]">
         Prueba aislada de la animación de apertura de sobre. Pulsa el lacre para romperlo y observa cómo se abre la solapa
-        y la portada sale del sobre.
+        y la portada sale del sobre. El sobre ocupa siempre la ventana real (fixed), por eso este panel queda por encima.
       </p>
 
-      <section className="grid gap-6 lg:grid-cols-[340px,1fr]">
+      <section className="relative z-50 grid gap-6 lg:grid-cols-[340px,1fr]">
         <aside className="card-wedding space-y-4">
           <button type="button" className="btn-secondary w-full" onClick={replay}>
             Reiniciar animación
@@ -102,6 +103,11 @@ export default function EnvelopeTestPage() {
             <input type="range" min={20} max={70} className="w-full" value={config.alturaSolapaPorcentaje} onChange={(e) => patch({ alturaSolapaPorcentaje: Number(e.target.value) })} />
           </div>
 
+          <div>
+            <label className="label-field">Redondeo del pico (%): {config.radioPicoSolapaPorcentaje}</label>
+            <input type="range" min={0} max={50} className="w-full" value={config.radioPicoSolapaPorcentaje} onChange={(e) => patch({ radioPicoSolapaPorcentaje: Number(e.target.value) })} />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label-field">Margen sobre/pantalla (%)</label>
@@ -147,7 +153,8 @@ export default function EnvelopeTestPage() {
           </div>
         </aside>
 
-        <article className="card-wedding relative h-[80vh] min-h-[560px] overflow-hidden p-0">
+        <article className="card-wedding relative flex h-40 items-center justify-center p-6 text-center text-sm text-[var(--brown-mid)]">
+          El sobre se renderiza a pantalla completa (fixed inset-0), superpuesto a toda esta página.
           <EnvelopeOpenReveal
             key={runId}
             config={config}
@@ -166,7 +173,7 @@ export default function EnvelopeTestPage() {
             }
             onComplete={() => console.log("envelope intro complete")}
           >
-            <div className="flex h-full min-h-[560px] w-full items-center justify-center bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.95),rgba(241,234,224,0.9))] p-6">
+            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.95),rgba(241,234,224,0.9))] p-6">
               <div className="max-w-xl rounded-3xl border border-[rgba(0,0,0,0.1)] bg-[rgba(255,255,255,0.85)] p-6 text-center shadow-[0_18px_45px_rgba(0,0,0,0.08)] sm:p-8">
                 <h2 className="font-display text-3xl text-[var(--brown-dark)] sm:text-4xl">Portada revelada</h2>
                 <p className="mt-3 text-sm text-[var(--brown-mid)] sm:text-base">
