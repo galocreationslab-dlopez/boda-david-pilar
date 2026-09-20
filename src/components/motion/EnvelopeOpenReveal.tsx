@@ -122,18 +122,42 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
       ? { position: "fixed", left: "50%", top: "50%", width: envelopeFixedWidthExpr, aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
       : { position: "fixed", inset: 0, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})` };
 
-  // La portada se escala con transform (no con un ancho/alto explícitos) para no
-  // alterar su maquetación interna; por eso, en modo "fijo", el factor de escala se
-  // calcula a partir de la ventana medida en vez de con porcentajes puros de CSS.
+  // La portada se ajusta SIEMPRE al ancho disponible (sobre menos su margen); el alto
+  // que sobre respecto al sobre se recorta (no se ve), en vez de encogerla más para
+  // que quepa entera. Como el factor de escala es un número (no se puede dividir una
+  // longitud CSS entre otra en calc()), y la portada debe quedar pegada arriba dentro
+  // de su hueco (no centrada), esto necesita medir la ventana real.
   let contentScale = contentScaleAutomatico;
-  if (modoAspecto === "fijo" && viewport.width > 0 && viewport.height > 0) {
-    const availW = viewport.width * (margenDisponiblePct / 100);
-    const availH = viewport.height * (margenDisponiblePct / 100);
-    const envW = Math.min(availW, availH * aspectRatio);
-    const envH = envW / aspectRatio;
-    const contentTargetW = envW * (1 - (margenContenido * 2) / 100);
-    const contentTargetH = envH * (1 - (margenContenido * 2) / 100);
-    contentScale = Math.min(contentTargetW / viewport.width, contentTargetH / viewport.height);
+  let contentOffsetY = 0;
+  let contentBottomClipPx = 0;
+  if (viewport.width > 0 && viewport.height > 0) {
+    const [envAncho, envAlto] =
+      modoAspecto === "fijo"
+        ? (() => {
+            const availW = viewport.width * (margenDisponiblePct / 100);
+            const availH = viewport.height * (margenDisponiblePct / 100);
+            const w = Math.min(availW, availH * aspectRatio);
+            return [w, w / aspectRatio];
+          })()
+        : [viewport.width * envelopeScale, viewport.height * envelopeScale];
+
+    const contentTargetW = envAncho * (1 - (margenContenido * 2) / 100);
+    const contentTargetH = envAlto * (1 - (margenContenido * 2) / 100);
+    contentScale = contentTargetW / viewport.width;
+
+    // Posición (en píxeles reales) del borde superior del hueco de la portada dentro
+    // del sobre, y la que tendría la portada si solo se centrara con `scale()`; la
+    // diferencia es el desplazamiento vertical extra que hay que aplicarle para que
+    // arranque pegada arriba en vez de centrada.
+    const envTop = (viewport.height - envAlto) / 2;
+    const targetTop = envTop + envAlto * (margenContenido / 100);
+    const naturalTop = (viewport.height * (1 - contentScale)) / 2;
+    contentOffsetY = targetTop - naturalTop;
+
+    // Alto (en el sistema de coordenadas local, previo al `scale()`) que le sobra a la
+    // portada respecto al hueco disponible; se recorta con `clip-path` para que no se vea.
+    const neededLocalHeight = contentTargetH / contentScale;
+    contentBottomClipPx = Math.max(0, viewport.height - neededLocalHeight);
   }
 
   // Se separan en efectos independientes por fase: programar el temporizador
@@ -207,15 +231,28 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const descendTransform = modoDescenso !== "fade" && isDescendingOrLater ? "translateY(220%)" : "translateY(0%)";
   const descendOpacity = modoDescenso !== "desplazamiento" && isDescendingOrLater ? 0 : 1;
 
-  const contentWrapperStyle: CSSProperties = {
+  const isFinalSize = phase === "zooming" || phase === "done";
+
+  // La portada se desplaza (sin escalar) para pasar de centrada a pegada arriba de su
+  // hueco, y por separado se escala desde su propio centro; hacerlo en dos elementos
+  // anidados evita que ambas transformaciones se compongan de forma no lineal.
+  const contentOuterStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
-    // Recorta cualquier contenido que exceda la altura de la ventana (p. ej. si el sitio
-    // real es más alto que un viewport): sin esto, podía asomar por debajo del sobre.
-    overflow: "hidden",
-    transformOrigin: "50% 50%",
-    transform: `scale(${phase === "zooming" || phase === "done" ? 1 : contentScale})`,
+    transform: `translateY(${isFinalSize ? 0 : contentOffsetY}px)`,
     transition: `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
+  };
+
+  const contentWrapperStyle: CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    // Recorta el alto que le sobre a la portada respecto al hueco del sobre (en vez de
+    // encogerla más para que quepa entera): así siempre se ajusta al ancho disponible.
+    overflow: "hidden",
+    clipPath: isFinalSize ? undefined : `inset(0px 0px ${contentBottomClipPx}px 0px)`,
+    transformOrigin: "50% 50%",
+    transform: `scale(${isFinalSize ? 1 : contentScale})`,
+    transition: `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1), clip-path ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
     // "Papel apilado": dos sombras planas y desplazadas simulan hojas debajo de la
     // portada, más una sombra difusa para separación del fondo; dan sensación de grosor.
     boxShadow: [
@@ -228,9 +265,8 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
 
   // Reborde sutil (claro arriba-izq., oscuro abajo-der.) para insinuar el bisel del papel.
   const paperBevelStyle: CSSProperties = {
-    position: "fixed",
+    position: "absolute",
     inset: 0,
-    zIndex: 11,
     transformOrigin: "50% 50%",
     transform: contentWrapperStyle.transform,
     transition: contentWrapperStyle.transition,
@@ -271,10 +307,10 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
       ) : null}
 
       {/* Portada real, siempre montada a tamaño natural; se ve reducida como una carta hasta el zoom final. */}
-      <div className="z-10" style={contentWrapperStyle}>
-        {children}
+      <div className="z-10" style={contentOuterStyle}>
+        <div style={contentWrapperStyle}>{children}</div>
+        <div style={paperBevelStyle} />
       </div>
-      <div style={paperBevelStyle} />
 
       {/* Solapa: por delante de la portada mientras está cerrada/abriéndose (también
           extendida hacia arriba, fuera del área de la portada); en cuanto termina de
