@@ -46,6 +46,7 @@ const INTRO_ANIMATION_TYPES: Array<{ value: IntroAnimationType; label: string; d
   { value: "focusRegion", label: "Focus on Region", description: "Zoom sobre una región del media hasta ocupar toda la pantalla y luego fade-in." },
   { value: "slideUp", label: "Slide up", description: "La portada sube desde abajo cubriendo el media inicial." },
   { value: "custom", label: "Custom (HTML)", description: "Carga un HTML propio a pantalla completa; él mismo avisa cuándo termina." },
+  { value: "envelope", label: "Apertura de sobre", description: "El lacre aparece sobre un sobre postal cerrado; al romperse, la solapa se abre y la portada sale del sobre." },
 ];
 
 function buildDefaultIntroDeviceConfig(): IntroDeviceConfig {
@@ -637,7 +638,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     patchSection(selectedSection.id, { intro: { ...base, [device]: { ...currentDevice, ...patch } } });
   };
 
-  type IntroSubKey = "revealBook" | "cortinas" | "fadeIn" | "focusRegion" | "slideUp" | "custom";
+  type IntroSubKey = "revealBook" | "cortinas" | "fadeIn" | "focusRegion" | "slideUp" | "custom" | "envelope";
 
   const patchIntroDeviceSub = (device: "pc" | "movil", sub: IntroSubKey, patch: Record<string, unknown>) => {
     if (!selectedSection) return;
@@ -1431,6 +1432,327 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                     onChange={(e) => patchIntroDeviceSub(device, "custom", { maxEsperaMs: Math.max(2000, Number(e.target.value) || 2000) })}
                                   />
                                 </div>
+                              </div>
+                            )}
+
+                            {deviceConfig.tipo === "envelope" && (
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="label-field">Acabado del sobre</label>
+                                  <select
+                                    className="input-field"
+                                    value={deviceConfig.envelope?.modoFondo ?? "colores"}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { modoFondo: e.target.value })}
+                                  >
+                                    <option value="colores">Solo colores (CSS)</option>
+                                    <option value="textura">Textura superpuesta sobre los colores</option>
+                                    <option value="svgPersonalizado">Imagen/SVG propio del sobre completo</option>
+                                  </select>
+                                </div>
+
+                                {deviceConfig.envelope?.modoFondo && deviceConfig.envelope.modoFondo !== "colores" && (
+                                  <IntroAssetField
+                                    label={deviceConfig.envelope.modoFondo === "svgPersonalizado" ? "Sobre completo (imagen o SVG)" : "Textura (imagen tileable)"}
+                                    value={deviceConfig.envelope?.imagenUrl ?? ""}
+                                    onChangeValue={(v) => patchIntroDeviceSub(device, "envelope", { imagenUrl: v })}
+                                    uploading={uploadingAssetKey === `${uploadPrefix}envelopeImagen`}
+                                    onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}envelopeImagen`, file, (url) => patchIntroDeviceSub(device, "envelope", { imagenUrl: url }))}
+                                    disabled={!recursosDriveConfigured}
+                                    resources={resourcesForIntro}
+                                    placeholder="/images/archivo.jpg, .svg o https://..."
+                                  />
+                                )}
+
+                                <p className="text-xs text-stone-500">
+                                  El sobre ocupa siempre la pantalla completa. Las medidas de abajo se expresan en % del lado menor de la pantalla, para que la composición se mantenga proporcional en cualquier dispositivo.
+                                </p>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Color del frontal</label>
+                                    <input
+                                      type="color"
+                                      className="input-field h-10 w-full"
+                                      value={deviceConfig.envelope?.colorBase ?? "#e8ddc7"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorBase: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Color de la trasera y la solapa</label>
+                                    <input
+                                      type="color"
+                                      className="input-field h-10 w-full"
+                                      value={deviceConfig.envelope?.colorTrasera ?? deviceConfig.envelope?.colorBase ?? "#e8ddc7"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorTrasera: e.target.value })}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Color interior de la solapa</label>
+                                    <input
+                                      type="color"
+                                      className="input-field h-10 w-full"
+                                      value={deviceConfig.envelope?.colorSolapaInterior ?? "#c9b48c"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorSolapaInterior: e.target.value })}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                  <div>
+                                    <label className="label-field">Color del borde</label>
+                                    <input
+                                      type="color"
+                                      className="input-field h-10 w-full"
+                                      value={deviceConfig.envelope?.colorBorde ?? "#a9895f"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorBorde: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Grosor del borde (% pantalla)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={5}
+                                      step={0.1}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.grosorBordePorcentaje ?? 0.6}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { grosorBordePorcentaje: Math.max(0, Number(e.target.value) || 0) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Radio de esquinas (% pantalla)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={20}
+                                      step={0.5}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.radioEsquinasPorcentaje ?? 2}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { radioEsquinasPorcentaje: Math.max(0, Number(e.target.value) || 0) })}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                  <div>
+                                    <label className="label-field">Color de la costura</label>
+                                    <input
+                                      type="color"
+                                      className="input-field h-10 w-full"
+                                      value={deviceConfig.envelope?.colorCostura ?? "#8a6a44"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorCostura: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Color de la sombra</label>
+                                    <input
+                                      type="text"
+                                      className="input-field"
+                                      placeholder="rgba(0,0,0,0.35)"
+                                      value={deviceConfig.envelope?.sombraColor ?? "rgba(0,0,0,0.35)"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { sombraColor: e.target.value })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Difuminado de sombra (% pantalla)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={15}
+                                      step={0.5}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.sombraDesenfoquePorcentaje ?? 3}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { sombraDesenfoquePorcentaje: Math.max(0, Number(e.target.value) || 0) })}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Altura de la solapa (% del sobre)</label>
+                                    <input
+                                      type="number"
+                                      min={20}
+                                      max={70}
+                                      step={1}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.alturaSolapaPorcentaje ?? 42}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { alturaSolapaPorcentaje: Math.min(70, Math.max(20, Number(e.target.value) || 20)) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Redondeo del pico de la solapa (%)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={50}
+                                      step={1}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.radioPicoSolapaPorcentaje ?? 10}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { radioPicoSolapaPorcentaje: Math.min(50, Math.max(0, Number(e.target.value) || 0)) })}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="border-t border-stone-200 pt-3">
+                                  <p className="label-field">Escena (fondo exterior y márgenes)</p>
+                                  <p className="mt-1 text-xs text-stone-500">
+                                    Ni el sobre ni la portada ocupan toda la pantalla: queda un margen alrededor con un fondo propio (la &quot;mesa&quot;), y la portada queda un poco más metida que el sobre para que se note que está dentro.
+                                  </p>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Color del fondo exterior (mesa)</label>
+                                    <input
+                                      type="color"
+                                      className="input-field h-10 w-full"
+                                      value={deviceConfig.envelope?.fondoExteriorColor ?? "#2E1F0E"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { fondoExteriorColor: e.target.value })}
+                                    />
+                                  </div>
+                                  <IntroAssetField
+                                    label="Textura del fondo exterior (opcional)"
+                                    value={deviceConfig.envelope?.fondoExteriorImagenUrl ?? ""}
+                                    onChangeValue={(v) => patchIntroDeviceSub(device, "envelope", { fondoExteriorImagenUrl: v })}
+                                    uploading={uploadingAssetKey === `${uploadPrefix}envelopeFondoExterior`}
+                                    onUpload={(file) => void uploadGenericAsset(`${uploadPrefix}envelopeFondoExterior`, file, (url) => patchIntroDeviceSub(device, "envelope", { fondoExteriorImagenUrl: url }))}
+                                    disabled={!recursosDriveConfigured}
+                                    resources={resourcesForIntro}
+                                    placeholder="/images/archivo.jpg"
+                                  />
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Margen del sobre respecto a la pantalla (%)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={35}
+                                      step={1}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.margenPantallaPorcentaje ?? 6}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { margenPantallaPorcentaje: Math.max(0, Number(e.target.value) || 0) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Margen adicional de la portada respecto al sobre (%)</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={35}
+                                      step={1}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.margenContenidoPorcentaje ?? 4}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { margenContenidoPorcentaje: Math.max(0, Number(e.target.value) || 0) })}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="label-field">Relación de aspecto del sobre</label>
+                                  <select
+                                    className="input-field"
+                                    value={deviceConfig.envelope?.modoAspectoSobre ?? "automatico"}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { modoAspectoSobre: e.target.value })}
+                                  >
+                                    <option value="automatico">Automática (igual que la pantalla, con el margen de arriba)</option>
+                                    <option value="fijo">Fija (el margen de arriba pasa a ser un mínimo)</option>
+                                  </select>
+                                </div>
+
+                                {deviceConfig.envelope?.modoAspectoSobre === "fijo" && (
+                                  <div className="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                      <label className="label-field">Ancho (unidades de relación)</label>
+                                      <input
+                                        type="number"
+                                        min={0.1}
+                                        step={0.1}
+                                        className="input-field"
+                                        value={deviceConfig.envelope?.aspectoAnchoSobre ?? 3}
+                                        onChange={(e) => patchIntroDeviceSub(device, "envelope", { aspectoAnchoSobre: Math.max(0.1, Number(e.target.value) || 0.1) })}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="label-field">Alto (unidades de relación)</label>
+                                      <input
+                                        type="number"
+                                        min={0.1}
+                                        step={0.1}
+                                        className="input-field"
+                                        value={deviceConfig.envelope?.aspectoAltoSobre ?? 2}
+                                        onChange={(e) => patchIntroDeviceSub(device, "envelope", { aspectoAltoSobre: Math.max(0.1, Number(e.target.value) || 0.1) })}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="border-t border-stone-200 pt-3">
+                                  <p className="label-field">Secuencia tras el lacre</p>
+                                  <p className="mt-1 text-xs text-stone-500">
+                                    Se abre la solapa, luego el sobre desciende dejando ver la portada, y por último la portada hace zoom hasta ocupar toda la pantalla (momento en el que se activa).
+                                  </p>
+                                </div>
+
+                                <div>
+                                  <label className="label-field">Al descender, el sobre...</label>
+                                  <select
+                                    className="input-field max-w-xs"
+                                    value={deviceConfig.envelope?.modoDescensoSobre ?? "desplazamiento"}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { modoDescensoSobre: e.target.value })}
+                                  >
+                                    <option value="desplazamiento">Solo se desplaza hacia abajo</option>
+                                    <option value="fade">Solo se desvanece (fade out)</option>
+                                    <option value="ambos">Se desplaza y se desvanece a la vez</option>
+                                  </select>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                  <div>
+                                    <label className="label-field">Duracion de apertura de la solapa (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={300}
+                                      max={5000}
+                                      step={50}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.duracionAperturaMs ?? 900}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { duracionAperturaMs: Math.max(300, Number(e.target.value) || 300) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Duracion del descenso del sobre (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={300}
+                                      max={5000}
+                                      step={50}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.duracionDescensoMs ?? 700}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { duracionDescensoMs: Math.max(300, Number(e.target.value) || 300) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Duracion del zoom de la portada (ms)</label>
+                                    <input
+                                      type="number"
+                                      min={300}
+                                      max={5000}
+                                      step={50}
+                                      className="input-field"
+                                      value={deviceConfig.envelope?.duracionZoomMs ?? 900}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { duracionZoomMs: Math.max(300, Number(e.target.value) || 300) })}
+                                    />
+                                  </div>
+                                </div>
+                                <p className="text-xs text-stone-500">
+                                  El lacre configurado arriba se mostrará centrado en el pico de la solapa del sobre cerrado; al completarse su animación, la solapa se abrirá y comenzará la secuencia de salida.
+                                </p>
                               </div>
                             )}
                           </div>

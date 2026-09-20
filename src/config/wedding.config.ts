@@ -123,7 +123,7 @@ export type TipoSeccionDiseno = "intro" | "invitacion" | "portada" | "historia" 
 export const DEFAULT_TEXTO_INVITACION =
   "Con mucha alegría os invitamos a compartir con nosotros el día más especial de nuestras vidas.";
 
-export type IntroAnimationType = "revealBook" | "cortinas" | "fadeIn" | "focusRegion" | "slideUp" | "custom";
+export type IntroAnimationType = "revealBook" | "cortinas" | "fadeIn" | "focusRegion" | "slideUp" | "custom" | "envelope";
 
 // Región de interés (polígono de 4 vértices) usada por el tipo "focusRegion".
 // Coordenadas normalizadas (0-1) relativas al contenedor del media, en orden
@@ -178,6 +178,52 @@ export type IntroCustomConfig = {
   maxEsperaMs?: number;
 };
 
+// Modo de apariencia del sobre para el tipo de animación "envelope":
+// - "colores": el sobre se dibuja íntegramente con los colores/parámetros CSS de abajo.
+// - "textura": los colores de abajo actúan de base y se superpone una imagen de textura (papel, kraft, etc.).
+// - "svgPersonalizado": una imagen/SVG propio sustituye por completo el acabado del sobre (el código solo anima la apertura).
+export type IntroEnvelopeModoFondo = "colores" | "textura" | "svgPersonalizado";
+
+// Cómo se comporta el sobre al descender tras abrirse la solapa.
+export type IntroEnvelopeDescensoModo = "desplazamiento" | "fade" | "ambos";
+
+// "automatico": el sobre ocupa el área disponible (pantalla menos el margen) con la
+// misma relación de aspecto que la pantalla, como hasta ahora.
+// "fijo": el sobre mantiene una relación de aspecho ancho/alto fija; el margen pasa a
+// ser un mínimo y el lado que sobre se reparte como margen extra, quedando centrado.
+export type IntroEnvelopeAspectoModo = "automatico" | "fijo";
+
+export type IntroEnvelopeConfig = {
+  modoFondo?: IntroEnvelopeModoFondo;
+  imagenUrl?: string; // textura o sobre completo, según modoFondo
+  colorBase?: string; // color del frontal (la cara exterior/visible del sobre)
+  colorTrasera?: string; // color de la trasera y la cara exterior de la solapa (misma pieza de papel)
+  colorBorde?: string;
+  // Todas las medidas se expresan como porcentaje del lado menor de la pantalla
+  // (unidad "vmin"), ya que el sobre y la carta se dimensionan proporcionalmente.
+  grosorBordePorcentaje?: number;
+  radioEsquinasPorcentaje?: number;
+  colorSolapaInterior?: string;
+  colorCostura?: string;
+  sombraColor?: string;
+  sombraDesenfoquePorcentaje?: number;
+  alturaSolapaPorcentaje?: number; // 0-100: altura de la solapa triangular respecto al alto del sobre
+  radioPicoSolapaPorcentaje?: number; // 0-50: redondeo del pico de la solapa (y de la muesca a juego en el frontal)
+  // Escena: ni el sobre ni el contenido ocupan el 100% de la pantalla.
+  margenPantallaPorcentaje?: number; // margen (mínimo, en modo "fijo") entre el sobre y el borde de la pantalla
+  margenContenidoPorcentaje?: number; // margen adicional del contenido respecto al sobre (para que se note que está dentro)
+  modoAspectoSobre?: IntroEnvelopeAspectoModo;
+  aspectoAnchoSobre?: number; // unidades de ancho de la relación de aspecto (solo en modo "fijo")
+  aspectoAltoSobre?: number; // unidades de alto de la relación de aspecto (solo en modo "fijo")
+  fondoExteriorColor?: string; // color de fondo detrás del sobre (la "mesa")
+  fondoExteriorImagenUrl?: string; // textura opcional superpuesta al fondo exterior
+  // Secuencia tras el lacre: abrir solapa -> el sobre desciende -> la portada hace zoom a pantalla completa.
+  modoDescensoSobre?: IntroEnvelopeDescensoModo;
+  duracionAperturaMs?: number; // tiempo en abrir la solapa
+  duracionDescensoMs?: number; // tiempo en que el sobre desciende tras abrirse
+  duracionZoomMs?: number; // tiempo en que la portada hace zoom hasta ocupar toda la pantalla
+};
+
 export type NativeSvgAnimationOption = {
   id: string;
   label: string;
@@ -194,6 +240,7 @@ export type IntroDeviceConfig = {
   focusRegion?: IntroFocusRegionConfig;
   slideUp?: IntroSlideUpConfig;
   custom?: IntroCustomConfig;
+  envelope?: IntroEnvelopeConfig;
 };
 
 export type IntroSeccionConfig = {
