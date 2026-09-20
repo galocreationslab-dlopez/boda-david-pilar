@@ -98,12 +98,17 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const flapPct = Math.min(70, Math.max(20, config.alturaSolapaPorcentaje ?? 42));
   const radioPico = Math.min(50, Math.max(0, config.radioPicoSolapaPorcentaje ?? 10)) / 100;
   const usaImagen = modoFondo !== "colores" && Boolean(config.imagenUrl);
+  const colorSombraApertura = config.colorSombraApertura || "rgba(0,0,0,0.55)";
+  const intensidadSombraApertura = Math.min(100, Math.max(0, config.intensidadSombraAperturaPorcentaje ?? 45)) / 100;
+  const colorGrosorPapel = config.colorGrosorPapel || "rgba(0,0,0,0.4)";
+  const intensidadGrosorPapel = Math.min(100, Math.max(0, config.intensidadGrosorPapelPorcentaje ?? 35)) / 100;
 
   const margenPantalla = Math.min(40, Math.max(0, config.margenPantallaPorcentaje ?? 6));
   const margenContenido = Math.min(40, Math.max(0, config.margenContenidoPorcentaje ?? 4));
   const fondoExteriorColor = config.fondoExteriorColor || fondo || "#2E1F0E";
   const modoDescenso = config.modoDescensoSobre ?? "desplazamiento";
   const modoAspecto = config.modoAspectoSobre ?? "automatico";
+  const ajusteAspecto = config.ajusteAspectoSobre ?? "ancho";
   const aspectoAncho = Math.max(0.1, config.aspectoAnchoSobre ?? 3);
   const aspectoAlto = Math.max(0.1, config.aspectoAltoSobre ?? 2);
   const aspectRatio = aspectoAncho / aspectoAlto;
@@ -117,34 +122,44 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const envelopeScale = 1 - (margenPantalla * 2) / 100;
   const contentScaleAutomatico = 1 - ((margenPantalla + margenContenido) * 2) / 100;
 
-  // Recuadro del sobre en modo "fijo": ancho = min(ancho disponible, alto disponible
-  // * relación), lo que reproduce exactamente un ajuste "contain" con margen mínimo
-  // en los 4 lados y el sobrante repartido en el eje más corto, sin medir el DOM.
+  // Recuadro del sobre en modo "fijo": se ajusta EXACTAMENTE a un eje (con su margen)
+  // y el otro sale de la relación de aspecto, pudiendo sobresalir de la pantalla sin
+  // recortarse (es el comportamiento buscado: p. ej. en modo "alto" el sobre puede ser
+  // más ancho que la pantalla). Antes se usaba `min()` de ambos ejes ("contain"), que
+  // nunca dejaba que el sobre se saliera; ahora el eje elegido manda siempre.
   const margenDisponiblePct = 100 - margenPantalla * 2;
-  const envelopeFixedWidthExpr = `min(calc(${margenDisponiblePct} * 1vw), calc(${margenDisponiblePct} * ${aspectRatio} * 1vh))`;
+  const envelopeFixedSizeExpr =
+    ajusteAspecto === "alto" ? `calc(${margenDisponiblePct} * 1vh)` : `calc(${margenDisponiblePct} * 1vw)`;
 
   const envelopeBoxStyle: CSSProperties =
     modoAspecto === "fijo"
-      ? { position: "fixed", left: "50%", top: "50%", width: envelopeFixedWidthExpr, aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
+      ? ajusteAspecto === "alto"
+        ? { position: "fixed", left: "50%", top: "50%", height: envelopeFixedSizeExpr, width: "auto", aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
+        : { position: "fixed", left: "50%", top: "50%", width: envelopeFixedSizeExpr, height: "auto", aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
       : { position: "fixed", inset: 0, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})` };
 
   // La portada se ajusta SIEMPRE al ancho disponible (sobre menos su margen), centrada
   // horizontalmente, con su borde superior pegado al borde superior del hueco (no se
   // recorta ni se encoge más para que quepa entera; el posible exceso de alto lo tapa
-  // el rectángulo "cobertor" de más abajo). Como el factor de escala es un número (no
-  // se puede dividir una longitud CSS entre otra en calc()), esto necesita medir la
-  // ventana real.
+  // el rectángulo "cobertor" de más abajo). En modo "alto" el sobre (y por tanto la
+  // portada) puede ser más ancho que la pantalla, sobresaliendo por los lados: al no
+  // recortarla ni limitar su escala, esto ocurre de forma natural. Como el factor de
+  // escala es un número (no se puede dividir una longitud CSS entre otra en calc()),
+  // esto necesita medir la ventana real.
   let contentScale = contentScaleAutomatico;
   let contentOffsetY = 0;
   if (viewport.width > 0 && viewport.height > 0) {
     const [envAncho, envAlto] =
       modoAspecto === "fijo"
-        ? (() => {
-            const availW = viewport.width * (margenDisponiblePct / 100);
-            const availH = viewport.height * (margenDisponiblePct / 100);
-            const w = Math.min(availW, availH * aspectRatio);
-            return [w, w / aspectRatio];
-          })()
+        ? ajusteAspecto === "alto"
+          ? (() => {
+              const h = viewport.height * (margenDisponiblePct / 100);
+              return [h * aspectRatio, h];
+            })()
+          : (() => {
+              const w = viewport.width * (margenDisponiblePct / 100);
+              return [w, w / aspectRatio];
+            })()
         : [viewport.width * envelopeScale, viewport.height * envelopeScale];
 
     const contentTargetW = envAncho * (1 - (margenContenido * 2) / 100);
@@ -290,6 +305,20 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
         }
       : { fill: baseColor };
 
+  // Sombra sutil en el contorno recortado del papel (frontal/solapa), para dar
+  // sensación de grosor; se aplica como filtro CSS (no SVG) para que no se distorsione
+  // con el `preserveAspectRatio="none"` de los `<svg>` internos.
+  const paperEdgeFilter = `drop-shadow(0 ${0.15 + intensidadGrosorPapel * 0.5}vmin ${0.2 + intensidadGrosorPapel * 0.6}vmin ${colorGrosorPapel})`;
+
+  // La sombra de apertura ya está a su valor máximo mientras el sobre está cerrado
+  // (oculta, tapada por la propia solapa cerrada) y se desvanece a la vez que la
+  // solapa gira, con la misma duración: así ambas quedan sincronizadas sin necesitar
+  // una animación por fotogramas.
+  const aperturaShadowStyle: CSSProperties = {
+    opacity: phase === "closed" ? intensidadSombraApertura : 0,
+    transition: `opacity ${duracionApertura}ms ease-out`,
+  };
+
   return (
     // `fixed inset-0` (en vez de heredar el tamaño del contenedor padre) garantiza que
     // el sobre y la portada usen siempre el mismo marco de referencia (la ventana real);
@@ -319,6 +348,20 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
         <div style={contentWrapperStyle}>{children}</div>
         <div style={paperBevelStyle} />
       </div>
+
+      {/* Sombra de apertura sobre la portada: mientras la solapa cerrada tapa el hueco,
+          esta sombra ya está a su intensidad máxima (invisible, oculta debajo); al
+          empezar a girar la solapa, ambas cosas se desvanecen/giran a la vez, dando la
+          sensación de que la solapa proyecta sombra sobre la carta al levantarse. */}
+      {phase !== "done" ? (
+        <div className="z-[12]" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
+          <div className="absolute left-0 top-0 w-full" style={{ height: `${flapPct}%` }}>
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+              <path d={flapPath} fill={colorSombraApertura} style={aperturaShadowStyle} />
+            </svg>
+          </div>
+        </div>
+      ) : null}
 
       {/* Cobertor: como ya no se recorta la portada, este rectángulo (del color de la
           mesa) tapa lo que sobra de portada por debajo del sobre; arranca justo en el
@@ -374,7 +417,12 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                   }}
                 >
                   {/* Cara frontal de la solapa */}
-                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" style={{ backfaceVisibility: "hidden" }}>
+                  <svg
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    className="absolute inset-0 h-full w-full"
+                    style={{ backfaceVisibility: "hidden", filter: paperEdgeFilter }}
+                  >
                     {usaImagen ? (
                       <defs>
                         <pattern id={`${patternId}-flap`} patternUnits="objectBoundingBox" width={1} height={1}>
@@ -398,7 +446,10 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                       transform: "rotateY(180deg)",
                       backfaceVisibility: "hidden",
                     }}
-                  />
+                  >
+                    {/* Sombra que se proyecta sobre la cara interior al abrirse, para reforzar el efecto 3D. */}
+                    <div className="absolute inset-0" style={{ backgroundColor: colorSombraApertura, ...aperturaShadowStyle }} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -438,7 +489,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                     : undefined,
               }}
             >
-              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" style={{ filter: paperEdgeFilter }}>
                 {usaImagen ? (
                   <defs>
                     <pattern id={`${patternId}-front`} patternUnits="objectBoundingBox" width={1} height={1}>

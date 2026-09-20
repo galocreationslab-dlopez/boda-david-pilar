@@ -193,6 +193,11 @@ export type IntroEnvelopeDescensoModo = "desplazamiento" | "fade" | "ambos";
 // ser un mínimo y el lado que sobre se reparte como margen extra, quedando centrado.
 export type IntroEnvelopeAspectoModo = "automatico" | "fijo";
 
+// En modo de aspecto "fijo", a qué lado se ajusta exactamente el sobre (respetando su
+// margen mínimo en ese eje): al otro eje no se le aplica margen y, si con la relación
+// de aspecto configurada resulta más grande que la pantalla, sobresale sin recortarse.
+export type IntroEnvelopeAjusteAspecto = "ancho" | "alto";
+
 export type IntroEnvelopeConfig = {
   modoFondo?: IntroEnvelopeModoFondo;
   imagenUrl?: string; // textura o sobre completo, según modoFondo
@@ -209,10 +214,18 @@ export type IntroEnvelopeConfig = {
   sombraDesenfoquePorcentaje?: number;
   alturaSolapaPorcentaje?: number; // 0-100: altura de la solapa triangular respecto al alto del sobre
   radioPicoSolapaPorcentaje?: number; // 0-50: redondeo del pico de la solapa (y de la muesca a juego en el frontal)
+  // Sombra que proyecta la solapa (sobre su cara interior y la portada vista por el
+  // hueco) al empezar a abrirse; se desvanece a la vez que termina de abrirse.
+  colorSombraApertura?: string;
+  intensidadSombraAperturaPorcentaje?: number; // 0-100
+  // Sombra sutil en el contorno de la solapa/frontal que simula el grosor del papel.
+  colorGrosorPapel?: string;
+  intensidadGrosorPapelPorcentaje?: number; // 0-100
   // Escena: ni el sobre ni el contenido ocupan el 100% de la pantalla.
   margenPantallaPorcentaje?: number; // margen (mínimo, en modo "fijo") entre el sobre y el borde de la pantalla
   margenContenidoPorcentaje?: number; // margen adicional del contenido respecto al sobre (para que se note que está dentro)
   modoAspectoSobre?: IntroEnvelopeAspectoModo;
+  ajusteAspectoSobre?: IntroEnvelopeAjusteAspecto; // solo en modo "fijo"
   aspectoAnchoSobre?: number; // unidades de ancho de la relación de aspecto (solo en modo "fijo")
   aspectoAltoSobre?: number; // unidades de alto de la relación de aspecto (solo en modo "fijo")
   fondoExteriorColor?: string; // color de fondo detrás del sobre (la "mesa")

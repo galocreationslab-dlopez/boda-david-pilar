@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
-import type { IntroEnvelopeAspectoModo, IntroEnvelopeConfig, IntroEnvelopeDescensoModo, IntroEnvelopeModoFondo } from "@/config/wedding.config";
+import type { IntroEnvelopeAjusteAspecto, IntroEnvelopeAspectoModo, IntroEnvelopeConfig, IntroEnvelopeDescensoModo, IntroEnvelopeModoFondo } from "@/config/wedding.config";
 
 const DEFAULT_CONFIG: IntroEnvelopeConfig = {
   modoFondo: "colores",
@@ -20,8 +20,13 @@ const DEFAULT_CONFIG: IntroEnvelopeConfig = {
   margenPantallaPorcentaje: 6,
   margenContenidoPorcentaje: 4,
   modoAspectoSobre: "automatico",
+  ajusteAspectoSobre: "ancho",
   aspectoAnchoSobre: 3,
   aspectoAltoSobre: 2,
+  colorSombraApertura: "rgba(0,0,0,0.55)",
+  intensidadSombraAperturaPorcentaje: 45,
+  colorGrosorPapel: "rgba(0,0,0,0.4)",
+  intensidadGrosorPapelPorcentaje: 35,
   fondoExteriorColor: "#2E1F0E",
   modoDescensoSobre: "desplazamiento",
   duracionAperturaMs: 900,
@@ -143,17 +148,52 @@ export default function EnvelopeTestPage() {
           </div>
 
           {config.modoAspectoSobre === "fijo" && (
-            <div className="grid grid-cols-2 gap-3">
+            <>
               <div>
-                <label className="label-field">Ancho relación</label>
-                <input type="number" step={0.1} className="input-field" value={config.aspectoAnchoSobre} onChange={(e) => patch({ aspectoAnchoSobre: Number(e.target.value) })} />
+                <label className="label-field">Ajustar exactamente a...</label>
+                <select
+                  className="input-field"
+                  value={config.ajusteAspectoSobre}
+                  onChange={(e) => patch({ ajusteAspectoSobre: e.target.value as IntroEnvelopeAjusteAspecto })}
+                >
+                  <option value="ancho">Ancho (puede sobresalir arriba/abajo)</option>
+                  <option value="alto">Alto (puede sobresalir a los lados)</option>
+                </select>
               </div>
-              <div>
-                <label className="label-field">Alto relación</label>
-                <input type="number" step={0.1} className="input-field" value={config.aspectoAltoSobre} onChange={(e) => patch({ aspectoAltoSobre: Number(e.target.value) })} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label-field">Ancho relación</label>
+                  <input type="number" step={0.1} className="input-field" value={config.aspectoAnchoSobre} onChange={(e) => patch({ aspectoAnchoSobre: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <label className="label-field">Alto relación</label>
+                  <input type="number" step={0.1} className="input-field" value={config.aspectoAltoSobre} onChange={(e) => patch({ aspectoAltoSobre: Number(e.target.value) })} />
+                </div>
               </div>
-            </div>
+            </>
           )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label-field">Color sombra apertura</label>
+              <input className="input-field" value={config.colorSombraApertura} onChange={(e) => patch({ colorSombraApertura: e.target.value })} />
+            </div>
+            <div>
+              <label className="label-field">Intensidad sombra (%)</label>
+              <input type="number" className="input-field" value={config.intensidadSombraAperturaPorcentaje} onChange={(e) => patch({ intensidadSombraAperturaPorcentaje: Number(e.target.value) })} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label-field">Color grosor papel</label>
+              <input className="input-field" value={config.colorGrosorPapel} onChange={(e) => patch({ colorGrosorPapel: e.target.value })} />
+            </div>
+            <div>
+              <label className="label-field">Intensidad grosor (%)</label>
+              <input type="number" className="input-field" value={config.intensidadGrosorPapelPorcentaje} onChange={(e) => patch({ intensidadGrosorPapelPorcentaje: Number(e.target.value) })} />
+            </div>
+          </div>
 
           <div>
             <label className="label-field">Color fondo exterior (mesa)</label>
