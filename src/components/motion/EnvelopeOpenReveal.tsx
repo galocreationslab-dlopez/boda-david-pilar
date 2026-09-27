@@ -11,6 +11,7 @@ export type EnvelopeOpenRevealProps = {
   sealBroken: boolean;
   /** Contenido del lacre, se muestra centrado en el pico de la solapa mientras el sobre está cerrado. */
   sealSlot?: ReactNode;
+  sealSizePercent?: number;
   onComplete?: () => void;
   children: ReactNode;
 };
@@ -79,7 +80,7 @@ function useViewportSize() {
  * margen configurado pasa a ser un mínimo, y el lado sobrante se reparte como
  * margen extra en el eje que le sobre espacio.
  */
-export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot, onComplete, children }: EnvelopeOpenRevealProps) {
+export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot, sealSizePercent = 24, onComplete, children }: EnvelopeOpenRevealProps) {
   const [phase, setPhase] = useState<Phase>("closed");
   const patternId = useId();
   const viewport = useViewportSize();
@@ -117,6 +118,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const duracionApertura = Math.max(300, config.duracionAperturaMs ?? 900);
   const duracionDescenso = Math.max(300, config.duracionDescensoMs ?? 700);
   const duracionZoom = Math.max(300, config.duracionZoomMs ?? 900);
+  const sealSize = Math.min(40, Math.max(5, sealSizePercent));
 
   // Factor de escala = 1 - 2 * (margen / 100): al aplicarse desde el centro
   // de un elemento que ocupa el 100% del área, deja exactamente ese margen (%)
@@ -532,8 +534,9 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
       {phase !== "done" && sealSlot ? (
         <div className="z-50" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
           <div
-            className="absolute aspect-square w-[clamp(6rem,20vmin,12rem)]"
+            className="absolute aspect-square"
             style={{
+              width: `${sealSize}vmin`,
               left: "50%",
               top: `${flapPct}%`,
               transform: "translate(-50%, -50%)",

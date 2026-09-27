@@ -264,6 +264,7 @@ export type IntroSeccionConfig = {
   textoSaltar?: string;
   lacreUrl?: string;
   lacreTriggerAnimationId?: string;
+  tamanoLacrePorcentaje?: number;
   duracionLacreMs?: number;
   pausaTrasTriggerMs?: number;
   bordeIntroPx?: number;

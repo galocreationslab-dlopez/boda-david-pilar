@@ -109,6 +109,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   const introTitle = config.textoTitulo ?? "";
   const introSubtitle = config.textoSubtitulo ?? "";
   const introSkipLabel = config.textoSaltar ?? "";
+  const lacreSizePercent = Math.min(40, Math.max(5, config.tamanoLacrePorcentaje ?? 24));
   const showIntroTitle = introTitle.trim().length > 0;
   const showIntroSubtitle = introSubtitle.trim().length > 0;
   const showIntroSkip = introSkipLabel.trim().length > 0;
@@ -218,6 +219,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
             <EnvelopeOpenReveal
               config={deviceConfig.envelope ?? {}}
               fondo={introBackground}
+              sealSizePercent={lacreSizePercent}
               sealBroken={lacreGone}
               sealSlot={renderSealVisual("h-full w-full")}
               onComplete={completeIntro}
@@ -262,7 +264,9 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
             {showIntroSubtitle ? (
               <p className="mt-2 text-xs uppercase tracking-[0.24em] text-[var(--cream)] opacity-70">{introSubtitle}</p>
             ) : null}
-            {renderSealVisual("mx-auto mt-8 aspect-square w-[clamp(7rem,24vw,13rem)]", introBackground)}
+            <div className="mx-auto mt-8 aspect-square" style={{ width: `${lacreSizePercent}vmin` }}>
+              {renderSealVisual("h-full w-full", introBackground)}
+            </div>
             {showIntroSkip ? (
               <button type="button" onClick={completeIntro} className="mx-auto mt-8 block text-xs uppercase tracking-[0.2em] text-[var(--cream)] underline underline-offset-4 opacity-80 hover:opacity-100">
                 {introSkipLabel}

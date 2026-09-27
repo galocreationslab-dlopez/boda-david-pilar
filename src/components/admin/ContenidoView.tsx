@@ -71,6 +71,7 @@ function buildDefaultIntroConfig(): IntroSeccionConfig {
     textoSubtitulo: "",
     textoSaltar: "",
     lacreUrl: "",
+    tamanoLacrePorcentaje: 24,
     duracionLacreMs: 900,
     pausaTrasTriggerMs: 0,
     bordeIntroPx: 0,
@@ -1159,7 +1160,19 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     accept="image/*"
                   />
 
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="label-field">Tamano del lacre (% de pantalla): {introConfig.tamanoLacrePorcentaje ?? 24}%</label>
+                      <input
+                        type="range"
+                        min={5}
+                        max={40}
+                        step={1}
+                        className="w-full accent-stone-700"
+                        value={introConfig.tamanoLacrePorcentaje ?? 24}
+                        onChange={(e) => patchIntro({ tamanoLacrePorcentaje: Number(e.target.value) })}
+                      />
+                    </div>
                     <div>
                       <label className="label-field">Duracion del lacre (ms)</label>
                       <input
