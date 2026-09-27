@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useState, type CSSProperties, type ReactNode } from "react";
 import type { IntroEnvelopeConfig } from "@/config/wedding.config";
+import { resolveDriveMediaSrc } from "@/lib/drive-image";
 
 export type EnvelopeOpenRevealProps = {
   config: IntroEnvelopeConfig;
@@ -98,6 +99,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const flapPct = Math.min(70, Math.max(20, config.alturaSolapaPorcentaje ?? 42));
   const radioPico = Math.min(50, Math.max(0, config.radioPicoSolapaPorcentaje ?? 10)) / 100;
   const usaImagen = modoFondo !== "colores" && Boolean(config.imagenUrl);
+  const imagenSobreSrc = usaImagen ? resolveDriveMediaSrc(config.imagenUrl) : "";
   const colorSombraApertura = config.colorSombraApertura || "rgba(0,0,0,0.55)";
   const intensidadSombraApertura = Math.min(100, Math.max(0, config.intensidadSombraAperturaPorcentaje ?? 45)) / 100;
   const colorGrosorPapel = config.colorGrosorPapel || "rgba(0,0,0,0.4)";
@@ -208,8 +210,8 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
 
   const bodyFill: CSSProperties = usaImagen
     ? {
-        backgroundImage: `url(${config.imagenUrl})`,
-        backgroundSize: "cover",
+        backgroundImage: `url(${imagenSobreSrc})`,
+        backgroundSize: "100% 100%",
         backgroundPosition: "center",
         backgroundColor: colorTrasera,
         backgroundBlendMode: modoFondo === "textura" ? "multiply" : "normal",
@@ -297,13 +299,9 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
     pointerEvents: "none",
   };
 
-  const patternFillProps = (fillId: string, baseColor: string) =>
-    usaImagen
-      ? {
-          fill: `url(#${fillId})`,
-          style: modoFondo === "textura" ? ({ mixBlendMode: "multiply" } as CSSProperties) : undefined,
-        }
-      : { fill: baseColor };
+  const imagenMezclaStyle: CSSProperties | undefined = modoFondo === "textura"
+    ? { mixBlendMode: "multiply" }
+    : undefined;
 
   // Sombra sutil en el contorno recortado del papel (frontal/solapa), para dar
   // sensación de grosor; se aplica como filtro CSS (no SVG) para que no se distorsione
@@ -425,12 +423,22 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                   >
                     {usaImagen ? (
                       <defs>
-                        <pattern id={`${patternId}-flap`} patternUnits="objectBoundingBox" width={1} height={1}>
-                          <image href={config.imagenUrl} width={100} height={100} preserveAspectRatio="xMidYMid slice" />
-                        </pattern>
+                        <clipPath id={`${patternId}-flap-clip`}>
+                          <path d={flapPath} />
+                        </clipPath>
                       </defs>
                     ) : null}
-                    <path d={flapPath} {...patternFillProps(`${patternId}-flap`, colorTrasera)} />
+                    <path d={flapPath} fill={colorTrasera} />
+                    {usaImagen ? (
+                      <image
+                        href={imagenSobreSrc}
+                        width={100}
+                        height={10000 / flapPct}
+                        preserveAspectRatio="none"
+                        clipPath={`url(#${patternId}-flap-clip)`}
+                        style={imagenMezclaStyle}
+                      />
+                    ) : null}
                     <path
                       d={flapPath}
                       fill="none"
@@ -492,12 +500,22 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" style={{ filter: paperEdgeFilter }}>
                 {usaImagen ? (
                   <defs>
-                    <pattern id={`${patternId}-front`} patternUnits="objectBoundingBox" width={1} height={1}>
-                      <image href={config.imagenUrl} width={100} height={100} preserveAspectRatio="xMidYMid slice" />
-                    </pattern>
+                    <clipPath id={`${patternId}-front-clip`}>
+                      <path d={frontPath} />
+                    </clipPath>
                   </defs>
                 ) : null}
-                <path d={frontPath} {...patternFillProps(`${patternId}-front`, colorBase)} />
+                <path d={frontPath} fill={colorBase} />
+                {usaImagen ? (
+                  <image
+                    href={imagenSobreSrc}
+                    width={100}
+                    height={100}
+                    preserveAspectRatio="none"
+                    clipPath={`url(#${patternId}-front-clip)`}
+                    style={imagenMezclaStyle}
+                  />
+                ) : null}
               </svg>
             </div>
           </div>
