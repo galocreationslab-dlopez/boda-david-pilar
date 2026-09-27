@@ -165,7 +165,10 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
         : [viewport.width * envelopeScale, viewport.height * envelopeScale];
 
     const contentTargetW = envAncho * (1 - (margenContenido * 2) / 100);
-    contentScale = contentTargetW / viewport.width;
+    const sobreDesbordaHorizontalmente = modoAspecto === "fijo"
+      && ajusteAspecto === "alto"
+      && envAncho > viewport.width;
+    contentScale = sobreDesbordaHorizontalmente ? 1 : contentTargetW / viewport.width;
 
     // Posición (en píxeles reales) del borde superior del hueco de la portada dentro
     // del sobre, y la que tendría la portada si solo se centrara con `scale()`; la
