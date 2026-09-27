@@ -29,6 +29,24 @@ export type RevealBookProps = {
 
 const MAX_ESPERA_DIBUJO_MS = 15000;
 
+function isLineAlivePanelSource(value?: string): boolean {
+  if (!value) return false;
+  if (isLikelyLineAliveHtmlUrl(value)) return true;
+
+  const raw = value.trim();
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(raw)) return true;
+
+  try {
+    const url = new URL(raw);
+    if (url.hostname !== "drive.google.com" && url.hostname !== "drive.usercontent.google.com") return false;
+    return /\/file\/d\/[a-zA-Z0-9_-]+/i.test(url.pathname)
+      || /\/d\/[a-zA-Z0-9_-]+/i.test(url.pathname)
+      || Boolean(url.searchParams.get("id") || url.searchParams.get("fileId"));
+  } catch {
+    return false;
+  }
+}
+
 export default function RevealBook({
   panelIzquierdo = { svgSource: "", alt: "" },
   panelDerecho = { svgSource: "", alt: "" },
@@ -59,8 +77,8 @@ export default function RevealBook({
   const leftHasSource = Boolean(leftSource.trim());
   const rightHasSource = Boolean(rightSource.trim());
 
-  const leftIsHtml = leftHasSource && isLikelyLineAliveHtmlUrl(leftSource);
-  const rightIsHtml = rightHasSource && isLikelyLineAliveHtmlUrl(rightSource);
+  const leftIsHtml = leftHasSource && isLineAlivePanelSource(leftSource);
+  const rightIsHtml = rightHasSource && isLineAlivePanelSource(rightSource);
   const leftHtmlSrc = leftIsHtml ? resolvePublicLineAliveSrc(leftSource) : leftSource;
   const rightHtmlSrc = rightIsHtml ? resolvePublicLineAliveSrc(rightSource) : rightSource;
   const leftReady = !leftHasSource || izquierdoListo;
