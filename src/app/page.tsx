@@ -16,9 +16,10 @@ import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
 import type { GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
 import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
-import { DEFAULT_TEXTO_INVITACION, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
+import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
 import IntroReveal from "@/components/motion/IntroReveal";
 import PostIntroSectionsGate from "@/components/motion/PostIntroSectionsGate";
+import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import type { CSSProperties } from "react";
 
 const DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX = 252;
@@ -490,15 +491,37 @@ export default async function PaginaPrincipal() {
   );
 
   const introStorageKey = `intro:${config.slug}`;
+  const normalizedIntro = introSection?.intro ? normalizeIntroConfig(introSection.intro) : undefined;
+
+  // Precarga (en el <head>, antes de hidratar React) el lacre y el fondo del sobre:
+  // ambos se sirven vía nuestro proxy de Drive, así que el navegador puede empezar a
+  // descargarlos en paralelo con el JS en vez de esperar a que el componente monte y
+  // calcule el `background-image`/`fetch()`, que es lo que hacía que tardaran en verse.
+  const lacreSrc = normalizedIntro ? resolveDriveMediaSrc(normalizedIntro.lacreUrl) || "/images/Sello.svg" : undefined;
+  const envelopeImageSrcs = normalizedIntro
+    ? Array.from(
+        new Set(
+          [normalizedIntro.pc?.envelope?.imagenUrl, normalizedIntro.movil?.envelope?.imagenUrl]
+            .filter((url): url is string => Boolean(url?.trim()))
+            .map((url) => resolveDriveMediaSrc(url)),
+        ),
+      )
+    : [];
 
   return introSection?.intro ? (
-    <IntroReveal
-      config={introSection.intro}
-      storageKey={introStorageKey}
-      themeStyle={getSectionThemeVars(introSection)}
-      introStyle={getSectionComponentStyles(introSection)["intro.fondo"]}
-    >
-      <PostIntroSectionsGate>{pageContent}</PostIntroSectionsGate>
-    </IntroReveal>
+    <>
+      {lacreSrc ? <link rel="preload" href={lacreSrc} as="fetch" crossOrigin="anonymous" /> : null}
+      {envelopeImageSrcs.map((src) => (
+        <link key={src} rel="preload" href={src} as="image" />
+      ))}
+      <IntroReveal
+        config={introSection.intro}
+        storageKey={introStorageKey}
+        themeStyle={getSectionThemeVars(introSection)}
+        introStyle={getSectionComponentStyles(introSection)["intro.fondo"]}
+      >
+        <PostIntroSectionsGate>{pageContent}</PostIntroSectionsGate>
+      </IntroReveal>
+    </>
   ) : pageContent;
 }

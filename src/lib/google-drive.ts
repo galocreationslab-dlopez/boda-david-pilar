@@ -281,7 +281,25 @@ async function getAccessTokenFromServiceAccount(): Promise<string> {
   return data.access_token;
 }
 
+// Cachea el access token en memoria de proceso (válido ~1h) para evitar
+// repetir el intercambio OAuth/JWT (2 round-trips de red) en cada petición
+// de lectura; sin esto, cada imagen/SVG de Drive tardaba varios cientos de ms
+// extra solo en autenticarse antes de poder descargar nada.
+let cachedAccessToken: { token: string; expiresAt: number } | null = null;
+
 async function getAccessToken(): Promise<string> {
+  if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now()) {
+    return cachedAccessToken.token;
+  }
+
+  const token = await getFreshAccessToken();
+  // Se resta un margen de seguridad (5 min) sobre la duración típica (1h) para
+  // no arriesgarse a usar un token ya caducado por el lado del servidor.
+  cachedAccessToken = { token, expiresAt: Date.now() + 55 * 60 * 1000 };
+  return token;
+}
+
+async function getFreshAccessToken(): Promise<string> {
   // Si hay credenciales OAuth de usuario, las priorizamos para evitar problemas
   // de cuota al subir a carpetas en "Mi unidad". Si el refresh token expira o
   // queda revocado, caemos a la cuenta de servicio para no romper operaciones
@@ -523,7 +541,18 @@ export async function makeDriveFilePublic(fileId: string): Promise<void> {
   }
 }
 
+// Cachea en memoria de proceso los archivos ya descargados (el lacre y el
+// fondo del sobre se piden en cada visita, pero casi nunca cambian): evita
+// repetir la llamada a la API de Drive (y su latencia) para cada visitante.
+const driveFileCache = new Map<string, { buffer: Buffer; contentType: string; expiresAt: number }>();
+const DRIVE_FILE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
 export async function downloadDriveFile(fileId: string): Promise<{ buffer: Buffer; contentType: string }> {
+  const cached = driveFileCache.get(fileId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { buffer: cached.buffer, contentType: cached.contentType };
+  }
+
   const token = await getAccessToken();
   const response = await fetch(`${GOOGLE_DRIVE_FILES_URL}/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`, {
     method: "GET",
@@ -536,10 +565,12 @@ export async function downloadDriveFile(fileId: string): Promise<{ buffer: Buffe
   }
 
   const arr = await response.arrayBuffer();
-  return {
+  const result = {
     buffer: Buffer.from(arr),
     contentType: response.headers.get("content-type") || "application/octet-stream",
   };
+  driveFileCache.set(fileId, { ...result, expiresAt: Date.now() + DRIVE_FILE_CACHE_TTL_MS });
+  return result;
 }
 
 export async function getDriveFileMetadata(fileId: string): Promise<DriveFile> {

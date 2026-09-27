@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import AutoDrawSVG from "@/components/motion/AutoDrawSVG";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import { isLikelyLineAliveHtmlUrl, resolvePublicLineAliveSrc } from "@/lib/linealive/utils";
+import { resolveDriveMediaSrc } from "@/lib/drive-image";
 
 type RevealPanel = {
   svgSource?: string;
@@ -81,6 +82,10 @@ export default function RevealBook({
   const rightIsHtml = rightHasSource && isLineAlivePanelSource(rightSource);
   const leftHtmlSrc = leftIsHtml ? resolvePublicLineAliveSrc(leftSource) : leftSource;
   const rightHtmlSrc = rightIsHtml ? resolvePublicLineAliveSrc(rightSource) : rightSource;
+  // La detección de LineAlive (arriba) necesita la URL cruda (Drive/host original); el proxy
+  // solo se aplica para el caso SVG, que sí se fetchea directamente en el navegador.
+  const leftSvgSrc = leftIsHtml ? "" : resolveDriveMediaSrc(leftSource);
+  const rightSvgSrc = rightIsHtml ? "" : resolveDriveMediaSrc(rightSource);
   const leftReady = !leftHasSource || izquierdoListo;
   const rightReady = !rightHasSource || derechoListo;
 
@@ -208,7 +213,7 @@ export default function RevealBook({
                       />
                     ) : leftHasSource ? (
                       <AutoDrawSVG
-                        svgSource={panelIzquierdo.svgSource ?? ""}
+                        svgSource={leftSvgSrc}
                         onComplete={markLeftReady}
                         durationMs={duracionDibujoMs}
                         staggerMs={24}
@@ -246,7 +251,7 @@ export default function RevealBook({
                       />
                     ) : rightHasSource ? (
                       <AutoDrawSVG
-                        svgSource={panelDerecho.svgSource ?? ""}
+                        svgSource={rightSvgSrc}
                         onComplete={markRightReady}
                         durationMs={duracionDibujoMs}
                         staggerMs={24}

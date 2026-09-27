@@ -6,6 +6,7 @@ import AutoDrawSVG, { parseNativeSvgAnimations, type NativeSvgAnimationOption } 
 import IntroAnimationStage from "@/components/motion/IntroAnimationStage";
 import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
 import { useDeviceViewport } from "@/components/motion/useDeviceViewport";
+import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { normalizeIntroConfig, type IntroDeviceConfig, type IntroSeccionConfig } from "@/config/wedding.config";
 
 const DEFAULT_LACRE = "/images/Sello.svg";
@@ -77,7 +78,8 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
     () => false,
   );
 
-  const { hasNativeAnimation: lacreHasNativeAnimation, nativeAnimationOptions } = useLacreNativeAnimationDetection(config.lacreUrl || DEFAULT_LACRE);
+  const lacreSrc = resolveDriveMediaSrc(config.lacreUrl) || DEFAULT_LACRE;
+  const { hasNativeAnimation: lacreHasNativeAnimation, nativeAnimationOptions } = useLacreNativeAnimationDetection(lacreSrc);
   const configuredNativeAnimationId = config.lacreTriggerAnimationId;
   const selectedNativeAnimationId = configuredNativeAnimationId && nativeAnimationOptions.some((animation) => animation.id === configuredNativeAnimationId)
     ? configuredNativeAnimationId
@@ -175,7 +177,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
           aria-label="Abriendo invitación"
         >
           <AutoDrawSVG
-            svgSource={config.lacreUrl || DEFAULT_LACRE}
+            svgSource={lacreSrc}
             animate
             strokeColorOverride={themeValue("--bronze-light")}
             durationMs={Math.max(300, config.duracionLacreMs ?? 900)}
@@ -191,7 +193,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
         <button type="button" className="group mx-auto block focus:outline-none" onClick={startIntro} aria-label="Abrir invitación">
           <span className={`block ${sizeClassName}`} style={{ color: themeValue("--bronze-light") || "#C4964A", backgroundColor: sealBackground }}>
             <AutoDrawSVG
-              svgSource={config.lacreUrl || DEFAULT_LACRE}
+              svgSource={lacreSrc}
               direction={closingLacre ? "reverse" : "forward"}
               animate={closingLacre}
               strokeColorOverride={themeValue("--bronze-light")}
