@@ -11,7 +11,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SelloNupcial } from "@/components/ui/SelloNupcial";
-import type { WeddingConfig } from "@/config/wedding.config";
+import type { ComportamientoBarraNavegacion, WeddingConfig } from "@/config/wedding.config";
 
 type NavItem = {
   href: string;
@@ -25,9 +25,10 @@ const NAV_ITEMS: NavItem[] = [
 
 type NavegacionPublicaProps = {
   config: Pick<WeddingConfig, "iniciales" | "novia" | "novio">;
+  comportamiento?: ComportamientoBarraNavegacion;
 };
 
-export function NavegacionPublica({ config }: NavegacionPublicaProps) {
+export function NavegacionPublica({ config, comportamiento = "siempre_visible" }: NavegacionPublicaProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -49,15 +50,48 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
     };
   }, [menuAbierto]);
 
+  // En modo "visible_en_scroll" la barra queda oculta mientras se ve la portada
+  // y aparece al bajar hacia las siguientes secciones (salvo con el menú abierto).
+  const barraOculta = comportamiento === "visible_en_scroll" && !scrolled && !menuAbierto;
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
           ? "bg-white/95 backdrop-blur-sm shadow-sm"
           : "bg-transparent"
+      } ${
+        barraOculta ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
       }`}
     >
       <nav className="container-wedding flex h-16 items-center justify-between sm:h-20">
+        {/* Botón hamburguesa — esquina superior izquierda, solo en móvil */}
+        <button
+          onClick={toggleMenu}
+          className="lg:hidden p-2"
+          aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={menuAbierto}
+        >
+          <div className="flex flex-col gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className={`block w-6 h-px transition-all duration-300 ${
+                  scrolled ? "bg-brown-dark" : "bg-white"
+                } ${
+                  menuAbierto && i === 0
+                    ? "rotate-45 translate-y-2.5"
+                    : menuAbierto && i === 1
+                    ? "opacity-0"
+                    : menuAbierto && i === 2
+                    ? "-rotate-45 -translate-y-2.5"
+                    : ""
+                }`}
+              />
+            ))}
+          </div>
+        </button>
+
         {/* Logo / Sello */}
         <Link
           href="/"
@@ -97,33 +131,6 @@ export function NavegacionPublica({ config }: NavegacionPublicaProps) {
             </li>
           ))}
         </ul>
-
-        {/* Botón hamburguesa — solo en móvil */}
-        <button
-          onClick={toggleMenu}
-          className="lg:hidden p-2"
-          aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
-          aria-expanded={menuAbierto}
-        >
-          <div className="flex flex-col gap-1.5">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className={`block w-6 h-px transition-all duration-300 ${
-                  scrolled ? "bg-brown-dark" : "bg-white"
-                } ${
-                  menuAbierto && i === 0
-                    ? "rotate-45 translate-y-2.5"
-                    : menuAbierto && i === 1
-                    ? "opacity-0"
-                    : menuAbierto && i === 2
-                    ? "-rotate-45 -translate-y-2.5"
-                    : ""
-                }`}
-              />
-            ))}
-          </div>
-        </button>
       </nav>
 
       {/* Menú móvil desplegable */}

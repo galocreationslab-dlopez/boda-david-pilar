@@ -354,6 +354,15 @@ export type SeparadorDiseno = {
   imagenColorRole?: TemaColorRole;
 };
 
+// "siempre_visible": la barra superior (logo + menú) se muestra siempre, incluso sobre la portada.
+// "visible_en_scroll": la barra permanece oculta mientras se ve la portada y aparece al hacer scroll
+// hacia las secciones siguientes.
+export type ComportamientoBarraNavegacion = "siempre_visible" | "visible_en_scroll";
+
+export type NavegacionDiseno = {
+  comportamiento?: ComportamientoBarraNavegacion;
+};
+
 export type WeddingConfig = {
   weddingId: string;
   slug: string;
@@ -390,6 +399,7 @@ export type WeddingConfig = {
     separador?: SeparadorDiseno;
     fondoPaginaImagen?: string;
     secciones?: SeccionDiseno[];
+    navegacion?: NavegacionDiseno;
   };
 
   historia: EventoHistoria[];

@@ -8,6 +8,7 @@ import { NavegacionPublica } from "@/components/layout/NavegacionPublica";
 import { PieDePagina } from "@/components/layout/PieDePagina";
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
 import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
+import { AccordionSectionsProvider } from "@/contexts/AccordionSectionsContext";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
 import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
 import { SeccionHistoria, type HistoriaComponentKey } from "@/components/wedding/SeccionHistoria";
@@ -396,8 +397,9 @@ export default async function PaginaPrincipal() {
 
   const pageContent = (
     <div>
-      <NavegacionPublica config={config} />
+      <NavegacionPublica config={config} comportamiento={config.diseno?.navegacion?.comportamiento} />
       <main>
+        <AccordionSectionsProvider>
         {orderedSections.map((section, index) => {
           const componentStyles = getSectionComponentStyles(section.source);
           const sectionPalette = section.source ? getPaletteBySection(section.source) : paletaGlobal;
@@ -485,6 +487,7 @@ export default async function PaginaPrincipal() {
             </div>
           );
         })}
+        </AccordionSectionsProvider>
       </main>
       <PieDePagina config={config} />
     </div>

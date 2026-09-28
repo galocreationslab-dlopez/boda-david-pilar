@@ -7,6 +7,7 @@ import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig } from "@/config/wedding.config";
 import { parseNativeSvgAnimations, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
 import type {
+  ComportamientoBarraNavegacion,
   EventoHistoria,
   EventoTimeline,
   IntroAnimationType,
@@ -504,6 +505,9 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [sections, setSections] = useState<SeccionDiseno[]>(initialSections);
+  const [navegacionComportamiento, setNavegacionComportamiento] = useState<ComportamientoBarraNavegacion>(
+    config.diseno?.navegacion?.comportamiento ?? "siempre_visible",
+  );
   const [selectedSectionId, setSelectedSectionId] = useState<string>(initialSections[0]?.id ?? "");
   const [newSectionType, setNewSectionType] = useState<TipoSeccionDiseno>("invitacion");
   const [resources, setResources] = useState<ResourceItem[]>([]);
@@ -920,6 +924,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
           diseno: {
             ...(config.diseno ?? {}),
             secciones: sections,
+            navegacion: { comportamiento: navegacionComportamiento },
           },
           historia,
           timeline,
@@ -1866,6 +1871,38 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         patchSection(selectedSection.id, { items: [{ ...first, descripcion: e.target.value }, ...selectedSection.items.slice(1)] });
                       }}
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="label-field">Comportamiento de la barra superior (menu, logo y texto)</label>
+                    <div className="space-y-2">
+                      <label className="flex items-start gap-2 text-sm text-stone-700">
+                        <input
+                          type="radio"
+                          name="navegacion-comportamiento"
+                          className="mt-1"
+                          checked={navegacionComportamiento === "siempre_visible"}
+                          onChange={() => setNavegacionComportamiento("siempre_visible")}
+                        />
+                        <span>
+                          <span className="font-medium">Siempre visible</span>
+                          <span className="block text-xs text-stone-500">La barra se muestra desde el principio, incluso sobre la portada.</span>
+                        </span>
+                      </label>
+                      <label className="flex items-start gap-2 text-sm text-stone-700">
+                        <input
+                          type="radio"
+                          name="navegacion-comportamiento"
+                          className="mt-1"
+                          checked={navegacionComportamiento === "visible_en_scroll"}
+                          onChange={() => setNavegacionComportamiento("visible_en_scroll")}
+                        />
+                        <span>
+                          <span className="font-medium">Solo visible al hacer scroll</span>
+                          <span className="block text-xs text-stone-500">La barra permanece oculta sobre la portada y aparece al bajar hacia las siguientes secciones.</span>
+                        </span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}
