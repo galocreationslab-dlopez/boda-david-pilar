@@ -7,7 +7,6 @@
 
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { useAccordionSectionsContext } from "@/contexts/AccordionSectionsContext";
 
 type Props = {
   id: string;
@@ -52,20 +51,6 @@ export function SeccionColapsable({
     setAbierta(abiertaPorDefecto);
   }, [abiertaPorDefecto]);
 
-  // La portada (ocultarCabecera) queda fuera del acordeón: siempre visible y sin
-  // afectar/ser afectada por el resto de secciones colapsables.
-  const accordion = useAccordionSectionsContext();
-  const usaAcordeonCompartido = Boolean(accordion) && !ocultarCabecera;
-  const abiertaEfectiva = usaAcordeonCompartido ? accordion!.openId === id : abierta;
-
-  const alternar = () => {
-    if (usaAcordeonCompartido) {
-      accordion!.setOpenId(abiertaEfectiva ? null : id);
-      return;
-    }
-    setAbierta((prev) => !prev);
-  };
-
   return (
     <section
       id={id}
@@ -85,14 +70,14 @@ export function SeccionColapsable({
       {/* Cabecera colapsable — oculta en la portada */}
       {!ocultarCabecera && (
         <button
-          onClick={alternar}
+          onClick={() => setAbierta(!abierta)}
           className="group flex w-full items-center justify-between gap-4 px-4 py-4 sm:px-12 sm:py-5"
           style={{
-            borderBottom: abiertaEfectiva ? "1px solid var(--cream-dark)" : "none",
+            borderBottom: abierta ? "1px solid var(--cream-dark)" : "none",
             backgroundColor: bgColor,
             ...(sectionStyle ?? {}),
           }}
-          aria-expanded={abiertaEfectiva}
+          aria-expanded={abierta}
           aria-controls={`contenido-${id}`}
         >
           <span
@@ -142,9 +127,9 @@ export function SeccionColapsable({
               stroke="currentColor"
               strokeWidth="1.5"
               strokeLinecap="round"
-              className={`transition-transform duration-300 ${abiertaEfectiva ? "rotate-180" : ""}`}
+              className={`transition-transform duration-300 ${abierta ? "rotate-180" : ""}`}
             >
-              <path d={abiertaEfectiva ? "M2 9 L7 4 L12 9" : "M2 5 L7 10 L12 5"} />
+              <path d={abierta ? "M2 9 L7 4 L12 9" : "M2 5 L7 10 L12 5"} />
             </svg>
           </span>
         </button>
@@ -155,8 +140,8 @@ export function SeccionColapsable({
         id={`contenido-${id}`}
         className="overflow-hidden transition-all duration-500"
         style={{
-          maxHeight: abiertaEfectiva ? "9999px" : "0",
-          opacity: abiertaEfectiva ? 1 : 0,
+          maxHeight: abierta ? "9999px" : "0",
+          opacity: abierta ? 1 : 0,
         }}
       >
         {children}
