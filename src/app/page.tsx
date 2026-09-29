@@ -281,9 +281,23 @@ function getAnchorId(tipo: TipoSeccionDiseno): string {
 export default async function PaginaPrincipal({
   searchParams,
 }: {
-  searchParams: Promise<{ seccion?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { seccion: seccionFoco } = await searchParams;
+  const rawSearchParams = await searchParams;
+  const seccionFoco = typeof rawSearchParams.seccion === "string" ? rawSearchParams.seccion : undefined;
+
+  // El resto de parametros (ej. inviteCode) deben persistir en todos los enlaces internos.
+  const preservedParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(rawSearchParams)) {
+    if (key === "seccion" || value === undefined) continue;
+    if (Array.isArray(value)) {
+      value.forEach((v) => preservedParams.append(key, v));
+    } else {
+      preservedParams.set(key, value);
+    }
+  }
+  const queryString = preservedParams.toString();
+
   const config = await getWeddingConfig();
   const galleryMedia = await getFeaturedGalleryMedia();
   const separador = config.diseno?.separador;
@@ -433,10 +447,11 @@ export default async function PaginaPrincipal({
         config={config}
         comportamiento={config.diseno?.navegacion?.comportamiento}
         secciones={menuSecciones}
+        queryString={queryString}
       />
       {seccionEnfocada && (
         <div className="container-wedding pt-20 sm:pt-24">
-          <a href="/" className="inline-block text-xs uppercase tracking-widest text-bronze underline">
+          <a href={queryString ? `/?${queryString}` : "/"} className="inline-block text-xs uppercase tracking-widest text-bronze underline">
             Volver al inicio
           </a>
         </div>

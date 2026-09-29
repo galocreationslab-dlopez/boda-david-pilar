@@ -52,18 +52,30 @@ export function SeccionColapsable({
     setAbierta(abiertaPorDefecto);
   }, [abiertaPorDefecto]);
 
-  // Enlaces del menu de navegacion (ej. "/#historia") deben desplegar la seccion antes de saltar a ella.
+  // Enlaces del menu de navegacion deben desplegar la seccion antes de saltar a ella.
+  // El evento "seccion:abrir" cubre la navegacion in-app (Next no dispara "hashchange" via pushState);
+  // el chequeo de hash cubre cargas de pagina completas (ej. llegar directamente a "/#historia").
   useEffect(() => {
-    const abrirSiEsElDestino = () => {
-      if (typeof window === "undefined" || window.location.hash !== `#${id}`) return;
+    const abrirYDesplazar = () => {
       setAbierta(true);
       window.setTimeout(() => {
         sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 150);
     };
+    const abrirSiEsElDestino = () => {
+      if (typeof window !== "undefined" && window.location.hash === `#${id}`) abrirYDesplazar();
+    };
+    const abrirPorEvento = (event: Event) => {
+      const anchorId = (event as CustomEvent<{ anchorId: string }>).detail?.anchorId;
+      if (anchorId === id) abrirYDesplazar();
+    };
     abrirSiEsElDestino();
     window.addEventListener("hashchange", abrirSiEsElDestino);
-    return () => window.removeEventListener("hashchange", abrirSiEsElDestino);
+    window.addEventListener("seccion:abrir", abrirPorEvento);
+    return () => {
+      window.removeEventListener("hashchange", abrirSiEsElDestino);
+      window.removeEventListener("seccion:abrir", abrirPorEvento);
+    };
   }, [id]);
 
   return (
