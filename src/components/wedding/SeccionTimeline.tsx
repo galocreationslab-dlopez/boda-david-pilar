@@ -217,28 +217,8 @@ export function SeccionTimeline({
 
         {/* ── Timeline móvil (vertical) ── */}
         <div className={forceMobile ? "space-y-6" : "space-y-6 md:hidden"}>
-          {puntos.map((punto, index) => (
-            <article key={punto.id} className="relative pl-10">
-              {index < puntos.length - 1 && (
-                <span
-                  className="absolute left-[21px] top-12 h-[calc(100%-0.5rem)] w-px"
-                  style={{ backgroundColor: "var(--bronze-pale)" }}
-                  aria-hidden="true"
-                />
-              )}
-
-              <div
-                className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full"
-                style={styleFor("timeline.icono", {
-                  backgroundColor: "var(--brown-dark)",
-                  color: "var(--bronze-light)",
-                  boxShadow: "0 0 0 3px var(--cream-dark), 0 0 0 5px var(--bronze-pale)",
-                })}
-                onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
-              >
-                {ICONOS[punto.icono]}
-              </div>
-
+          {puntos.map((punto) => (
+            <article key={punto.id}>
               <div
                 className="space-y-3 border px-4 pb-4 pt-3"
                 style={styleFor("timeline.card", {
@@ -247,38 +227,58 @@ export function SeccionTimeline({
                 })}
                 onClick={() => select("timeline.card")}
               >
-                <p
-                  className="smallcaps text-sm font-semibold tracking-widest"
-                  style={styleFor("timeline.hora", { color: "var(--bronze)" })}
-                  contentEditable={!designMode && editable}
-                  suppressContentEditableWarning={true}
-                  onClick={() => {
-                    if (designMode) {
-                      select("timeline.hora");
-                      return;
-                    }
-                    onSelectItem?.(punto.id);
-                  }}
-                  onBlur={(event) => onEditTexto?.(punto.id, "hora", event.currentTarget.textContent ?? "")}
-                >
-                  {punto.hora}
-                </p>
-                <h3
-                  className="font-display text-2xl font-light"
-                  style={styleFor("timeline.titulo", { color: "var(--brown-dark)" })}
-                  contentEditable={!designMode && editable}
-                  suppressContentEditableWarning={true}
-                  onClick={() => {
-                    if (designMode) {
-                      select("timeline.titulo");
-                      return;
-                    }
-                    onSelectItem?.(punto.id);
-                  }}
-                  onBlur={(event) => onEditTexto?.(punto.id, "titulo", event.currentTarget.textContent ?? "")}
-                >
-                  {punto.titulo}
-                </h3>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full"
+                    style={styleFor("timeline.icono", {
+                      backgroundColor: "var(--brown-dark)",
+                      color: "var(--bronze-light)",
+                      boxShadow: "0 0 0 3px var(--cream-dark), 0 0 0 5px var(--bronze-pale)",
+                    })}
+                    onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
+                  >
+                    {ICONOS[punto.icono]}
+                  </div>
+
+                  <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0 min-w-0">
+                    <span
+                      className="smallcaps text-sm font-semibold tracking-widest"
+                      style={styleFor("timeline.hora", { color: "var(--bronze)" })}
+                      contentEditable={!designMode && editable}
+                      suppressContentEditableWarning={true}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (designMode) {
+                          select("timeline.hora");
+                          return;
+                        }
+                        onSelectItem?.(punto.id);
+                      }}
+                      onBlur={(event) => onEditTexto?.(punto.id, "hora", event.currentTarget.textContent ?? "")}
+                    >
+                      {punto.hora}
+                    </span>
+                    <span aria-hidden="true" style={{ color: "var(--bronze)" }}>—</span>
+                    <span
+                      className="font-display text-xl font-light"
+                      style={styleFor("timeline.titulo", { color: "var(--brown-dark)" })}
+                      contentEditable={!designMode && editable}
+                      suppressContentEditableWarning={true}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (designMode) {
+                          select("timeline.titulo");
+                          return;
+                        }
+                        onSelectItem?.(punto.id);
+                      }}
+                      onBlur={(event) => onEditTexto?.(punto.id, "titulo", event.currentTarget.textContent ?? "")}
+                    >
+                      {punto.titulo}
+                    </span>
+                  </p>
+                </div>
+
                 <p
                   className="text-sm"
                   style={styleFor("timeline.descripcion", { color: "var(--olive-muted)" })}
