@@ -229,12 +229,8 @@ export function SeccionTimeline({
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full"
-                    style={styleFor("timeline.icono", {
-                      backgroundColor: "var(--brown-dark)",
-                      color: "var(--bronze-light)",
-                      boxShadow: "0 0 0 3px var(--cream-dark), 0 0 0 5px var(--bronze-pale)",
-                    })}
+                    className="flex h-11 w-11 flex-shrink-0 items-center justify-center"
+                    style={styleFor("timeline.icono", { color: "var(--brown-dark)" })}
                     onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
                   >
                     {ICONOS[punto.icono]}
@@ -242,7 +238,7 @@ export function SeccionTimeline({
 
                   <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0 min-w-0">
                     <span
-                      className="smallcaps text-sm font-semibold tracking-widest"
+                      className="font-display text-xl font-light tracking-wide"
                       style={styleFor("timeline.hora", { color: "var(--bronze)" })}
                       contentEditable={!designMode && editable}
                       suppressContentEditableWarning={true}
@@ -370,20 +366,16 @@ export function SeccionTimeline({
               {puntos.map((punto) => (
                 <div key={punto.id} className="flex flex-col items-center gap-4">
 
-                  {/* Nodo circular con icono */}
+                  {/* Icono, sin fondo circular */}
                   <div
-                    className="w-[104px] h-[104px] rounded-full flex flex-col items-center justify-center gap-1 flex-shrink-0"
-                    style={styleFor("timeline.icono", {
-                      backgroundColor: "var(--brown-dark)",
-                      color: "var(--bronze-light)",
-                      boxShadow: "0 0 0 4px var(--cream-dark), 0 0 0 6px var(--bronze-pale)",
-                    })}
+                    className="flex flex-col items-center justify-center gap-2 flex-shrink-0"
+                    style={styleFor("timeline.icono", { color: "var(--brown-dark)" })}
                     onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
                   >
                     {ICONOS[punto.icono]}
                     <span
-                      className="font-display font-light"
-                      style={styleFor("timeline.hora", { fontSize: "1.15rem", color: "var(--white)", lineHeight: 1 })}
+                      className="font-display text-xl font-light"
+                      style={styleFor("timeline.hora", { color: "var(--bronze)", lineHeight: 1 })}
                       contentEditable={!designMode && editable}
                       suppressContentEditableWarning={true}
                       onClick={() => {
