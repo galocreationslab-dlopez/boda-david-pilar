@@ -271,7 +271,19 @@ function renderSeparador(separadorInput: SeparadorDiseno | undefined, roleColors
   );
 }
 
-export default async function PaginaPrincipal() {
+function getAnchorId(tipo: TipoSeccionDiseno): string {
+  if (tipo === "invitacion" || tipo === "portada") return "invitacion";
+  if (tipo === "historia") return "historia";
+  if (tipo === "galeria") return "galeria";
+  return "timeline";
+}
+
+export default async function PaginaPrincipal({
+  searchParams,
+}: {
+  searchParams: Promise<{ seccion?: string }>;
+}) {
+  const { seccion: seccionFoco } = await searchParams;
   const config = await getWeddingConfig();
   const galleryMedia = await getFeaturedGalleryMedia();
   const separador = config.diseno?.separador;
@@ -327,13 +339,32 @@ export default async function PaginaPrincipal() {
     }, {} as Partial<Record<SectionComponentKey, CSSProperties>>);
   };
 
-  const visibleSections = (config.diseno?.secciones ?? []).filter((s) => {
-    if (!s.visible) return false;
+  const perfilPublicoFilter = (s: SeccionDiseno): boolean => {
     if (!s.perfiles || s.perfiles.length === 0) return true;
     return s.perfiles.includes("publico");
-  });
+  };
 
-  const introSection = visibleSections.find((section) => section.tipo === "intro" && section.intro);
+  const todasLasSecciones = (config.diseno?.secciones ?? []).filter(perfilPublicoFilter);
+
+  // Secciones con acceso directo desde el menu hamburguesa (aunque no esten en pantalla principal).
+  const menuSecciones = todasLasSecciones
+    .filter((s) => s.menuDirecto && s.tipo !== "intro")
+    .map((s) => ({
+      anchorId: getAnchorId(s.tipo === "portada" ? "invitacion" : s.tipo),
+      titulo: s.titulo || s.nombre,
+      enPantallaPrincipal: s.visible,
+    }));
+
+  // Seccion pedida via el menu de "solo acceso directo" (no visible en el scroll principal).
+  const seccionEnfocada = seccionFoco
+    ? todasLasSecciones.find((s) => s.menuDirecto && !s.visible && getAnchorId(s.tipo === "portada" ? "invitacion" : s.tipo) === seccionFoco)
+    : undefined;
+
+  const visibleSections = seccionEnfocada
+    ? [seccionEnfocada]
+    : todasLasSecciones.filter((s) => s.visible);
+
+  const introSection = seccionEnfocada ? undefined : visibleSections.find((section) => section.tipo === "intro" && section.intro);
   const contentSections = visibleSections.filter((section) => section.tipo !== "intro");
 
   const fallbackSections: Array<{ id: string; tipo: TipoSeccionDiseno; titulo: string; source?: SeccionDiseno }> = [
@@ -347,7 +378,9 @@ export default async function PaginaPrincipal() {
 
   const orderedSections = contentSections.length > 0
     ? contentSections.map((s) => ({ id: s.id, tipo: normalizeSectionType(s.tipo), titulo: s.titulo || s.nombre, source: s }))
-    : fallbackSections;
+    : seccionEnfocada
+      ? []
+      : fallbackSections;
 
   const getInvitacionConfigForSection = (section?: SeccionDiseno) => {
     const welcome = section?.items?.[0]?.descripcion?.trim() || DEFAULT_TEXTO_INVITACION;
@@ -396,7 +429,18 @@ export default async function PaginaPrincipal() {
 
   const pageContent = (
     <div>
-      <NavegacionPublica config={config} comportamiento={config.diseno?.navegacion?.comportamiento} />
+      <NavegacionPublica
+        config={config}
+        comportamiento={config.diseno?.navegacion?.comportamiento}
+        secciones={menuSecciones}
+      />
+      {seccionEnfocada && (
+        <div className="container-wedding pt-20 sm:pt-24">
+          <a href="/" className="inline-block text-xs uppercase tracking-widest text-bronze underline">
+            Volver al inicio
+          </a>
+        </div>
+      )}
       <main>
         {orderedSections.map((section, index) => {
           const componentStyles = getSectionComponentStyles(section.source);
@@ -431,7 +475,7 @@ export default async function PaginaPrincipal() {
                 <SeccionColapsable
                   id={anchorId}
                   titulo={section.titulo || "Nuestra historia"}
-                  abiertaPorDefecto={false}
+                  abiertaPorDefecto={Boolean(seccionEnfocada)}
                   bgColor="var(--cream)"
                   sectionStyle={componentStyles["historia.fondoSeccion"]}
                   titleStyle={componentStyles["historia.tituloSeccion"]}
@@ -449,7 +493,7 @@ export default async function PaginaPrincipal() {
                 <SeccionColapsable
                   id={anchorId}
                   titulo={section.titulo || "Galeria"}
-                  abiertaPorDefecto={false}
+                  abiertaPorDefecto={Boolean(seccionEnfocada)}
                   bgColor="var(--cream)"
                   sectionStyle={componentStyles["galeria.fondoSeccion"]}
                   titleStyle={componentStyles["galeria.tituloSeccion"]}
@@ -467,7 +511,7 @@ export default async function PaginaPrincipal() {
                 <SeccionColapsable
                   id={anchorId}
                   titulo={section.titulo || "El gran dia"}
-                  abiertaPorDefecto={false}
+                  abiertaPorDefecto={Boolean(seccionEnfocada)}
                   bgColor="var(--cream-dark)"
                   sectionStyle={componentStyles["timeline.fondoSeccion"]}
                   titleStyle={componentStyles["timeline.tituloSeccion"]}

@@ -5,7 +5,7 @@
  * La portada (ocultarCabecera=true) no muestra cabecera.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
 type Props = {
@@ -46,14 +46,32 @@ export function SeccionColapsable({
   children,
 }: Props) {
   const [abierta, setAbierta] = useState(abiertaPorDefecto);
+  const sectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     setAbierta(abiertaPorDefecto);
   }, [abiertaPorDefecto]);
 
+  // Enlaces del menu de navegacion (ej. "/#historia") deben desplegar la seccion antes de saltar a ella.
+  useEffect(() => {
+    const abrirSiEsElDestino = () => {
+      if (typeof window === "undefined" || window.location.hash !== `#${id}`) return;
+      setAbierta(true);
+      window.setTimeout(() => {
+        sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
+    };
+    abrirSiEsElDestino();
+    window.addEventListener("hashchange", abrirSiEsElDestino);
+    return () => window.removeEventListener("hashchange", abrirSiEsElDestino);
+  }, [id]);
+
   return (
     <section
       id={id}
+      ref={(node) => {
+        sectionRef.current = node;
+      }}
       style={{
         backgroundColor: bgColor,
         ...(sectionStyle ?? {}),

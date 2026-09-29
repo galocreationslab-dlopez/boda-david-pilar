@@ -385,6 +385,7 @@ function buildInitialSections(config: WeddingConfig): SeccionDiseno[] {
       paletaId,
       usarPaletaGlobal: true,
       visible: true,
+      menuDirecto: false,
       perfiles: ["publico"],
       componentRoles: getDefaultComponentRoles("invitacion"),
       items: [
@@ -403,6 +404,7 @@ function buildInitialSections(config: WeddingConfig): SeccionDiseno[] {
       paletaId,
       usarPaletaGlobal: true,
       visible: true,
+      menuDirecto: false,
       perfiles: ["publico"],
       componentRoles: getDefaultComponentRoles("historia"),
       items: mapHistoriaToItems(config.historia),
@@ -416,6 +418,7 @@ function buildInitialSections(config: WeddingConfig): SeccionDiseno[] {
       paletaId,
       usarPaletaGlobal: true,
       visible: true,
+      menuDirecto: false,
       perfiles: ["publico"],
       componentRoles: getDefaultComponentRoles("timeline"),
       items: mapTimelineToItems(config.timeline),
@@ -427,6 +430,7 @@ function buildInitialSections(config: WeddingConfig): SeccionDiseno[] {
       tipo: "galeria",
       paletaId,
       usarPaletaGlobal: true,
+      menuDirecto: false,
       visible: true,
       perfiles: ["publico"],
       componentRoles: getDefaultComponentRoles("galeria"),
@@ -454,6 +458,7 @@ function buildInitialSections(config: WeddingConfig): SeccionDiseno[] {
       titulo: section.titulo || sectionTitleByType(tipoNormalizado),
       paletaId: section.paletaId || paletaId,
       usarPaletaGlobal: section.usarPaletaGlobal ?? true,
+      menuDirecto: section.menuDirecto ?? false,
       visible: section.visible ?? true,
       perfiles: section.perfiles?.length ? section.perfiles : ["publico"],
       componentRoles: {
@@ -1060,7 +1065,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     ))}
                   </select>
                 </div>
-                <div className="flex items-end">
+                <div className="flex flex-wrap items-end gap-4">
                   <label className="inline-flex items-center gap-2 text-sm text-stone-700">
                     <input
                       type="checkbox"
@@ -1069,7 +1074,24 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     />
                     Seccion visible
                   </label>
+                  <label className="inline-flex items-center gap-2 text-sm text-stone-700">
+                    <input
+                      type="checkbox"
+                      checked={selectedSection.menuDirecto ?? false}
+                      onChange={(e) => patchSection(selectedSection.id, { menuDirecto: e.target.checked })}
+                    />
+                    Acceso directo en menu
+                  </label>
                 </div>
+                <p className="text-xs text-stone-500">
+                  {selectedSection.visible && selectedSection.menuDirecto
+                    ? "Accesible en pantalla principal y desde el menu."
+                    : selectedSection.visible
+                    ? "Solo visible en pantalla principal."
+                    : selectedSection.menuDirecto
+                    ? "Accesible solo desde el menu (vista independiente)."
+                    : "Seccion solo en desarrollo (no visible para invitados)."}
+                </p>
               </div>
 
               <div>

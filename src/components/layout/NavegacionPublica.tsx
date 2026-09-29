@@ -13,22 +13,21 @@ import Link from "next/link";
 import { SelloNupcial } from "@/components/ui/SelloNupcial";
 import type { ComportamientoBarraNavegacion, WeddingConfig } from "@/config/wedding.config";
 
-type NavItem = {
-  href: string;
-  label: string;
+export type SeccionMenuItem = {
+  anchorId: string;
+  titulo: string;
+  // Si es true, el enlace navega/desplaza dentro de la pagina principal.
+  // Si es false, la seccion solo existe como vista independiente (?seccion=...).
+  enPantallaPrincipal: boolean;
 };
-
-const NAV_ITEMS: NavItem[] = [
-  { href: "/#historia", label: "Nuestra historia" },
-  { href: "/#timeline", label: "El gran día" },
-];
 
 type NavegacionPublicaProps = {
   config: Pick<WeddingConfig, "iniciales" | "novia" | "novio">;
   comportamiento?: ComportamientoBarraNavegacion;
+  secciones?: SeccionMenuItem[];
 };
 
-export function NavegacionPublica({ config, comportamiento = "siempre_visible" }: NavegacionPublicaProps) {
+export function NavegacionPublica({ config, comportamiento = "siempre_visible", secciones = [] }: NavegacionPublicaProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -121,14 +120,14 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible" }
       {menuAbierto && (
         <div className="border-t border-cream-dark bg-white animate-fade-in">
           <ul className="container-wedding flex flex-col gap-2 py-5">
-            {NAV_ITEMS.map((item) => (
-              <li key={item.href}>
+            {secciones.map((item) => (
+              <li key={item.anchorId}>
                 <Link
-                  href={item.href}
+                  href={item.enPantallaPrincipal ? `/#${item.anchorId}` : `/?seccion=${item.anchorId}`}
                   onClick={() => setMenuAbierto(false)}
                   className="block rounded-xl px-2 py-3 smallcaps text-sm tracking-widest text-brown-mid transition-colors hover:bg-stone-50 hover:text-bronze"
                 >
-                  {item.label}
+                  {item.titulo}
                 </Link>
               </li>
             ))}
