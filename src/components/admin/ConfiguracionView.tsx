@@ -19,6 +19,7 @@ import {
   resolvePaletteToThemeColors,
 } from "@/lib/theme-roles";
 import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
+import { getComponentSizeKind, getComponentDefaultSize, getComponentSizeStyle, COMPONENT_SIZE_RANGE } from "@/lib/component-size";
 import type {
   WeddingConfig,
   EventoTimeline,
@@ -794,6 +795,16 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     });
   };
 
+  const patchEditingSectionComponentSize = (componentKey: SectionComponentKey, size: number) => {
+    if (!editingSectionDraft) return;
+    patchEditingSectionDraft({
+      componentSizes: {
+        ...(editingSectionDraft.componentSizes ?? {}),
+        [componentKey]: size,
+      },
+    });
+  };
+
   const getComponentStyleByKey = (key: SectionComponentKey, color: string): CSSProperties => {
     switch (key) {
       case "portada.fondo":
@@ -848,7 +859,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     return options.reduce((acc, option) => {
       const role = getComponentRoleForSection(section, option.key);
       const color = roleColors[role];
-      acc[option.key] = getComponentStyleByKey(option.key, color);
+      acc[option.key] = {
+        ...getComponentStyleByKey(option.key, color),
+        ...getComponentSizeStyle(option.key, section.componentSizes?.[option.key]),
+      };
       return acc;
     }, {} as Partial<Record<SectionComponentKey, CSSProperties>>);
   };
@@ -2014,6 +2028,30 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         </div>
                       </div>
                     )}
+
+                    {selectedComponentOption && getComponentSizeKind(selectedComponentOption.key) && (() => {
+                      const sizeKind = getComponentSizeKind(selectedComponentOption.key)!;
+                      const range = COMPONENT_SIZE_RANGE[sizeKind];
+                      const currentSize = editingSectionDraft?.componentSizes?.[selectedComponentOption.key]
+                        ?? getComponentDefaultSize(selectedComponentOption.key);
+                      return (
+                        <div className="rounded border border-stone-200 bg-white p-2">
+                          <label className="mb-1 flex items-center justify-between text-[11px] font-semibold text-stone-600">
+                            <span>{sizeKind === "font" ? "Tamaño de fuente" : "Ancho del gráfico"}</span>
+                            <span className="font-normal text-stone-500">{currentSize}px</span>
+                          </label>
+                          <input
+                            type="range"
+                            min={range.min}
+                            max={range.max}
+                            step={range.step}
+                            value={currentSize}
+                            className="w-full"
+                            onChange={(event) => patchEditingSectionComponentSize(selectedComponentOption.key, Number(event.target.value))}
+                          />
+                        </div>
+                      );
+                    })()}
 
                     {editingPaletteRoleMap && editingPalette && (
                       <div className="rounded border border-stone-200 bg-white p-2">

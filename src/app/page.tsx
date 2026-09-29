@@ -16,6 +16,7 @@ import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
 import type { GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
 import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
+import { getComponentSizeStyle } from "@/lib/component-size";
 import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
 import IntroReveal from "@/components/motion/IntroReveal";
 import PostIntroSectionsGate from "@/components/motion/PostIntroSectionsGate";
@@ -348,7 +349,10 @@ export default async function PaginaPrincipal({
     return options.reduce((acc, option) => {
       const role = section.componentRoles?.[option.key] ?? option.defaultRole;
       const color = roleColors[role];
-      acc[option.key] = getComponentStyleByKey(option.key, color);
+      acc[option.key] = {
+        ...getComponentStyleByKey(option.key, color),
+        ...getComponentSizeStyle(option.key, section.componentSizes?.[option.key]),
+      };
       return acc;
     }, {} as Partial<Record<SectionComponentKey, CSSProperties>>);
   };

@@ -334,6 +334,8 @@ export type SeccionDiseno = {
   paletaId: string;
   usarPaletaGlobal?: boolean;
   componentRoles?: Partial<Record<string, TemaColorRole>>;
+  // Tamano (px) por componente: fontSize para textos, ancho de referencia para graficos.
+  componentSizes?: Partial<Record<string, number>>;
   separadorInterno?: SeparadorDiseno;
   visible: boolean;
   // Si es true, la sección aparece como acceso directo en el menú de hamburguesa.
