@@ -244,12 +244,11 @@ export function SeccionTimeline({
                 style={styleFor("timeline.card", {
                   backgroundColor: "var(--white)",
                   borderColor: "var(--cream-dark)",
-                  borderTop: "3px solid var(--bronze)",
                 })}
                 onClick={() => select("timeline.card")}
               >
                 <p
-                  className="smallcaps text-xs tracking-widest"
+                  className="smallcaps text-sm font-semibold tracking-widest"
                   style={styleFor("timeline.hora", { color: "var(--bronze)" })}
                   contentEditable={!designMode && editable}
                   suppressContentEditableWarning={true}
