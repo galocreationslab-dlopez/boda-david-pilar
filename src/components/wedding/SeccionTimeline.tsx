@@ -254,7 +254,6 @@ export function SeccionTimeline({
                     >
                       {punto.hora}
                     </span>
-                    <span aria-hidden="true" style={{ color: "var(--bronze)" }}>—</span>
                     <span
                       className="font-display text-xl font-light"
                       style={styleFor("timeline.titulo", { color: "var(--brown-dark)" })}
@@ -276,7 +275,7 @@ export function SeccionTimeline({
                 </div>
 
                 <p
-                  className="text-sm"
+                  className="text-sm text-center"
                   style={styleFor("timeline.descripcion", { color: "var(--olive-muted)" })}
                   contentEditable={!designMode && editable}
                   suppressContentEditableWarning={true}

@@ -93,8 +93,11 @@ export function HeroPortada({
       <div className={`relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center gap-5 py-16 sm:gap-7 sm:py-20 ${forceMobile ? "max-w-[21rem] gap-4 py-12" : ""}`}>
 
         {/* Sello */}
-        <div className="animate-fade-up" style={styleFor("portada.logo")} onClick={(event) => { event.stopPropagation(); select("portada.logo"); }}>
-          <SelloNupcial size={forceMobile ? 100 : 128} color={selloColor} />
+        <div className="animate-fade-up" onClick={(event) => { event.stopPropagation(); select("portada.logo"); }}>
+          {/* El wrapper de animacion define su propio "transform" (translateY); el tamano se aplica en un hijo para no pisarlo */}
+          <div style={styleFor("portada.logo")}>
+            <SelloNupcial size={forceMobile ? 100 : 128} color={selloColor} />
+          </div>
         </div>
 
         {/* Nombres */}
