@@ -313,6 +313,7 @@ function defaultSection(paletaId: string, tipo: TipoSeccionDiseno = "invitacion"
     usarPaletaGlobal: true,
     componentRoles: getDefaultComponentRoles(tipo),
     visible: true,
+    menuDirecto: false,
     perfiles: ["publico"],
     items: [],
   };

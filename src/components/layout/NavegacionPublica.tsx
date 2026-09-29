@@ -13,28 +13,48 @@ import Link from "next/link";
 import { SelloNupcial } from "@/components/ui/SelloNupcial";
 import type { ComportamientoBarraNavegacion, WeddingConfig } from "@/config/wedding.config";
 
-type NavItem = {
-  href: string;
-  label: string;
+export type SeccionMenuItem = {
+  anchorId: string;
+  titulo: string;
+  // Si es true, el enlace navega/desplaza dentro de la pagina principal.
+  // Si es false, la seccion solo existe como vista independiente (?seccion=...).
+  enPantallaPrincipal: boolean;
 };
-
-const NAV_ITEMS: NavItem[] = [
-  { href: "/#historia", label: "Nuestra historia" },
-  { href: "/#timeline", label: "El gran día" },
-];
 
 type NavegacionPublicaProps = {
   config: Pick<WeddingConfig, "iniciales" | "novia" | "novio">;
   comportamiento?: ComportamientoBarraNavegacion;
+  secciones?: SeccionMenuItem[];
+  // Query string actual (sin el "?"), ej. "inviteCode=GALO-2603" — se preserva en todos los enlaces internos.
+  queryString?: string;
 };
 
-export function NavegacionPublica({ config, comportamiento = "siempre_visible" }: NavegacionPublicaProps) {
+export function NavegacionPublica({ config, comportamiento = "siempre_visible", secciones = [], queryString = "" }: NavegacionPublicaProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   const toggleMenu = () => {
     window.dispatchEvent(new CustomEvent("intro:unlock-sections"));
     setMenuAbierto((prev) => !prev);
+  };
+
+  const buildHomeHref = () => (queryString ? `/?${queryString}` : "/");
+  const buildAnchorHref = (anchorId: string) => `${buildHomeHref()}#${anchorId}`;
+  const buildSeccionHref = (anchorId: string) => {
+    const params = new URLSearchParams(queryString);
+    params.set("seccion", anchorId);
+    return `/?${params.toString()}`;
+  };
+
+  // Enlace a una seccion visible en la pagina principal: si ya esta en el DOM, la desplegamos
+  // y desplazamos in-situ (la navegacion de Next via pushState no dispara "hashchange").
+  const handleAnchorClick = (anchorId: string) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+    setMenuAbierto(false);
+    const destino = document.getElementById(anchorId);
+    if (!destino) return; // deja que el navegador navegue de forma normal
+    event.preventDefault();
+    window.history.replaceState(null, "", buildAnchorHref(anchorId));
+    window.dispatchEvent(new CustomEvent("seccion:abrir", { detail: { anchorId } }));
   };
 
   useEffect(() => {
@@ -94,7 +114,7 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible" }
 
         {/* Logo / Sello */}
         <Link
-          href="/"
+          href={buildHomeHref()}
           className="flex items-center gap-2 group"
           aria-label="Inicio"
         >
@@ -121,15 +141,15 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible" }
       {menuAbierto && (
         <div className="border-t border-cream-dark bg-white animate-fade-in">
           <ul className="container-wedding flex flex-col gap-2 py-5">
-            {NAV_ITEMS.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={() => setMenuAbierto(false)}
+            {secciones.map((item) => (
+              <li key={item.anchorId}>
+                <a
+                  href={item.enPantallaPrincipal ? buildAnchorHref(item.anchorId) : buildSeccionHref(item.anchorId)}
+                  onClick={item.enPantallaPrincipal ? handleAnchorClick(item.anchorId) : () => setMenuAbierto(false)}
                   className="block rounded-xl px-2 py-3 smallcaps text-sm tracking-widest text-brown-mid transition-colors hover:bg-stone-50 hover:text-bronze"
                 >
-                  {item.label}
-                </Link>
+                  {item.titulo}
+                </a>
               </li>
             ))}
           </ul>
