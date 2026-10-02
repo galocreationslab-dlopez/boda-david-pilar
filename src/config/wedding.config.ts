@@ -81,9 +81,23 @@ export type TemaColores = {
   white: string;
 };
 
+export type FuenteRol = "nombres" | "titulos" | "textos";
+
+export type FuenteSubida = {
+  id: string;
+  nombre: string;
+  // Nombre de familia CSS (solo letras, numeros, espacios y guiones).
+  familia: string;
+  url: string;
+  formato: "woff2" | "woff" | "truetype" | "opentype";
+};
+
 export type TemaFuentes = {
   display: string;
   body: string;
+  biblioteca?: FuenteSubida[];
+  // rol -> id de FuenteSubida. Sin asignar se usa display/body.
+  roles?: Partial<Record<FuenteRol, string>>;
 };
 
 export type TemaColorExtra = {
@@ -336,6 +350,8 @@ export type SeccionDiseno = {
   componentRoles?: Partial<Record<string, TemaColorRole>>;
   // Tamano (px) por componente: fontSize para textos, ancho de referencia para graficos.
   componentSizes?: Partial<Record<string, number>>;
+  // Rol de fuente por componente de texto (clave de componente -> FuenteRol).
+  componentFonts?: Partial<Record<string, FuenteRol>>;
   separadorInterno?: SeparadorDiseno;
   visible: boolean;
   // Si es true, la sección aparece como acceso directo en el menú de hamburguesa.

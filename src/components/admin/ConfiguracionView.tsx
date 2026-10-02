@@ -20,7 +20,18 @@ import {
 } from "@/lib/theme-roles";
 import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
 import { getComponentSizeKind, getComponentDefaultSize, getComponentSizeStyle, COMPONENT_SIZE_RANGE } from "@/lib/component-size";
+import {
+  FONT_ROLE_KEYS,
+  FONT_ROLE_LABELS,
+  buildFontCssVars,
+  buildFontFaceCss,
+  getComponentFontRole,
+  getComponentFontStyle,
+} from "@/lib/theme-fonts";
 import type {
+  FuenteRol,
+  FuenteSubida,
+  TemaFuentes,
   WeddingConfig,
   EventoTimeline,
   TemaColores,
@@ -518,11 +529,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
   const [paletasCollapsed, setPaletasCollapsed] = useState(true);
   const [separadorCollapsed, setSeparadorCollapsed] = useState(true);
+  const [fuentesCollapsed, setFuentesCollapsed] = useState(true);
+  const [uploadingFont, setUploadingFont] = useState(false);
 
   const [editorViewport, setEditorViewport] = useState<"desktop" | "movil">("desktop");
   const sectionCardRefs = useRef<Record<string, HTMLElement | null>>({});
   const previewSectionRefs = useRef<Record<string, HTMLElement | null>>({});
-  const fuentes = ic.tema.fuentes;
+  const [fuentes, setFuentes] = useState<TemaFuentes>(ic.tema.fuentes);
   const logoUrl = ic.logo ?? "";
 
   const paletaActiva = useMemo(
@@ -763,6 +776,44 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     }));
   };
 
+  const handleFontUpload = async (file: File) => {
+    setUploadingFont(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("nombre", file.name.replace(/\.[^.]+$/, ""));
+      const response = await fetch(`/api/admin/${inviteCode}/fonts`, { method: "POST", body: formData });
+      const data = (await response.json().catch(() => ({}))) as { font?: FuenteSubida; error?: string };
+      if (!response.ok || !data.font) throw new Error(data.error ?? "No se pudo subir la fuente");
+      const font = data.font;
+      setFuentes((prev) => ({ ...prev, biblioteca: [...(prev.biblioteca ?? []), font] }));
+      showMsg("ok", `Fuente "${font.nombre}" subida. Asígnala a un rol y guarda el diseño.`);
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error subiendo la fuente");
+    } finally {
+      setUploadingFont(false);
+    }
+  };
+
+  const removeFont = (fontId: string) => {
+    setFuentes((prev) => {
+      const roles = { ...(prev.roles ?? {}) };
+      for (const role of FONT_ROLE_KEYS) {
+        if (roles[role] === fontId) delete roles[role];
+      }
+      return { ...prev, biblioteca: (prev.biblioteca ?? []).filter((font) => font.id !== fontId), roles };
+    });
+  };
+
+  const assignFontRole = (role: FuenteRol, fontId: string) => {
+    setFuentes((prev) => {
+      const roles = { ...(prev.roles ?? {}) };
+      if (fontId) roles[role] = fontId;
+      else delete roles[role];
+      return { ...prev, roles };
+    });
+  };
+
   const getPaletteBySection = useCallback((section: SeccionDiseno): TemaPaleta => {
     const shouldUseGlobal = section.usarPaletaGlobal ?? true;
     if (shouldUseGlobal) {
@@ -803,6 +854,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         [componentKey]: size,
       },
     });
+  };
+
+  const patchEditingSectionComponentFont = (componentKey: SectionComponentKey, role: FuenteRol | "") => {
+    if (!editingSectionDraft) return;
+    const next = { ...(editingSectionDraft.componentFonts ?? {}) };
+    if (role) next[componentKey] = role;
+    else delete next[componentKey];
+    patchEditingSectionDraft({ componentFonts: next });
   };
 
   const getComponentStyleByKey = (key: SectionComponentKey, color: string): CSSProperties => {
@@ -862,6 +921,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       acc[option.key] = {
         ...getComponentStyleByKey(option.key, color),
         ...getComponentSizeStyle(option.key, section.componentSizes?.[option.key]),
+        ...getComponentFontStyle(option.key, section.componentFonts?.[option.key]),
       };
       return acc;
     }, {} as Partial<Record<SectionComponentKey, CSSProperties>>);
@@ -989,8 +1049,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       ["--brown-dark" as string]: resolved.brownDark,
       ["--brown-mid" as string]: roles?.textoSecundario ?? resolved.oliveMuted,
       ["--white" as string]: resolved.white,
-      ["--font-display" as string]: fuentes.display,
-      ["--font-body" as string]: fuentes.body,
+      ...buildFontCssVars(fuentes),
     };
   };
 
@@ -1519,6 +1578,71 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
             <section className="rounded-xl border border-stone-200 bg-white p-3 space-y-2">
               <button
+                onClick={() => setFuentesCollapsed((p) => !p)}
+                className="text-left text-xs font-semibold uppercase tracking-wide text-stone-700"
+              >
+                Fuentes {fuentesCollapsed ? "▸" : "▾"}
+              </button>
+
+              {fuentesCollapsed ? (
+                <p className="text-xs text-stone-600">
+                  {(fuentes.biblioteca ?? []).length} fuente(s) subida(s)
+                </p>
+              ) : (
+                <>
+                  <style dangerouslySetInnerHTML={{ __html: buildFontFaceCss(fuentes, true) }} />
+                  <div className="space-y-1">
+                    {(fuentes.biblioteca ?? []).map((font) => (
+                      <div key={font.id} className="flex items-center justify-between gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
+                        <span className="truncate text-base" style={{ fontFamily: `'${font.familia}', serif` }}>{font.nombre}</span>
+                        <button
+                          onClick={() => removeFont(font.id)}
+                          className="h-6 rounded border border-red-200 px-2 text-xs text-red-600"
+                          title="Quitar de la biblioteca"
+                        >
+                          -
+                        </button>
+                      </div>
+                    ))}
+                    <label className="flex w-full cursor-pointer items-center justify-center rounded border border-dashed border-stone-300 py-1 text-xs text-stone-600">
+                      {uploadingFont ? "Subiendo..." : "+ Subir fuente (woff2, woff, ttf, otf)"}
+                      <input
+                        type="file"
+                        accept=".woff2,.woff,.ttf,.otf"
+                        className="hidden"
+                        disabled={uploadingFont}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void handleFontUpload(file);
+                          e.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="space-y-1 border-t border-stone-200 pt-2">
+                    <p className="text-[11px] font-semibold text-stone-600">Roles de fuente</p>
+                    {FONT_ROLE_KEYS.map((role) => (
+                      <label key={role} className="grid grid-cols-[1fr_130px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
+                        <span className="text-[11px] text-stone-700">{FONT_ROLE_LABELS[role]}</span>
+                        <select
+                          className="h-7 rounded border border-stone-300 bg-white px-1 text-[11px] text-stone-700"
+                          value={fuentes.roles?.[role] ?? ""}
+                          onChange={(event) => assignFontRole(role, event.target.value)}
+                        >
+                          <option value="">Por defecto</option>
+                          {(fuentes.biblioteca ?? []).map((font) => (
+                            <option key={font.id} value={font.id}>{font.nombre}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-stone-200 bg-white p-3 space-y-2">
+              <button
                 onClick={() => setSeparadorCollapsed((p) => !p)}
                 className="text-left text-xs font-semibold uppercase tracking-wide text-stone-700"
               >
@@ -2029,6 +2153,24 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       </div>
                     )}
 
+                    {selectedComponentOption && getComponentSizeKind(selectedComponentOption.key) === "font" && (
+                      <div className="rounded border border-stone-200 bg-white p-2">
+                        <label className="mb-1 block text-[11px] font-semibold text-stone-600">Rol de fuente</label>
+                        <select
+                          className="input-field h-8 w-full text-xs"
+                          value={editingSectionDraft?.componentFonts?.[selectedComponentOption.key] ?? ""}
+                          onChange={(event) => patchEditingSectionComponentFont(selectedComponentOption.key, event.target.value as FuenteRol | "")}
+                        >
+                          <option value="">
+                            Automático{getComponentFontRole(selectedComponentOption.key) ? ` (${FONT_ROLE_LABELS[getComponentFontRole(selectedComponentOption.key)!]})` : ""}
+                          </option>
+                          {FONT_ROLE_KEYS.map((role) => (
+                            <option key={role} value={role}>{FONT_ROLE_LABELS[role]}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     {selectedComponentOption && getComponentSizeKind(selectedComponentOption.key) && (() => {
                       const sizeKind = getComponentSizeKind(selectedComponentOption.key)!;
                       const range = COMPONENT_SIZE_RANGE[sizeKind];
@@ -2129,10 +2271,10 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                   ["--brown-dark" as string]: paletaActivaResolvedColors.brownDark ?? "#2E1F0E",
                   ["--brown-mid" as string]: paletaActivaRoleColors?.textoSecundario ?? paletaActivaResolvedColors.oliveMuted ?? "#8A9468",
                   ["--white" as string]: paletaActivaResolvedColors.white ?? "#FDFAF5",
-                  ["--font-display" as string]: fuentes.display,
-                  ["--font-body" as string]: fuentes.body,
+                  ...buildFontCssVars(fuentes),
                 }}
               >
+                <style dangerouslySetInnerHTML={{ __html: buildFontFaceCss(fuentes, true) }} />
                 <main className={editorViewport === "movil" ? "mx-auto max-w-[430px]" : ""}>
                   {previewSectionsToRender.map((sec, idx) => {
                     const isLast = idx === previewSectionsToRender.length - 1;

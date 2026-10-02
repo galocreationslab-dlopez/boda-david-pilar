@@ -17,6 +17,7 @@ import type { GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
 import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
 import { getComponentSizeStyle } from "@/lib/component-size";
+import { buildFontCssVars, getComponentFontStyle } from "@/lib/theme-fonts";
 import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
 import IntroReveal from "@/components/motion/IntroReveal";
 import PostIntroSectionsGate from "@/components/motion/PostIntroSectionsGate";
@@ -335,8 +336,7 @@ export default async function PaginaPrincipal({
       ["--brown-dark" as string]: resolved.brownDark,
       ["--brown-mid" as string]: roles?.textoSecundario ?? resolved.oliveMuted,
       ["--white" as string]: resolved.white,
-      ["--font-display" as string]: config.tema.fuentes.display,
-      ["--font-body" as string]: config.tema.fuentes.body,
+      ...buildFontCssVars(config.tema.fuentes),
     };
   };
 
@@ -352,6 +352,7 @@ export default async function PaginaPrincipal({
       acc[option.key] = {
         ...getComponentStyleByKey(option.key, color),
         ...getComponentSizeStyle(option.key, section.componentSizes?.[option.key]),
+        ...getComponentFontStyle(option.key, section.componentFonts?.[option.key]),
       };
       return acc;
     }, {} as Partial<Record<SectionComponentKey, CSSProperties>>);
