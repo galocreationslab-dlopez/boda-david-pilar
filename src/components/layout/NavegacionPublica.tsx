@@ -33,7 +33,7 @@ export type SeccionMenuItem = {
 type NavegacionPublicaProps = {
   config: Pick<WeddingConfig, "iniciales" | "novia" | "novio">;
   comportamiento?: ComportamientoBarraNavegacion;
-  banner?: Pick<NavegacionDiseno, "texto" | "logoUrl" | "elementos" | "logoAnchoPx" | "logoAltoPx" | "logoColor" | "textoTamanoPx" | "textoColor">;
+  banner?: Pick<NavegacionDiseno, "texto" | "logoUrl" | "elementos" | "logoAnchoPx" | "logoAltoPx" | "logoColor" | "fondoColor" | "textoTamanoPx" | "textoColor">;
   secciones?: SeccionMenuItem[];
   // Query string actual (sin el "?"), ej. "inviteCode=GALO-2603" — se preserva en todos los enlaces internos.
   queryString?: string;
@@ -113,7 +113,7 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
               <span
                 key={i}
                 className={`block w-6 h-0.5 rounded-full transition-all duration-300 ${
-                  scrolled ? "bg-brown-dark" : "bg-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
+                  "bg-brown-dark"
                 } ${
                   menuAbierto && i === 0
                     ? "rotate-45 translate-y-2"
@@ -144,7 +144,7 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
             ) : (
               <SelloNupcial
                 size={banner?.logoAltoPx || banner?.logoAnchoPx || 40}
-                color={banner?.logoColor || (scrolled ? "#8C6A3F" : "#FDFAF5")}
+                color={banner?.logoColor || "#8C6A3F"}
               />
             )}
           </Link>
@@ -153,7 +153,7 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
             href={buildHomeHref()}
             className={`font-display tracking-widest transition-colors ${
               banner?.textoTamanoPx ? "" : "text-xs sm:text-sm"
-            } ${banner?.textoColor ? "" : scrolled ? "text-brown-dark" : "text-white"}`}
+            } ${banner?.textoColor ? "" : "text-brown-dark"}`}
             style={{
               fontSize: banner?.textoTamanoPx || undefined,
               color: banner?.textoColor || undefined,
@@ -165,10 +165,9 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
 
   return (
     <header
+      style={{ backgroundColor: banner?.fondoColor || "var(--role-fondo-principal)" }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-white/95 backdrop-blur-sm shadow-sm"
-          : "bg-transparent"
+        scrolled ? "shadow-sm" : ""
       } ${
         barraOculta ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
       }`}

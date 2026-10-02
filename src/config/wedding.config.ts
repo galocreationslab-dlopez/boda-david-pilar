@@ -389,6 +389,7 @@ export type NavegacionDiseno = {
   logoAnchoPx?: number;
   logoAltoPx?: number;
   logoColor?: string;
+  fondoColor?: string;
   textoTamanoPx?: number;
   textoColor?: string;
   elementos?: ElementoBarra[];

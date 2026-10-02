@@ -527,6 +527,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [bannerLogoAncho, setBannerLogoAncho] = useState(config.diseno?.navegacion?.logoAnchoPx ?? 0);
   const [bannerLogoAlto, setBannerLogoAlto] = useState(config.diseno?.navegacion?.logoAltoPx ?? 0);
   const [bannerLogoColor, setBannerLogoColor] = useState(config.diseno?.navegacion?.logoColor ?? "");
+  const [bannerFondoColor, setBannerFondoColor] = useState(config.diseno?.navegacion?.fondoColor ?? "");
   const [bannerTextoTamano, setBannerTextoTamano] = useState(config.diseno?.navegacion?.textoTamanoPx ?? 0);
   const [bannerTextoColor, setBannerTextoColor] = useState(config.diseno?.navegacion?.textoColor ?? "");
   const [bannerElementos, setBannerElementos] = useState<ElementoBarra[]>(() => {
@@ -972,6 +973,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
               logoAnchoPx: bannerLogoAncho || undefined,
               logoAltoPx: bannerLogoAlto || undefined,
               logoColor: bannerLogoColor || undefined,
+              fondoColor: bannerFondoColor || undefined,
               textoTamanoPx: bannerTextoTamano || undefined,
               textoColor: bannerTextoColor || undefined,
               elementos: bannerElementos,
@@ -2011,6 +2013,15 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                           onChange={(e) => setBannerTextoTamano(Math.max(0, Number(e.target.value) || 0))} />
                       </div>
                       <div />
+                      <div>
+                        <label className="label-field">Color de fondo de la barra</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={bannerFondoColor || "#f7f3ec"} onChange={(e) => setBannerFondoColor(e.target.value)} />
+                          <button type="button" className="text-xs text-stone-500 underline" onClick={() => setBannerFondoColor("")}>
+                            {bannerFondoColor ? "Restablecer" : "Por defecto (fondo general)"}
+                          </button>
+                        </div>
+                      </div>
                       <div>
                         <label className="label-field">Color del logo (solo sello generado)</label>
                         <div className="flex items-center gap-2">
