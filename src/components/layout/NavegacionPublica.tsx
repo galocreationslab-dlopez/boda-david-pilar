@@ -130,17 +130,38 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
         ) : id === "logo" ? (
           <Link href={buildHomeHref()} aria-label="Inicio" className="flex items-center">
             {banner?.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                src={resolveDriveMediaSrc(banner.logoUrl)}
-                alt=""
-                className="object-contain"
-                style={{
-                  width: banner.logoAnchoPx || "auto",
-                  height: banner.logoAltoPx || (banner.logoAnchoPx ? "auto" : 40),
-                  maxWidth: banner.logoAnchoPx ? undefined : "14rem",
-                }}
-              />
+              // El color se aplica como máscara: se tiñe la silueta (canal alfa) del PNG/SVG.
+              <span
+                className="inline-block"
+                style={
+                  banner.logoColor
+                    ? {
+                        backgroundColor: banner.logoColor,
+                        maskImage: `url("${resolveDriveMediaSrc(banner.logoUrl)}")`,
+                        WebkitMaskImage: `url("${resolveDriveMediaSrc(banner.logoUrl)}")`,
+                        maskSize: "contain",
+                        WebkitMaskSize: "contain",
+                        maskRepeat: "no-repeat",
+                        WebkitMaskRepeat: "no-repeat",
+                        maskPosition: "center",
+                        WebkitMaskPosition: "center",
+                      }
+                    : undefined
+                }
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolveDriveMediaSrc(banner.logoUrl)}
+                  alt=""
+                  className="block object-contain"
+                  style={{
+                    width: banner.logoAnchoPx || "auto",
+                    height: banner.logoAltoPx || (banner.logoAnchoPx ? "auto" : 40),
+                    maxWidth: banner.logoAnchoPx ? undefined : "14rem",
+                    opacity: banner.logoColor ? 0 : 1,
+                  }}
+                />
+              </span>
             ) : (
               <SelloNupcial
                 size={banner?.logoAltoPx || banner?.logoAnchoPx || 40}

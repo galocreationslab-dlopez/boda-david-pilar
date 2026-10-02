@@ -2023,7 +2023,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         </div>
                       </div>
                       <div>
-                        <label className="label-field">Color del logo (solo sello generado)</label>
+                        <label className="label-field">Color del logo (tine la silueta; Restablecer conserva los colores originales)</label>
                         <div className="flex items-center gap-2">
                           <input type="color" value={bannerLogoColor || "#8c6a3f"} onChange={(e) => setBannerLogoColor(e.target.value)} />
                           <button type="button" className="text-xs text-stone-500 underline" onClick={() => setBannerLogoColor("")}>
