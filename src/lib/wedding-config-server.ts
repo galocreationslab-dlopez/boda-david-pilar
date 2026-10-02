@@ -154,6 +154,7 @@ function asTimelineItem(item: SectionItemRow): WeddingConfig["timeline"][number]
     titulo: asString(payload.titulo),
     descripcion: asString(payload.descripcion),
     icono: asString(payload.icono, "rings") as WeddingConfig["timeline"][number]["icono"],
+    imagen: asString(payload.imagen) || undefined,
   };
 }
 

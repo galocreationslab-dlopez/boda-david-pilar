@@ -436,6 +436,7 @@ export default async function PaginaPrincipal({
       descripcion: item.descripcion || "",
       icono: (item.icono as (typeof config.timeline)[number]["icono"]) || "rings",
       enlaceMaps: item.enlaceMaps || "",
+      imagen: item.imagen || undefined,
     }));
   };
 

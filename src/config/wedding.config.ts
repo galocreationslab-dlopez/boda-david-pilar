@@ -46,6 +46,7 @@ export type EventoTimeline = {
   titulo: string;
   descripcion: string;
   icono: "rings" | "cocktail" | "fork" | "cake" | "music" | "car" | "iglesia" | "finca";
+  imagen?: string;
 };
 
 export type TrayectoTransporte = {

@@ -9,6 +9,7 @@
 
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { Localizacion } from "@/config/wedding.config";
+import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import type { CSSProperties, ReactNode } from "react";
 
 export type TimelineComponentKey =
@@ -21,7 +22,7 @@ export type TimelineComponentKey =
 
 type Props = {
   localizaciones: Localizacion[];
-  timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; enlaceMaps?: string }>;
+  timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; imagen?: string; enlaceMaps?: string }>;
   viewport?: "desktop" | "movil";
   editable?: boolean;
   designMode?: boolean;
@@ -39,6 +40,7 @@ type PuntoTimeline = {
   titulo: string;
   subtitulo: string;
   icono: string;
+  iconoUrl?: string;
   mapaSrc: string | null;
   mapaLink: string | null;
   mapaTexto: string;
@@ -112,6 +114,31 @@ function normalizeIcon(icono: string): string {
   return "finca";
 }
 
+function renderIcono(punto: PuntoTimeline): ReactNode {
+  if (punto.iconoUrl) {
+    const src = `url("${resolveDriveMediaSrc(punto.iconoUrl)}")`;
+    // Máscara: el color del icono (currentColor) tiñe la imagen.
+    return (
+      <span
+        aria-hidden="true"
+        className="block h-11 w-11"
+        style={{
+          backgroundColor: "currentColor",
+          WebkitMaskImage: src,
+          maskImage: src,
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+        }}
+      />
+    );
+  }
+  return ICONOS[punto.icono];
+}
+
 function inferMapLink(
   item: { titulo: string; descripcion: string; enlaceMaps?: string },
   localizaciones: Localizacion[],
@@ -167,6 +194,7 @@ function buildTimelinePoints(
     titulo: item.titulo,
     subtitulo: item.descripcion,
     icono,
+    iconoUrl: item.imagen?.trim() || undefined,
     mapaSrc: toMapEmbedUrl(mapaLink, fallbackQuery),
     mapaLink,
     mapaTexto: icono === "bus" ? "Ver punto de recogida" : "Cómo llegar",
@@ -233,7 +261,7 @@ export function SeccionTimeline({
                     style={styleFor("timeline.icono", { color: "var(--brown-dark)" })}
                     onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
                   >
-                    {ICONOS[punto.icono]}
+                    {renderIcono(punto)}
                   </div>
 
                   <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0 min-w-0">
@@ -371,7 +399,7 @@ export function SeccionTimeline({
                     style={styleFor("timeline.icono", { color: "var(--brown-dark)" })}
                     onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
                   >
-                    {ICONOS[punto.icono]}
+                    {renderIcono(punto)}
                     <span
                       className="font-display text-xl font-light"
                       style={styleFor("timeline.hora", { color: "var(--bronze)", lineHeight: 1 })}
