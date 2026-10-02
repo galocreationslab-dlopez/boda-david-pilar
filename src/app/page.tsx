@@ -450,6 +450,7 @@ export default async function PaginaPrincipal({
       <NavegacionPublica
         config={config}
         comportamiento={config.diseno?.navegacion?.comportamiento}
+        banner={config.diseno?.navegacion}
         secciones={menuSecciones}
         queryString={queryString}
       />

@@ -363,8 +363,29 @@ export type SeparadorDiseno = {
 // hacia las secciones siguientes.
 export type ComportamientoBarraNavegacion = "siempre_visible" | "visible_en_scroll";
 
+export type ElementoBarraId = "menu" | "logo" | "texto";
+export type PosicionElementoBarra = "izquierda" | "centro" | "derecha";
+
+// El orden del array define el orden de los elementos dentro de cada zona de la barra.
+export type ElementoBarra = {
+  id: ElementoBarraId;
+  visible: boolean;
+  posicion: PosicionElementoBarra;
+};
+
+export const ELEMENTOS_BARRA_POR_DEFECTO: ElementoBarra[] = [
+  { id: "menu", visible: true, posicion: "izquierda" },
+  { id: "logo", visible: true, posicion: "derecha" },
+  { id: "texto", visible: true, posicion: "derecha" },
+];
+
 export type NavegacionDiseno = {
   comportamiento?: ComportamientoBarraNavegacion;
+  // Texto de la barra; vacío = "Novia & Novio".
+  texto?: string;
+  // Imagen del logo; vacío = sello generado.
+  logoUrl?: string;
+  elementos?: ElementoBarra[];
 };
 
 export type WeddingConfig = {

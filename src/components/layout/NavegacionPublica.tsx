@@ -8,10 +8,18 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import Link from "next/link";
 import { SelloNupcial } from "@/components/ui/SelloNupcial";
-import type { ComportamientoBarraNavegacion, WeddingConfig } from "@/config/wedding.config";
+import {
+  ELEMENTOS_BARRA_POR_DEFECTO,
+  type ComportamientoBarraNavegacion,
+  type ElementoBarra,
+  type ElementoBarraId,
+  type NavegacionDiseno,
+  type PosicionElementoBarra,
+  type WeddingConfig,
+} from "@/config/wedding.config";
 
 export type SeccionMenuItem = {
   anchorId: string;
@@ -24,12 +32,26 @@ export type SeccionMenuItem = {
 type NavegacionPublicaProps = {
   config: Pick<WeddingConfig, "iniciales" | "novia" | "novio">;
   comportamiento?: ComportamientoBarraNavegacion;
+  banner?: Pick<NavegacionDiseno, "texto" | "logoUrl" | "elementos">;
   secciones?: SeccionMenuItem[];
   // Query string actual (sin el "?"), ej. "inviteCode=GALO-2603" — se preserva en todos los enlaces internos.
   queryString?: string;
 };
 
-export function NavegacionPublica({ config, comportamiento = "siempre_visible", secciones = [], queryString = "" }: NavegacionPublicaProps) {
+const ZONAS: { posicion: PosicionElementoBarra; clases: string }[] = [
+  { posicion: "izquierda", clases: "justify-start" },
+  { posicion: "centro", clases: "justify-center" },
+  { posicion: "derecha", clases: "justify-end" },
+];
+
+// Completa con los elementos que falten para tolerar configuraciones antiguas o parciales.
+function normalizarElementos(elementos?: ElementoBarra[]): ElementoBarra[] {
+  const validos = (elementos ?? []).filter((el) => ELEMENTOS_BARRA_POR_DEFECTO.some((d) => d.id === el.id));
+  const faltan = ELEMENTOS_BARRA_POR_DEFECTO.filter((d) => !validos.some((el) => el.id === d.id));
+  return [...validos, ...faltan];
+}
+
+export function NavegacionPublica({ config, comportamiento = "siempre_visible", banner, secciones = [], queryString = "" }: NavegacionPublicaProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -74,18 +96,11 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
   // y aparece al bajar hacia las siguientes secciones (salvo con el menú abierto).
   const barraOculta = comportamiento === "visible_en_scroll" && !scrolled && !menuAbierto;
 
-  return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-white/95 backdrop-blur-sm shadow-sm"
-          : "bg-transparent"
-      } ${
-        barraOculta ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
-      }`}
-    >
-      <nav className="container-wedding flex h-16 items-center justify-between sm:h-20">
-        {/* Botón hamburguesa — esquina superior izquierda, en todos los tamaños */}
+  const textoBanner = banner?.texto?.trim() || `${config.novia.nombre} & ${config.novio.nombre}`;
+  const elementos = normalizarElementos(banner?.elementos);
+
+  const renderElemento = (id: ElementoBarraId) =>
+    id === "menu" ? (
         <button
           onClick={toggleMenu}
           className="p-2"
@@ -111,30 +126,46 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
             ))}
           </div>
         </button>
-
-        {/* Logo / Sello */}
-        <Link
-          href={buildHomeHref()}
-          className="flex items-center gap-2 group"
-          aria-label="Inicio"
-        >
-          <SelloNupcial
-            size={40}
-            color={scrolled ? "#8C6A3F" : "#FDFAF5"}
-          />
-          <span
+        ) : id === "logo" ? (
+          <Link href={buildHomeHref()} aria-label="Inicio" className="flex items-center">
+            {banner?.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={banner.logoUrl} alt="" className="h-10 w-auto max-w-[8rem] object-contain" />
+            ) : (
+              <SelloNupcial size={40} color={scrolled ? "#8C6A3F" : "#FDFAF5"} />
+            )}
+          </Link>
+        ) : (
+          <Link
+            href={buildHomeHref()}
             className={`font-display text-xs tracking-widest sm:text-sm transition-colors ${
               scrolled ? "text-brown-dark" : "text-white"
             }`}
           >
-            <span className="sm:hidden">
-              {config.novia.nombre} &amp; {config.novio.nombre}
-            </span>
-            <span className="hidden sm:inline">
-              {config.novia.nombre} &amp; {config.novio.nombre}
-            </span>
-          </span>
-        </Link>
+            {textoBanner}
+          </Link>
+        );
+
+  return (
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? "bg-white/95 backdrop-blur-sm shadow-sm"
+          : "bg-transparent"
+      } ${
+        barraOculta ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
+      }`}
+    >
+      <nav className="container-wedding grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-2 sm:h-20">
+        {ZONAS.map(({ posicion, clases }) => (
+          <div key={posicion} className={`flex items-center gap-3 ${clases}`}>
+            {elementos
+              .filter((el) => el.visible && el.posicion === posicion)
+              .map((el) => (
+                <Fragment key={el.id}>{renderElemento(el.id)}</Fragment>
+              ))}
+          </div>
+        ))}
       </nav>
 
       {/* Menú desplegable */}

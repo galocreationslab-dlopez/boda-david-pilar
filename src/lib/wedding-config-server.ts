@@ -89,6 +89,14 @@ function normalizeIntroDeviceUrls(device: IntroDeviceConfig | undefined): IntroD
 }
 
 function normalizeSecciones(config: WeddingConfig): WeddingConfig {
+  const navegacion = config.diseno?.navegacion;
+  if (navegacion?.logoUrl) {
+    config = {
+      ...config,
+      diseno: { ...config.diseno, navegacion: { ...navegacion, logoUrl: normalizeImageUrl(navegacion.logoUrl) } },
+    } as WeddingConfig;
+  }
+
   const secciones = config.diseno?.secciones;
   if (!Array.isArray(secciones) || secciones.length === 0) return config;
 

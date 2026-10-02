@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
-import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig } from "@/config/wedding.config";
+import { DEFAULT_TEXTO_INVITACION, ELEMENTOS_BARRA_POR_DEFECTO, normalizeIntroConfig } from "@/config/wedding.config";
 import { parseNativeSvgAnimations, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
 import type {
   ComportamientoBarraNavegacion,
+  ElementoBarra,
+  ElementoBarraId,
+  PosicionElementoBarra,
   EventoHistoria,
   EventoTimeline,
   IntroAnimationType,
@@ -80,6 +83,12 @@ function buildDefaultIntroConfig(): IntroSeccionConfig {
     movil: buildDefaultIntroDeviceConfig(),
   };
 }
+
+const BANNER_ELEMENTO_LABEL: Record<ElementoBarraId, string> = {
+  menu: "Menu",
+  logo: "Logo",
+  texto: "Texto",
+};
 
 type AssetPickerProps = {
   label: string;
@@ -513,6 +522,14 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [navegacionComportamiento, setNavegacionComportamiento] = useState<ComportamientoBarraNavegacion>(
     config.diseno?.navegacion?.comportamiento ?? "siempre_visible",
   );
+  const [bannerTexto, setBannerTexto] = useState(config.diseno?.navegacion?.texto ?? "");
+  const [bannerLogoUrl, setBannerLogoUrl] = useState(config.diseno?.navegacion?.logoUrl ?? "");
+  const [bannerElementos, setBannerElementos] = useState<ElementoBarra[]>(() => {
+    const guardados = (config.diseno?.navegacion?.elementos ?? []).filter((el) =>
+      ELEMENTOS_BARRA_POR_DEFECTO.some((d) => d.id === el.id),
+    );
+    return [...guardados, ...ELEMENTOS_BARRA_POR_DEFECTO.filter((d) => !guardados.some((el) => el.id === d.id))];
+  });
   const [selectedSectionId, setSelectedSectionId] = useState<string>(initialSections[0]?.id ?? "");
   const [newSectionType, setNewSectionType] = useState<TipoSeccionDiseno>("invitacion");
   const [resources, setResources] = useState<ResourceItem[]>([]);
@@ -633,6 +650,20 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const patchSelectedItems = (updater: (items: SeccionDiseno["items"]) => SeccionDiseno["items"]) => {
     if (!selectedSection) return;
     patchSection(selectedSection.id, { items: updater(selectedSection.items ?? []) });
+  };
+
+  const patchBannerElemento = (id: ElementoBarraId, patch: Partial<ElementoBarra>) => {
+    setBannerElementos((prev) => prev.map((el) => (el.id === id ? { ...el, ...patch } : el)));
+  };
+
+  const moveBannerElemento = (index: number, delta: -1 | 1) => {
+    setBannerElementos((prev) => {
+      const target = index + delta;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   };
 
   const patchIntro = (patch: Partial<IntroSeccionConfig>) => {
@@ -929,7 +960,12 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
           diseno: {
             ...(config.diseno ?? {}),
             secciones: sections,
-            navegacion: { comportamiento: navegacionComportamiento },
+            navegacion: {
+              comportamiento: navegacionComportamiento,
+              texto: bannerTexto.trim(),
+              logoUrl: bannerLogoUrl.trim(),
+              elementos: bannerElementos,
+            },
           },
           historia,
           timeline,
@@ -1924,6 +1960,72 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                           <span className="block text-xs text-stone-500">La barra permanece oculta sobre la portada y aparece al bajar hacia las siguientes secciones.</span>
                         </span>
                       </label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-2xl border border-stone-200 p-4">
+                    <h4 className="text-sm font-semibold text-stone-700">Contenido de la barra superior</h4>
+                    <div>
+                      <label className="label-field">Texto (si se deja vacio, se muestran los nombres de los novios)</label>
+                      <input
+                        className="input-field"
+                        value={bannerTexto}
+                        onChange={(e) => setBannerTexto(e.target.value)}
+                      />
+                    </div>
+                    <IntroAssetField
+                      label="Logo (si se deja vacio, se usa el sello generado)"
+                      value={bannerLogoUrl}
+                      onChangeValue={setBannerLogoUrl}
+                      uploading={uploadingAssetKey === "bannerLogo"}
+                      onUpload={(file) => void uploadGenericAsset("bannerLogo", file, setBannerLogoUrl)}
+                      disabled={!recursosDriveConfigured}
+                      resources={resourcesForIntro}
+                      placeholder="/images/logo.png o https://..."
+                      accept="image/*"
+                    />
+                    <div className="space-y-2">
+                      <label className="label-field">Elementos: orden y ubicacion en la barra</label>
+                      {bannerElementos.map((el, index) => (
+                        <div key={el.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-stone-200 px-3 py-2">
+                          <label className="flex items-center gap-2 text-sm text-stone-700 min-w-[110px]">
+                            <input
+                              type="checkbox"
+                              checked={el.visible}
+                              onChange={(e) => patchBannerElemento(el.id, { visible: e.target.checked })}
+                            />
+                            {BANNER_ELEMENTO_LABEL[el.id]}
+                          </label>
+                          <select
+                            className="input-field !w-auto"
+                            value={el.posicion}
+                            onChange={(e) => patchBannerElemento(el.id, { posicion: e.target.value as PosicionElementoBarra })}
+                          >
+                            <option value="izquierda">Izquierda</option>
+                            <option value="centro">Centro</option>
+                            <option value="derecha">Derecha</option>
+                          </select>
+                          <div className="ml-auto flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => moveBannerElemento(index, -1)}
+                              disabled={index === 0}
+                              className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveBannerElemento(index, 1)}
+                              disabled={index === bannerElementos.length - 1}
+                              className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40"
+                            >
+                              ↓
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-xs text-stone-500">El orden de la lista se aplica dentro de cada zona (izquierda, centro, derecha).</p>
                     </div>
                   </div>
                 </div>
