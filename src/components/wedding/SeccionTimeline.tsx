@@ -116,8 +116,25 @@ function normalizeIcon(icono: string): string {
 
 function renderIcono(punto: PuntoTimeline): ReactNode {
   if (punto.iconoUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={resolveDriveMediaSrc(punto.iconoUrl)} alt="" className="h-11 w-11 object-contain" />;
+    const src = `url("${resolveDriveMediaSrc(punto.iconoUrl)}")`;
+    // Máscara: el color del icono (currentColor) tiñe la imagen.
+    return (
+      <span
+        aria-hidden="true"
+        className="block h-11 w-11"
+        style={{
+          backgroundColor: "currentColor",
+          WebkitMaskImage: src,
+          maskImage: src,
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+        }}
+      />
+    );
   }
   return ICONOS[punto.icono];
 }
