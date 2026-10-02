@@ -379,6 +379,7 @@ function mapTimelineToItems(timeline: EventoTimeline[]) {
     descripcion: item.descripcion,
     hora: item.hora,
     icono: item.icono,
+    imagen: item.imagen,
     enlaceMaps: "",
   }));
 }
@@ -511,6 +512,7 @@ function mapTimelineItemsToConfig(items: SeccionDiseno["items"]): EventoTimeline
     titulo: item.titulo || "",
     descripcion: item.descripcion || "",
     icono: (item.icono as EventoTimeline["icono"]) || "rings",
+    imagen: item.imagen || undefined,
   }));
 }
 
@@ -697,12 +699,12 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     });
   };
 
-  const uploadGenericAsset = async (key: string, file: File, onDone: (url: string) => void) => {
+  const uploadGenericAsset = async (key: string, file: File, onDone: (url: string) => void, section = "intro") => {
     setUploadingAssetKey(key);
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("section", "intro");
+      formData.append("section", section);
       const response = await fetch(`/api/admin/${inviteCode}/resources`, {
         method: "POST",
         body: formData,
@@ -717,7 +719,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
       }
       onDone(resource.url_publica);
       setResources((prev) => [resource, ...prev]);
-      showMsg("ok", "Archivo subido y asociado a la intro");
+      showMsg("ok", "Archivo subido y asociado");
     } catch (error) {
       showMsg("error", error instanceof Error ? error.message : "Error al subir archivo");
     } finally {
@@ -806,7 +808,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     patchSelectedItems((items) => items.map((item) => (item.id === itemId ? updater(item) : item)));
   };
 
-  const updateTimelineItem = (itemId: string, field: "hora" | "titulo" | "descripcion" | "icono" | "enlaceMaps", value: string) => {
+  const updateTimelineItem = (itemId: string, field: "hora" | "titulo" | "descripcion" | "icono" | "enlaceMaps" | "imagen", value: string) => {
     patchSelectedItems((items) => items.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)));
   };
 
@@ -2320,6 +2322,19 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         <div>
                           <label className="label-field">Descripcion / lugar</label>
                           <input className="input-field" value={item.descripcion} onChange={(e) => updateTimelineItem(item.id, "descripcion", e.target.value)} />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <IntroAssetField
+                            label="Icono personalizado (opcional, sustituye al icono)"
+                            value={item.imagen ?? ""}
+                            onChangeValue={(v) => updateTimelineItem(item.id, "imagen", v)}
+                            uploading={uploadingAssetKey === `timelineIcono-${item.id}`}
+                            onUpload={(file) => void uploadGenericAsset(`timelineIcono-${item.id}`, file, (url) => updateTimelineItem(item.id, "imagen", url), "timeline")}
+                            disabled={false}
+                            resources={resources}
+                            placeholder="URL de Drive o imagen"
+                            accept="image/*"
+                          />
                         </div>
                         <div className="sm:col-span-2">
                           <label className="label-field">Enlace Google Maps</label>

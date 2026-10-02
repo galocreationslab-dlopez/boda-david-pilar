@@ -1265,6 +1265,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       descripcion: item.descripcion,
       icono: (item.icono as EventoTimeline["icono"]) || "rings",
       enlaceMaps: item.enlaceMaps || "",
+      imagen: item.imagen || undefined,
     }));
   };
 
