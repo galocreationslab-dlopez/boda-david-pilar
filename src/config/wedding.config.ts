@@ -385,6 +385,12 @@ export type NavegacionDiseno = {
   texto?: string;
   // Imagen del logo; vacío = sello generado.
   logoUrl?: string;
+  // Tamaños en px; vacío = automático. Colores en hex; vacío = color por defecto del tema.
+  logoAnchoPx?: number;
+  logoAltoPx?: number;
+  logoColor?: string;
+  textoTamanoPx?: number;
+  textoColor?: string;
   elementos?: ElementoBarra[];
 };
 

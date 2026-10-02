@@ -33,7 +33,7 @@ export type SeccionMenuItem = {
 type NavegacionPublicaProps = {
   config: Pick<WeddingConfig, "iniciales" | "novia" | "novio">;
   comportamiento?: ComportamientoBarraNavegacion;
-  banner?: Pick<NavegacionDiseno, "texto" | "logoUrl" | "elementos">;
+  banner?: Pick<NavegacionDiseno, "texto" | "logoUrl" | "elementos" | "logoAnchoPx" | "logoAltoPx" | "logoColor" | "textoTamanoPx" | "textoColor">;
   secciones?: SeccionMenuItem[];
   // Query string actual (sin el "?"), ej. "inviteCode=GALO-2603" — se preserva en todos los enlaces internos.
   queryString?: string;
@@ -131,17 +131,33 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
           <Link href={buildHomeHref()} aria-label="Inicio" className="flex items-center">
             {banner?.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={resolveDriveMediaSrc(banner.logoUrl)} alt="" className="h-10 w-auto max-w-[14rem] object-contain" />
+                            <img
+                src={resolveDriveMediaSrc(banner.logoUrl)}
+                alt=""
+                className="object-contain"
+                style={{
+                  width: banner.logoAnchoPx || "auto",
+                  height: banner.logoAltoPx || (banner.logoAnchoPx ? "auto" : 40),
+                  maxWidth: banner.logoAnchoPx ? undefined : "14rem",
+                }}
+              />
             ) : (
-              <SelloNupcial size={40} color={scrolled ? "#8C6A3F" : "#FDFAF5"} />
+              <SelloNupcial
+                size={banner?.logoAltoPx || banner?.logoAnchoPx || 40}
+                color={banner?.logoColor || (scrolled ? "#8C6A3F" : "#FDFAF5")}
+              />
             )}
           </Link>
         ) : (
           <Link
             href={buildHomeHref()}
-            className={`font-display text-xs tracking-widest sm:text-sm transition-colors ${
-              scrolled ? "text-brown-dark" : "text-white"
-            }`}
+            className={`font-display tracking-widest transition-colors ${
+              banner?.textoTamanoPx ? "" : "text-xs sm:text-sm"
+            } ${banner?.textoColor ? "" : scrolled ? "text-brown-dark" : "text-white"}`}
+            style={{
+              fontSize: banner?.textoTamanoPx || undefined,
+              color: banner?.textoColor || undefined,
+            }}
           >
             {textoBanner}
           </Link>

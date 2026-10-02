@@ -524,6 +524,11 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   );
   const [bannerTexto, setBannerTexto] = useState(config.diseno?.navegacion?.texto ?? "");
   const [bannerLogoUrl, setBannerLogoUrl] = useState(config.diseno?.navegacion?.logoUrl ?? "");
+  const [bannerLogoAncho, setBannerLogoAncho] = useState(config.diseno?.navegacion?.logoAnchoPx ?? 0);
+  const [bannerLogoAlto, setBannerLogoAlto] = useState(config.diseno?.navegacion?.logoAltoPx ?? 0);
+  const [bannerLogoColor, setBannerLogoColor] = useState(config.diseno?.navegacion?.logoColor ?? "");
+  const [bannerTextoTamano, setBannerTextoTamano] = useState(config.diseno?.navegacion?.textoTamanoPx ?? 0);
+  const [bannerTextoColor, setBannerTextoColor] = useState(config.diseno?.navegacion?.textoColor ?? "");
   const [bannerElementos, setBannerElementos] = useState<ElementoBarra[]>(() => {
     const guardados = (config.diseno?.navegacion?.elementos ?? []).filter((el) =>
       ELEMENTOS_BARRA_POR_DEFECTO.some((d) => d.id === el.id),
@@ -964,6 +969,11 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
               comportamiento: navegacionComportamiento,
               texto: bannerTexto.trim(),
               logoUrl: bannerLogoUrl.trim(),
+              logoAnchoPx: bannerLogoAncho || undefined,
+              logoAltoPx: bannerLogoAlto || undefined,
+              logoColor: bannerLogoColor || undefined,
+              textoTamanoPx: bannerTextoTamano || undefined,
+              textoColor: bannerTextoColor || undefined,
               elementos: bannerElementos,
             },
           },
@@ -1984,6 +1994,42 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                       placeholder="/images/logo.png o https://..."
                       accept="image/*"
                     />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="label-field">Ancho del logo (px, 0 = automatico)</label>
+                        <input type="number" min={0} max={600} className="input-field" value={bannerLogoAncho}
+                          onChange={(e) => setBannerLogoAncho(Math.max(0, Number(e.target.value) || 0))} />
+                      </div>
+                      <div>
+                        <label className="label-field">Alto del logo (px, 0 = automatico)</label>
+                        <input type="number" min={0} max={200} className="input-field" value={bannerLogoAlto}
+                          onChange={(e) => setBannerLogoAlto(Math.max(0, Number(e.target.value) || 0))} />
+                      </div>
+                      <div>
+                        <label className="label-field">Tamano de fuente del texto (px, 0 = automatico)</label>
+                        <input type="number" min={0} max={80} className="input-field" value={bannerTextoTamano}
+                          onChange={(e) => setBannerTextoTamano(Math.max(0, Number(e.target.value) || 0))} />
+                      </div>
+                      <div />
+                      <div>
+                        <label className="label-field">Color del logo (solo sello generado)</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={bannerLogoColor || "#8c6a3f"} onChange={(e) => setBannerLogoColor(e.target.value)} />
+                          <button type="button" className="text-xs text-stone-500 underline" onClick={() => setBannerLogoColor("")}>
+                            {bannerLogoColor ? "Restablecer" : "Por defecto"}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label-field">Color del texto</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={bannerTextoColor || "#ffffff"} onChange={(e) => setBannerTextoColor(e.target.value)} />
+                          <button type="button" className="text-xs text-stone-500 underline" onClick={() => setBannerTextoColor("")}>
+                            {bannerTextoColor ? "Restablecer" : "Por defecto"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       <label className="label-field">Elementos: orden y ubicacion en la barra</label>
                       {bannerElementos.map((el, index) => (
