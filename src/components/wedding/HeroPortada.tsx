@@ -80,7 +80,7 @@ export function HeroPortada({
 
   return (
     <div
-      className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-3 text-center sm:px-4"
+      className="relative flex flex-col items-center overflow-hidden px-3 text-center sm:px-4"
       style={{
         backgroundColor: "var(--brown-dark)",
         backgroundImage:
@@ -89,7 +89,8 @@ export function HeroPortada({
       }}
       onClick={() => select("portada.fondo")}
     >
-      {/* Contenido principal */}
+      {/* Primer viewport: solo identidad e invitación */}
+      <div className="relative flex min-h-[100svh] w-full flex-col items-center justify-center">
       <div className={`relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center gap-5 py-16 sm:gap-7 sm:py-20 ${forceMobile ? "max-w-[21rem] gap-4 py-12" : ""}`}>
 
         {/* Sello */}
@@ -169,9 +170,49 @@ export function HeroPortada({
           &ldquo;{config.textos.bienvenida}&rdquo;
         </p>
 
+      </div>
+
+      {/* Flecha hacia abajo */}
+      <div
+        className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 animate-bounce sm:block"
+        aria-hidden="true"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ color: "rgba(196,150,74,0.5)" }}>
+          <path d="M6 9 L12 15 L18 9" />
+        </svg>
+      </div>
+      </div>
+
+      {/* Bajo el primer viewport: cuenta atrás y CTA */}
+      <div className={`relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center gap-8 pb-16 pt-4 sm:pb-20 ${forceMobile ? "max-w-[21rem]" : ""}`}>
+
+        {/* Cuenta atrás */}
+        <div
+          className="w-full pt-8"
+          style={styleFor("portada.separador", { borderTop: "1px solid rgba(196,150,74,0.2)" })}
+          onClick={(event) => { event.stopPropagation(); select("portada.separador"); }}
+        >
+          <p
+            className="smallcaps text-xs tracking-widest mb-5"
+            style={styleFor("portada.faltan", { color: "var(--bronze-pale)", opacity: 0.6 })}
+            onClick={(event) => { event.stopPropagation(); select("portada.faltan"); }}
+          >
+            faltan
+          </p>
+          <div style={styleFor("portada.cuentaAtras")} onClick={(event) => { event.stopPropagation(); select("portada.cuentaAtras"); }}>
+            <CuentaAtras
+              fechaObjetivo={config.fecha}
+              valueStyle={componentStyles?.["portada.cuentaAtras"]}
+              labelStyle={componentStyles?.["portada.cuentaAtrasLeyendas"]}
+              onValueClick={() => select("portada.cuentaAtras")}
+              onLabelClick={() => select("portada.cuentaAtrasLeyendas")}
+            />
+          </div>
+        </div>
+
         {/* CTA */}
         {(mostrarBotonConfirmar || designMode) && (
-          <div className="mt-2 flex w-full flex-col gap-2 animate-fade-in sm:w-auto">
+          <div className="flex w-full flex-col gap-2 sm:w-auto">
             <div
               style={styleFor("portada.ctaFondo")}
               onClick={(event) => { event.stopPropagation(); select("portada.ctaFondo"); }}
@@ -205,40 +246,6 @@ export function HeroPortada({
             </div>
           </div>
         )}
-
-        {/* Cuenta atrás */}
-        <div
-          className="w-full mt-6 pt-8 animate-fade-up delay-500"
-          style={styleFor("portada.separador", { borderTop: "1px solid rgba(196,150,74,0.2)" })}
-          onClick={(event) => { event.stopPropagation(); select("portada.separador"); }}
-        >
-          <p
-            className="smallcaps text-xs tracking-widest mb-5"
-            style={styleFor("portada.faltan", { color: "var(--bronze-pale)", opacity: 0.6 })}
-            onClick={(event) => { event.stopPropagation(); select("portada.faltan"); }}
-          >
-            faltan
-          </p>
-          <div style={styleFor("portada.cuentaAtras")} onClick={(event) => { event.stopPropagation(); select("portada.cuentaAtras"); }}>
-            <CuentaAtras
-              fechaObjetivo={config.fecha}
-              valueStyle={componentStyles?.["portada.cuentaAtras"]}
-              labelStyle={componentStyles?.["portada.cuentaAtrasLeyendas"]}
-              onValueClick={() => select("portada.cuentaAtras")}
-              onLabelClick={() => select("portada.cuentaAtrasLeyendas")}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Flecha hacia abajo */}
-      <div
-        className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 animate-bounce sm:block"
-        aria-hidden="true"
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ color: "rgba(196,150,74,0.5)" }}>
-          <path d="M6 9 L12 15 L18 9" />
-        </svg>
       </div>
     </div>
   );
