@@ -306,7 +306,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas }: InvitacionP
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-700">Confirmación de asistencia</p>
-            <h1 className="text-3xl font-semibold text-stone-900">Hola, {invitacion.nombre_visible}</h1>
+            <h1 className="text-3xl font-semibold text-stone-900">Hola, <span style={{ fontFamily: "var(--font-nombres)" }}>{invitacion.nombre_visible}</span></h1>
             <p className="text-base text-stone-600">Esta respuesta está ligada a tu invitación única y nos ayudará a preparar mejor el día.</p>
           </div>
 

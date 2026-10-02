@@ -8,6 +8,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { weddingConfig, normalizeIntroConfig, type IntroDeviceConfig, type WeddingConfig } from "@/config/wedding.config";
 import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
+import { buildFontCssVars, buildFontFaceCss } from "@/lib/theme-fonts";
 import { unstable_noStore as noStore } from "next/cache";
 
 type SectionRow = {
@@ -316,8 +317,10 @@ export function buildCssOverrides(config: WeddingConfig): string {
     if (!slug) continue;
     lines.push(`  --custom-${slug}: ${color.valor};`);
   }
-  if (f.display)      lines.push(`  --font-display: ${f.display};`);
-  if (f.body)         lines.push(`  --font-body: ${f.body};`);
+  for (const [name, value] of Object.entries(buildFontCssVars(f))) {
+    lines.push(`  ${name}: ${value};`);
+  }
   lines.push("}");
-  return lines.join("\n");
+  const fontFaces = buildFontFaceCss(f);
+  return fontFaces ? `${fontFaces}\n${lines.join("\n")}` : lines.join("\n");
 }
