@@ -11,6 +11,7 @@
 import { useState, useEffect, Fragment } from "react";
 import Link from "next/link";
 import { SelloNupcial } from "@/components/ui/SelloNupcial";
+import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import {
   ELEMENTOS_BARRA_POR_DEFECTO,
   type ComportamientoBarraNavegacion,
@@ -130,7 +131,7 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
           <Link href={buildHomeHref()} aria-label="Inicio" className="flex items-center">
             {banner?.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={banner.logoUrl} alt="" className="h-10 w-auto max-w-[8rem] object-contain" />
+              <img src={resolveDriveMediaSrc(banner.logoUrl)} alt="" className="h-10 w-auto max-w-[14rem] object-contain" />
             ) : (
               <SelloNupcial size={40} color={scrolled ? "#8C6A3F" : "#FDFAF5"} />
             )}
