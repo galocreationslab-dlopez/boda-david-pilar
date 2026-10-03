@@ -9,6 +9,7 @@ import { PieDePagina } from "@/components/layout/PieDePagina";
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
 import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
+import PortadaLibre from "@/components/wedding/PortadaLibre";
 import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
 import { SeccionHistoria, type HistoriaComponentKey } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding/SeccionTimeline";
@@ -100,6 +101,7 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
     { key: "portada.ctaFondo", defaultRole: "fondoBoton" },
     { key: "portada.ctaTexto", defaultRole: "textoBoton" },
   ],
+  portadaLibre: [],
   historia: [
     { key: "historia.tituloSeccion", defaultRole: "tituloSeccion" },
     { key: "historia.tituloInterno", defaultRole: "titulo" },
@@ -273,7 +275,8 @@ function renderSeparador(separadorInput: SeparadorDiseno | undefined, roleColors
   );
 }
 
-function getAnchorId(tipo: TipoSeccionDiseno): string {
+function getAnchorId(tipo: TipoSeccionDiseno, sectionId?: string): string {
+  if (tipo === "portadaLibre") return `portada-${sectionId ?? "libre"}`;
   if (tipo === "invitacion" || tipo === "portada") return "invitacion";
   if (tipo === "historia") return "historia";
   if (tipo === "galeria") return "galeria";
@@ -369,14 +372,14 @@ export default async function PaginaPrincipal({
   const menuSecciones = todasLasSecciones
     .filter((s) => s.menuDirecto && s.tipo !== "intro")
     .map((s) => ({
-      anchorId: getAnchorId(s.tipo === "portada" ? "invitacion" : s.tipo),
+      anchorId: getAnchorId(s.tipo === "portada" ? "invitacion" : s.tipo, s.id),
       titulo: s.titulo || s.nombre,
       enPantallaPrincipal: s.visible,
     }));
 
   // Seccion pedida via el menu de "solo acceso directo" (no visible en el scroll principal).
   const seccionEnfocada = seccionFoco
-    ? todasLasSecciones.find((s) => s.menuDirecto && !s.visible && getAnchorId(s.tipo === "portada" ? "invitacion" : s.tipo) === seccionFoco)
+    ? todasLasSecciones.find((s) => s.menuDirecto && !s.visible && getAnchorId(s.tipo === "portada" ? "invitacion" : s.tipo, s.id) === seccionFoco)
     : undefined;
 
   const visibleSections = seccionEnfocada
@@ -469,7 +472,9 @@ export default async function PaginaPrincipal({
           const sectionPalette = section.source ? getPaletteBySection(section.source) : paletaGlobal;
           const sectionRoleColors = sectionPalette ? resolvePaletteRoleColors(sectionPalette) : null;
           const isLast = index === orderedSections.length - 1;
-          const anchorId = section.tipo === "invitacion"
+          const anchorId = section.tipo === "portadaLibre"
+            ? getAnchorId("portadaLibre", section.id)
+            : section.tipo === "invitacion"
             ? "invitacion"
             : section.tipo === "historia"
             ? "historia"
@@ -489,6 +494,22 @@ export default async function PaginaPrincipal({
                     config={getInvitacionConfigForSection(section.source)}
                     componentStyles={componentStyles}
                     headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
+                  />
+                </SeccionColapsable>
+              )}
+
+              {section.tipo === "portadaLibre" && (
+                <SeccionColapsable
+                  id={anchorId}
+                  titulo={section.source?.portadaLibre?.mostrarTitulo ? section.titulo : ""}
+                  abiertaPorDefecto={Boolean(seccionEnfocada) || section.source?.portadaLibre?.abiertaPorDefecto !== false}
+                  ocultarCabecera={section.source?.portadaLibre?.colapsable === false}
+                  bgColor="var(--cream)"
+                >
+                  <PortadaLibre
+                    config={section.source?.portadaLibre}
+                    roleColors={sectionRoleColors ?? {}}
+                    resolveSrc={resolvePublicImageSrc}
                   />
                 </SeccionColapsable>
               )}

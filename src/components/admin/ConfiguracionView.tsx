@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import MainWithInvite from "@/components/wedding/MainWithInvite";
 import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
 import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
+import PortadaLibre from "@/components/wedding/PortadaLibre";
+import PortadaLibreEditor from "@/components/admin/PortadaLibreEditor";
 import { SeccionHistoria, type HistoriaComponentKey } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding/SeccionTimeline";
 import { SeccionGaleria, type GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
@@ -118,6 +120,7 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
     { key: "portada.ctaFondo", label: "Botón CTA - Fondo", defaultRole: "fondoBoton" },
     { key: "portada.ctaTexto", label: "Botón CTA - Texto", defaultRole: "textoBoton" },
   ],
+  portadaLibre: [],
   historia: [
     { key: "historia.tituloSeccion", label: "Título sección (colapsable)", defaultRole: "tituloSeccion" },
     { key: "historia.tituloInterno", label: "Título interno historia", defaultRole: "titulo" },
@@ -1317,6 +1320,21 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
               />
             </SeccionColapsable>
           )}
+          {section.tipo === "portadaLibre" && (
+            <SeccionColapsable
+              id={`canvas-${section.id}`}
+              titulo={section.portadaLibre?.mostrarTitulo ? section.titulo : ""}
+              abiertaPorDefecto={section.portadaLibre?.abiertaPorDefecto !== false}
+              ocultarCabecera={section.portadaLibre?.colapsable === false}
+            >
+              <PortadaLibre
+                config={section.portadaLibre}
+                roleColors={sectionRoleColors ?? {}}
+                resolveSrc={resolveAdminPreviewSrc}
+                forzarDispositivo={editorViewport === "movil" ? "movil" : "pc"}
+              />
+            </SeccionColapsable>
+          )}
           {section.tipo === "historia" && (
             <SeccionColapsable
               id={`canvas-${section.id}`}
@@ -1921,7 +1939,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
 
                   <div className="space-y-2">
                     <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-                      Modo diseño activo: selecciona un componente en el lienzo para asignar rol y color.
+                      {editingSectionDraft.tipo === "portadaLibre"
+                        ? "Modo diseño activo: arrastra los elementos del lienzo y tira de las esquinas para cambiar su tamaño. PC y móvil se configuran por separado (selector Vista PC / Vista móvil)."
+                        : "Modo diseño activo: selecciona un componente en el lienzo para asignar rol y color."}
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -2308,6 +2328,34 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               onEditBienvenida={setPortadaWelcomeText}
                             />
                           </SeccionColapsable>
+                        )}
+
+                        {sec.tipo === "portadaLibre" && (
+                          sectionIsBeingEdited ? (
+                            <PortadaLibreEditor
+                              config={sec.portadaLibre}
+                              dispositivo={editorViewport === "movil" ? "movil" : "pc"}
+                              roles={availableRoleKeys.map((key) => ({ key, label: getRoleLabelForUI(key) }))}
+                              roleColors={sectionRoleColors ?? {}}
+                              resolveSrc={resolveAdminPreviewSrc}
+                              onChange={(next) => patchEditingSectionDraft({ portadaLibre: next })}
+                            />
+                          ) : (
+                            <SeccionColapsable
+                              id={`preview-${sec.id}`}
+                              titulo={sec.portadaLibre?.mostrarTitulo ? sec.titulo : ""}
+                              abiertaPorDefecto={sec.portadaLibre?.abiertaPorDefecto !== false}
+                              ocultarCabecera={sec.portadaLibre?.colapsable === false}
+                              bgColor="var(--cream)"
+                            >
+                              <PortadaLibre
+                                config={sec.portadaLibre}
+                                roleColors={sectionRoleColors ?? {}}
+                                resolveSrc={resolveAdminPreviewSrc}
+                                forzarDispositivo={editorViewport === "movil" ? "movil" : "pc"}
+                              />
+                            </SeccionColapsable>
+                          )
                         )}
 
                         {sec.tipo === "historia" && (

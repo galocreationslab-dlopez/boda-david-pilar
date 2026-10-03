@@ -58,9 +58,9 @@ function normalizeImageUrl(value: unknown): string | undefined {
 }
 
 // Datos antiguos guardaban la portada con tipo "invitacion"; el código actual espera "portada".
-function normalizeSectionTipo(tipo: unknown): "intro" | "portada" | "historia" | "timeline" | "galeria" {
+function normalizeSectionTipo(tipo: unknown): "intro" | "portada" | "portadaLibre" | "historia" | "timeline" | "galeria" {
   if (tipo === "invitacion") return "portada";
-  if (tipo === "intro" || tipo === "portada" || tipo === "historia" || tipo === "timeline" || tipo === "galeria") return tipo;
+  if (tipo === "intro" || tipo === "portada" || tipo === "portadaLibre" || tipo === "historia" || tipo === "timeline" || tipo === "galeria") return tipo;
   return "portada";
 }
 
@@ -108,6 +108,15 @@ function normalizeSecciones(config: WeddingConfig): WeddingConfig {
       secciones: secciones.map((section) => ({
         ...section,
         tipo: normalizeSectionTipo(section.tipo),
+        portadaLibre: section.portadaLibre
+          ? {
+              ...section.portadaLibre,
+              elementos: (section.portadaLibre.elementos ?? []).map((elemento) => ({
+                ...elemento,
+                url: elemento.tipo === "imagen" ? normalizeImageUrl(elemento.url) : elemento.url,
+              })),
+            }
+          : section.portadaLibre,
         fondos: section.fondos
           ? {
               seccion: normalizeImageUrl(section.fondos.seccion),

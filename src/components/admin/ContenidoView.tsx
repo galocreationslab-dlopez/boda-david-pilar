@@ -5,12 +5,15 @@ import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, ELEMENTOS_BARRA_POR_DEFECTO, normalizeIntroConfig } from "@/config/wedding.config";
+import { buildDefaultLayout, buildDefaultPortadaLibre, normalizePortadaLibre } from "@/lib/portada-libre";
 import { parseNativeSvgAnimations, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
 import type {
   ComportamientoBarraNavegacion,
   ElementoBarra,
   ElementoBarraId,
   PosicionElementoBarra,
+  PortadaElemento,
+  PortadaLibreConfig,
   EventoHistoria,
   EventoTimeline,
   IntroAnimationType,
@@ -38,6 +41,7 @@ const PROFILE_OPTIONS = ["publico", "familia", "amigos", "vip", "admin"] as cons
 const SECTION_TYPES: Array<{ value: TipoSeccionDiseno; label: string }> = [
   { value: "intro", label: "Intro" },
   { value: "invitacion", label: "Invitacion" },
+  { value: "portadaLibre", label: "Portada (formato libre)" },
   { value: "historia", label: "Historia" },
   { value: "timeline", label: "Timeline" },
   { value: "galeria", label: "Galeria" },
@@ -287,6 +291,7 @@ function previewSrcForAdmin(inviteCode: string, src: string): string {
 }
 
 function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<string, TemaColorRole>> {
+  if (tipo === "portadaLibre") return {};
   if (tipo === "intro") {
     return {
       "intro.fondo": "fondoSeccion",
@@ -347,6 +352,7 @@ function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<strin
 
 function sectionTitleByType(tipo: TipoSeccionDiseno): string {
   if (tipo === "intro") return "Intro";
+  if (tipo === "portadaLibre") return "Portada";
   if (isInvitationType(tipo)) return "Invitacion";
   if (tipo === "historia") return "Nuestra historia";
   if (tipo === "timeline") return "El gran dia";
@@ -355,6 +361,7 @@ function sectionTitleByType(tipo: TipoSeccionDiseno): string {
 
 function sectionNameByType(tipo: TipoSeccionDiseno): string {
   if (tipo === "intro") return "Intro";
+  if (tipo === "portadaLibre") return "Portada";
   if (isInvitationType(tipo)) return "Invitacion";
   if (tipo === "historia") return "Historia";
   if (tipo === "timeline") return "Timeline";
@@ -740,6 +747,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
       perfiles: ["publico"],
       componentRoles: getDefaultComponentRoles(newSectionType),
       intro: newSectionType === "intro" ? buildDefaultIntroConfig() : undefined,
+      portadaLibre: newSectionType === "portadaLibre" ? buildDefaultPortadaLibre() : undefined,
       items:
         isInvitationType(newSectionType)
           ? [{ id: `item-${uid()}`, titulo: "Invitacion", descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION }]
@@ -1103,6 +1111,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         nombre: sectionNameByType(tipo),
                         titulo: sectionTitleByType(tipo),
                         intro: tipo === "intro" ? selectedSection.intro ?? buildDefaultIntroConfig() : selectedSection.intro,
+                        portadaLibre: tipo === "portadaLibre" ? selectedSection.portadaLibre ?? buildDefaultPortadaLibre() : selectedSection.portadaLibre,
                         items:
                           isInvitationType(tipo)
                             ? [{ id: `item-${uid()}`, titulo: "Invitacion", descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION }]
@@ -1115,6 +1124,37 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     ))}
                   </select>
                 </div>
+                {selectedSection.tipo === "portadaLibre" && (() => {
+                  const portada = normalizePortadaLibre(selectedSection.portadaLibre);
+                  return (
+                    <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
+                      <label className="inline-flex items-center gap-2 text-sm text-stone-700">
+                        <input
+                          type="checkbox"
+                          checked={portada.mostrarTitulo ?? false}
+                          onChange={(e) => patchSection(selectedSection.id, { portadaLibre: { ...portada, mostrarTitulo: e.target.checked } })}
+                        />
+                        Mostrar título en la cabecera
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm text-stone-700">
+                        <input
+                          type="checkbox"
+                          checked={portada.colapsable !== false}
+                          onChange={(e) => patchSection(selectedSection.id, { portadaLibre: { ...portada, colapsable: e.target.checked } })}
+                        />
+                        Permitir colapsar la sección
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm text-stone-700">
+                        <input
+                          type="checkbox"
+                          checked={portada.abiertaPorDefecto !== false}
+                          onChange={(e) => patchSection(selectedSection.id, { portadaLibre: { ...portada, abiertaPorDefecto: e.target.checked } })}
+                        />
+                        Abierta por defecto
+                      </label>
+                    </div>
+                  );
+                })()}
                 <div className="flex flex-wrap items-end gap-4">
                   <label className="inline-flex items-center gap-2 text-sm text-stone-700">
                     <input
@@ -2089,6 +2129,103 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                   </div>
                 </div>
               )}
+
+              {selectedSection.tipo === "portadaLibre" && (() => {
+                const portada = normalizePortadaLibre(selectedSection.portadaLibre);
+                const imageResources = resources.filter((item) => item.mime_type === null || item.mime_type.startsWith("image/"));
+                const patchPortada = (next: PortadaLibreConfig) => patchSection(selectedSection.id, { portadaLibre: next });
+                const patchElemento = (id: string, patch: Partial<PortadaElemento>) =>
+                  patchPortada({ ...portada, elementos: portada.elementos.map((el) => (el.id === id ? { ...el, ...patch } : el)) });
+                const addElemento = (tipo: PortadaElemento["tipo"]) => {
+                  const elemento: PortadaElemento = tipo === "texto"
+                    ? { id: `pel-${uid()}`, tipo, texto: "Nuevo texto" }
+                    : { id: `pel-${uid()}`, tipo, url: "" };
+                  const index = portada.elementos.length;
+                  patchPortada({
+                    ...portada,
+                    elementos: [...portada.elementos, elemento],
+                    pc: { ...portada.pc, layout: { ...portada.pc.layout, [elemento.id]: buildDefaultLayout(elemento, "pc", index) } },
+                    movil: { ...portada.movil, layout: { ...portada.movil.layout, [elemento.id]: buildDefaultLayout(elemento, "movil", index) } },
+                  });
+                };
+                const removeElemento = (id: string) => {
+                  if (!confirm("Eliminar este elemento?")) return;
+                  const { [id]: _pc, ...pcLayout } = portada.pc.layout;
+                  const { [id]: _movil, ...movilLayout } = portada.movil.layout;
+                  patchPortada({
+                    ...portada,
+                    elementos: portada.elementos.filter((el) => el.id !== id),
+                    pc: { ...portada.pc, layout: pcLayout },
+                    movil: { ...portada.movil, layout: movilLayout },
+                  });
+                };
+                const moveElemento = (index: number, delta: -1 | 1) => {
+                  const target = index + delta;
+                  if (target < 0 || target >= portada.elementos.length) return;
+                  const next = [...portada.elementos];
+                  [next[index], next[target]] = [next[target], next[index]];
+                  patchPortada({ ...portada, elementos: next });
+                };
+                return (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-stone-700">Portada: elementos</h3>
+                    <p className="text-xs text-stone-500">
+                      Aquí se añaden las imágenes y los textos. Su posición, tamaño, fuente y color (en PC y en móvil) se ajustan en Diseño.
+                    </p>
+                    <div className="flex gap-2">
+                      <button type="button" className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50" onClick={() => addElemento("imagen")}>
+                        + Añadir imagen
+                      </button>
+                      <button type="button" className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50" onClick={() => addElemento("texto")}>
+                        + Añadir texto
+                      </button>
+                    </div>
+                    {portada.elementos.length === 0 && (
+                      <p className="rounded-xl border border-dashed border-stone-300 p-4 text-center text-xs text-stone-500">Todavía no hay elementos.</p>
+                    )}
+                    {portada.elementos.map((elemento, index) => (
+                      <div key={elemento.id} className="space-y-3 rounded-xl border border-stone-200 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-stone-700">{index + 1}. {elemento.tipo === "texto" ? "Texto" : "Imagen"}</p>
+                          <div className="flex gap-1 text-xs">
+                            <button type="button" className="rounded border border-stone-300 px-2 py-0.5" onClick={() => moveElemento(index, -1)} disabled={index === 0}>↑</button>
+                            <button type="button" className="rounded border border-stone-300 px-2 py-0.5" onClick={() => moveElemento(index, 1)} disabled={index === portada.elementos.length - 1}>↓</button>
+                            <button type="button" className="rounded border border-red-200 px-2 py-0.5 text-red-600" onClick={() => removeElemento(elemento.id)}>Eliminar</button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="label-field">Nombre (solo para identificarlo en el editor)</label>
+                          <input className="input-field" value={elemento.nombre ?? ""} onChange={(e) => patchElemento(elemento.id, { nombre: e.target.value })} />
+                        </div>
+                        {elemento.tipo === "texto" ? (
+                          <div>
+                            <label className="label-field">Texto</label>
+                            <textarea className="input-field min-h-[70px]" value={elemento.texto ?? ""} onChange={(e) => patchElemento(elemento.id, { texto: e.target.value })} />
+                          </div>
+                        ) : (
+                          <>
+                            <IntroAssetField
+                              label="Imagen"
+                              value={elemento.url ?? ""}
+                              onChangeValue={(v) => patchElemento(elemento.id, { url: v })}
+                              uploading={uploadingAssetKey === `portada-${elemento.id}`}
+                              onUpload={(file) => void uploadGenericAsset(`portada-${elemento.id}`, file, (url) => patchElemento(elemento.id, { url }), "general")}
+                              disabled={!recursosDriveConfigured}
+                              resources={imageResources}
+                              placeholder="https://... (PNG/SVG con transparencia si se quiere colorear)"
+                              accept="image/*"
+                            />
+                            <div>
+                              <label className="label-field">Texto alternativo</label>
+                              <input className="input-field" value={elemento.alt ?? ""} onChange={(e) => patchElemento(elemento.id, { alt: e.target.value })} />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
               {selectedSection.tipo === "historia" && (
                 <div className="space-y-3">
