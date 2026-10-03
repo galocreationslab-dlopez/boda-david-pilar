@@ -149,6 +149,11 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
   ],
   galeria: [
     { key: "galeria.tituloSeccion", label: "Título sección (colapsable)", defaultRole: "tituloSeccion" },
+    { key: "galeria.tituloInterno", label: "Título interno galería", defaultRole: "titulo" },
+    { key: "galeria.tabTextoActivo", label: "Texto botón activo", defaultRole: "textoBoton" },
+    { key: "galeria.tabFondoActivo", label: "Fondo botón activo", defaultRole: "fondoBoton" },
+    { key: "galeria.tabTextoInactivo", label: "Texto botón inactivo", defaultRole: "textoBoton" },
+    { key: "galeria.tabFondoInactivo", label: "Fondo botón inactivo", defaultRole: "fondoBoton" },
     { key: "galeria.fondoSeccion", label: "Fondo sección", defaultRole: "fondoSeccion" },
     { key: "galeria.card", label: "Tarjeta galería", defaultRole: "fondoSubseccion" },
     { key: "galeria.imagen", label: "Borde imagen", defaultRole: "bordes" },
@@ -669,21 +674,6 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [hasPendingDrafts]);
 
-  const previewGalleryMedia = useMemo<PublicGalleryMedia[]>(() => {
-    return ic.historia
-      .filter((h) => !!h.imagen)
-      .slice(0, 6)
-      .map((h) => ({
-        id: h.id,
-        nombre: h.titulo || "Historia",
-        tipo: "foto" as const,
-        google_drive_id: "",
-        url_publica: h.imagen ?? null,
-        subido_por: "Historia",
-        created_at: new Date().toISOString(),
-      }));
-  }, [ic.historia]);
-
   const showMsg = (type: "ok" | "error", text: string) => {
     setMsg({ type, text });
     setTimeout(() => setMsg(null), 5000);
@@ -957,6 +947,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       case "timeline.descripcion":
       case "timeline.icono":
       case "galeria.tituloSeccion":
+      case "galeria.tituloInterno":
+      case "galeria.tabTextoActivo":
+      case "galeria.tabTextoInactivo":
       case "galeria.titulo":
       case "galeria.subtitulo":
         return { color };
@@ -964,6 +957,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       case "timeline.card":
       case "galeria.card":
         return { backgroundColor: color };
+      case "galeria.tabFondoActivo":
+      case "galeria.tabFondoInactivo":
+        return { backgroundColor: color, borderColor: color };
       case "historia.imagen":
       case "timeline.mapa":
       case "galeria.imagen":
@@ -1348,8 +1344,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         created_at: new Date().toISOString(),
       }));
 
-    if (fromSectionItems.length > 0) return fromSectionItems;
-    return previewGalleryMedia;
+    return fromSectionItems;
   };
 
   const renderSectionCanvas = (section: SeccionDiseno, compact = false, editable = false) => {
@@ -1476,6 +1471,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                 componentStyles={componentStyles}
                 headerDivider={renderSectionHeaderSeparatorPreview(section, sectionRoleColors)}
+                galeriaConfig={section.galeriaConfig}
               />
             </SeccionColapsable>
           )}
@@ -2575,6 +2571,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
                               headerDivider={renderSectionHeaderSeparatorPreview(sec, sectionRoleColors)}
+                              galeriaConfig={sec.galeriaConfig}
                             />
                           </SeccionColapsable>
                         )}

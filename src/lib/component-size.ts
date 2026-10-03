@@ -30,6 +30,9 @@ export const COMPONENT_SIZE_KIND: Partial<Record<string, ComponentSizeKind>> = {
   "timeline.titulo": "font",
   "timeline.descripcion": "font",
   "galeria.tituloSeccion": "font",
+  "galeria.tituloInterno": "font",
+  "galeria.tabTextoActivo": "font",
+  "galeria.tabTextoInactivo": "font",
   "galeria.titulo": "font",
   "galeria.subtitulo": "font",
 };
@@ -56,6 +59,9 @@ const COMPONENT_DEFAULT_SIZE_PX: Partial<Record<string, number>> = {
   "timeline.titulo": 20,
   "timeline.descripcion": 14,
   "galeria.tituloSeccion": 20,
+  "galeria.tituloInterno": 32,
+  "galeria.tabTextoActivo": 14,
+  "galeria.tabTextoInactivo": 14,
   "galeria.titulo": 20,
   "galeria.subtitulo": 12,
 };
