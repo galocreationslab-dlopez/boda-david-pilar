@@ -341,6 +341,11 @@ function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<strin
     };
   }
   return {
+    "galeria.tituloInterno": "titulo",
+    "galeria.tabTextoActivo": "textoBoton",
+    "galeria.tabFondoActivo": "fondoBoton",
+    "galeria.tabTextoInactivo": "textoBoton",
+    "galeria.tabFondoInactivo": "fondoBoton",
     "galeria.tituloSeccion": "tituloSeccion",
     "galeria.fondoSeccion": "fondoSeccion",
     "galeria.card": "fondoSubseccion",

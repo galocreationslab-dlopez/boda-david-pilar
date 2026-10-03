@@ -125,6 +125,11 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
   ],
   galeria: [
     { key: "galeria.tituloSeccion", defaultRole: "tituloSeccion" },
+    { key: "galeria.tituloInterno", defaultRole: "titulo" },
+    { key: "galeria.tabTextoActivo", defaultRole: "textoBoton" },
+    { key: "galeria.tabFondoActivo", defaultRole: "fondoBoton" },
+    { key: "galeria.tabTextoInactivo", defaultRole: "textoBoton" },
+    { key: "galeria.tabFondoInactivo", defaultRole: "fondoBoton" },
     { key: "galeria.fondoSeccion", defaultRole: "fondoSeccion" },
     { key: "galeria.card", defaultRole: "fondoSubseccion" },
     { key: "galeria.imagen", defaultRole: "bordes" },
@@ -162,6 +167,9 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
     case "timeline.descripcion":
     case "timeline.icono":
     case "galeria.tituloSeccion":
+    case "galeria.tituloInterno":
+    case "galeria.tabTextoActivo":
+    case "galeria.tabTextoInactivo":
     case "galeria.titulo":
     case "galeria.subtitulo":
       return { color };
@@ -169,6 +177,9 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
     case "timeline.card":
     case "galeria.card":
       return { backgroundColor: color };
+    case "galeria.tabFondoActivo":
+    case "galeria.tabFondoInactivo":
+      return { backgroundColor: color, borderColor: color };
     case "historia.imagen":
     case "timeline.mapa":
     case "galeria.imagen":

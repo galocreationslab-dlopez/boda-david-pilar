@@ -14,6 +14,11 @@ type PrivateMediaItem = {
 };
 
 export type GaleriaComponentKey =
+  | "galeria.tituloInterno"
+  | "galeria.tabTextoActivo"
+  | "galeria.tabFondoActivo"
+  | "galeria.tabTextoInactivo"
+  | "galeria.tabFondoInactivo"
   | "galeria.card"
   | "galeria.imagen"
   | "galeria.titulo"
@@ -67,10 +72,12 @@ export function SeccionGaleria({
     setInviteCode(code);
   }, [designMode]);
 
-  const showTabs = Boolean(inviteCode) && galeriaConfig.mostrarSeleccionNovios && galeriaConfig.mostrarSubidasPorMi;
+  const canShowSelection = galeriaConfig.mostrarSeleccionNovios;
+  const canShowPrivate = galeriaConfig.mostrarSubidasPorMi && (Boolean(inviteCode) || designMode);
+  const showTabs = canShowPrivate && canShowSelection;
   const effectiveTab: "seleccion" | "privada" = showTabs
     ? tab
-    : galeriaConfig.mostrarSubidasPorMi && Boolean(inviteCode) && !galeriaConfig.mostrarSeleccionNovios
+    : canShowPrivate && !canShowSelection
       ? "privada"
       : "seleccion";
 
@@ -148,7 +155,13 @@ export function SeccionGaleria({
       <div className="container-wedding">
         <div className="text-center mb-14">
           <p className="section-subtitle">galería</p>
-          <h2 className="section-title">Momentos compartidos</h2>
+          <h2
+            className="section-title"
+            style={styleFor("galeria.tituloInterno")}
+            onClick={() => select("galeria.tituloInterno")}
+          >
+            Momentos compartidos
+          </h2>
           {headerDivider !== undefined ? headerDivider : <OrnamentoDivisor />}
         </div>
 
@@ -156,15 +169,29 @@ export function SeccionGaleria({
           <div className="mb-8 flex justify-center gap-2">
             <button
               type="button"
-              onClick={() => setTab("seleccion")}
-              className={`rounded-full px-4 py-2 text-sm ${effectiveTab === "seleccion" ? "bg-stone-800 text-white" : "border border-stone-300 text-stone-600"}`}
+              onClick={() => {
+                setTab("seleccion");
+                select("galeria.tabTextoActivo");
+              }}
+              className="rounded-full border px-4 py-2"
+              style={{
+                ...styleFor(effectiveTab === "seleccion" ? "galeria.tabTextoActivo" : "galeria.tabTextoInactivo"),
+                ...styleFor(effectiveTab === "seleccion" ? "galeria.tabFondoActivo" : "galeria.tabFondoInactivo"),
+              }}
             >
               Selección de los novios
             </button>
             <button
               type="button"
-              onClick={() => setTab("privada")}
-              className={`rounded-full px-4 py-2 text-sm ${effectiveTab === "privada" ? "bg-stone-800 text-white" : "border border-stone-300 text-stone-600"}`}
+              onClick={() => {
+                setTab("privada");
+                select("galeria.tabTextoActivo");
+              }}
+              className="rounded-full border px-4 py-2"
+              style={{
+                ...styleFor(effectiveTab === "privada" ? "galeria.tabTextoActivo" : "galeria.tabTextoInactivo"),
+                ...styleFor(effectiveTab === "privada" ? "galeria.tabFondoActivo" : "galeria.tabFondoInactivo"),
+              }}
             >
               Galería privada
             </button>
@@ -260,6 +287,7 @@ export function SeccionGaleria({
                 type="file"
                 accept="image/*,video/*"
                 multiple
+                disabled={designMode || !inviteCode || uploading}
                 onChange={(e) => {
                   void uploadFiles(e.target.files);
                   e.currentTarget.value = "";
