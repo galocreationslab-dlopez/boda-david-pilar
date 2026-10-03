@@ -133,7 +133,7 @@ export type TemaPaleta = {
 };
 
 // `portada` se mantiene por compatibilidad con configuraciones antiguas.
-export type TipoSeccionDiseno = "intro" | "invitacion" | "portada" | "historia" | "timeline" | "galeria";
+export type TipoSeccionDiseno = "intro" | "invitacion" | "portada" | "portadaLibre" | "historia" | "timeline" | "galeria";
 
 export const DEFAULT_TEXTO_INVITACION =
   "Con mucha alegría os invitamos a compartir con nosotros el día más especial de nuestras vidas.";
@@ -335,10 +335,66 @@ export type ItemSeccionDiseno = {
   botonLabel?: string;
 };
 
+export type PortadaElemento = {
+  id: string;
+  tipo: "imagen" | "texto";
+  nombre?: string;
+  url?: string;
+  texto?: string;
+  alt?: string;
+};
+
+export type PortadaColorModo = "original" | "paleta" | "personalizado";
+
+// Posición y estilo de un elemento en un dispositivo. x/w en % del ancho del lienzo;
+// y/h en % de la altura de referencia (ver PortadaDispositivoConfig.alturaModo).
+export type PortadaElementoLayout = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z?: number;
+  oculto?: boolean;
+  opacidad?: number; // 0-100
+  // Imagen: "original" mantiene los colores; el resto superpone un color (necesita PNG/SVG con transparencia).
+  colorModo?: PortadaColorModo;
+  colorRol?: string;
+  colorHex?: string;
+  ajuste?: "contain" | "cover";
+  // Texto
+  fuenteRol?: FuenteRol;
+  tamano?: number; // px sobre el ancho de referencia (1200 PC, 400 móvil)
+  alineacion?: "left" | "center" | "right";
+  alineacionVertical?: "start" | "center" | "end";
+  negrita?: boolean;
+  cursiva?: boolean;
+};
+
+export type PortadaDispositivoConfig = {
+  // "aspecto": lienzo con relación ancho/alto fija. "pantallas": N alturas de pantalla completa (o automático).
+  alturaModo: "aspecto" | "pantallas";
+  aspecto?: number;
+  pantallas?: number; // 0 = automático según los elementos
+  fondoModo?: PortadaColorModo;
+  fondoRol?: string;
+  fondoHex?: string;
+  layout: Record<string, PortadaElementoLayout>;
+};
+
+export type PortadaLibreConfig = {
+  elementos: PortadaElemento[];
+  colapsable?: boolean;
+  mostrarTitulo?: boolean;
+  abiertaPorDefecto?: boolean;
+  pc: PortadaDispositivoConfig;
+  movil: PortadaDispositivoConfig;
+};
+
 export type SeccionDiseno = {
   id: string;
   nombre: string;
   titulo: string;
+  portadaLibre?: PortadaLibreConfig;
   subtituloInterno?: string;
   fondos?: {
     seccion?: string;
