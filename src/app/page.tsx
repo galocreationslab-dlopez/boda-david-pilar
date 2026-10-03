@@ -565,7 +565,6 @@ export default async function PaginaPrincipal({
                 >
                   <SeccionGaleria
                     media={getGalleryMediaForSection(section.source)}
-                    imageTreatments={tratamientosImagenes}
                     componentStyles={componentStyles}
                     headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
                     galeriaConfig={section.source?.galeriaConfig}
