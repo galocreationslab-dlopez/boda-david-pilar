@@ -113,10 +113,12 @@ export function SeccionColapsable({
           aria-controls={`contenido-${id}`}
         >
           <span
-            className="font-display text-left text-xl font-light sm:text-3xl"
+            className="font-display text-left font-light"
             style={{
               color: "var(--brown-dark)",
               ...(titleStyle ?? {}),
+              fontFamily: "var(--font-display)",
+              fontSize: "clamp(1.25rem, 3vw, 1.875rem)",
               ...(designMode && titleSelected
                 ? { outline: "2px solid #b45309", outlineOffset: "3px", borderRadius: "8px" }
                 : {}),
