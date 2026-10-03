@@ -149,6 +149,7 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
     { key: "historia.navegacion", label: "Anterior / Siguiente", defaultRole: "textoBoton" },
   ],
   timeline: [
+    { key: "timeline.fecha", label: "Fecha del timeline", defaultRole: "titulo" },
     { key: "timeline.tituloSeccion", label: "Título sección (colapsable)", defaultRole: "tituloSeccion" },
     { key: "timeline.fondoSeccion", label: "Fondo sección", defaultRole: "fondoSeccion" },
     { key: "timeline.card", label: "Fondo item", defaultRole: "fondoSubseccion" },
@@ -1018,6 +1019,7 @@ export default function ConfiguracionView({
       case "historia.titulo":
       case "historia.descripcion":
       case "historia.navegacion":
+      case "timeline.fecha":
       case "timeline.tituloSeccion":
       case "timeline.hora":
       case "timeline.titulo":

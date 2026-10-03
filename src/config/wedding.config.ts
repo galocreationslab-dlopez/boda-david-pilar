@@ -688,6 +688,7 @@ export const weddingConfig: WeddingConfig = {
         paletaId: "paleta-clasica",
         usarPaletaGlobal: true,
         componentRoles: {
+          "timeline.fecha": "titulo",
           "timeline.tituloSeccion": "tituloSeccion",
           "timeline.fondoSeccion": "fondoSeccion",
           "timeline.card": "fondoSubseccion",

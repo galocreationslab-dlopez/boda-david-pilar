@@ -13,6 +13,7 @@ import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import type { CSSProperties, ReactNode } from "react";
 
 export type TimelineComponentKey =
+  | "timeline.fecha"
   | "timeline.card"
   | "timeline.icono"
   | "timeline.hora"
@@ -238,7 +239,13 @@ export function SeccionTimeline({
       <div className="container-wedding">
         {/* Cabecera */}
         <div className="text-center mb-14">
-          <h2 className="section-title">6 de marzo de 2027</h2>
+          <h2
+            className="section-title"
+            style={styleFor("timeline.fecha", { color: "var(--brown-dark)" })}
+            onClick={() => select("timeline.fecha")}
+          >
+            6 de marzo de 2027
+          </h2>
           {headerDivider !== undefined ? headerDivider : <OrnamentoDivisor />}
         </div>
 

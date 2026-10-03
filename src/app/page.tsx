@@ -123,6 +123,7 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
     { key: "historia.navegacion", defaultRole: "textoBoton" },
   ],
   timeline: [
+    { key: "timeline.fecha", defaultRole: "titulo" },
     { key: "timeline.tituloSeccion", defaultRole: "tituloSeccion" },
     { key: "timeline.fondoSeccion", defaultRole: "fondoSeccion" },
     { key: "timeline.card", defaultRole: "fondoSubseccion" },
@@ -172,6 +173,7 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
     case "historia.titulo":
     case "historia.descripcion":
     case "historia.navegacion":
+    case "timeline.fecha":
     case "timeline.tituloSeccion":
     case "timeline.hora":
     case "timeline.titulo":

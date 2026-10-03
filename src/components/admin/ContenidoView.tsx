@@ -337,6 +337,7 @@ function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<strin
   }
   if (tipo === "timeline") {
     return {
+      "timeline.fecha": "titulo",
       "timeline.tituloSeccion": "tituloSeccion",
       "timeline.fondoSeccion": "fondoSeccion",
       "timeline.card": "fondoSubseccion",
