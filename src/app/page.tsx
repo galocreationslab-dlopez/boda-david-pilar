@@ -580,7 +580,7 @@ export default async function PaginaPrincipal({
                   sectionStyle={componentStyles["carrusel.fondoSeccion"]}
                   titleStyle={componentStyles["carrusel.tituloSeccion"]}
                 >
-                  <SeccionCarrusel items={section.source?.items ?? []} resolveSrc={resolvePublicImageSrc} navigationStyle={componentStyles["carrusel.navegacion"]} />
+                  <SeccionCarrusel items={section.source?.items ?? []} navigationStyle={componentStyles["carrusel.navegacion"]} />
                 </SeccionColapsable>
               )}
 
@@ -620,7 +620,7 @@ export default async function PaginaPrincipal({
                 </SeccionColapsable>
               )}
 
-              {!isLast && renderSeparador(separador, sectionRoleColors, `${section.id}-separator`)}
+              {!isLast && section.tipo !== "timeline" && section.tipo !== "carrusel" && renderSeparador(separador, sectionRoleColors, `${section.id}-separator`)}
             </div>
           );
         })}

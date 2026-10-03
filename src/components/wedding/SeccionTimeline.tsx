@@ -388,20 +388,22 @@ export function SeccionTimeline({
               className="relative z-10 grid gap-4"
               style={{
                 gridTemplateColumns: `repeat(${Math.max(puntos.length, 1)}, minmax(0, 1fr))`,
+                gridTemplateRows: "auto auto 1fr",
               }}
             >
               {puntos.map((punto) => (
-                <div key={punto.id} className="flex flex-col items-center gap-4">
+                <div key={punto.id} className="grid row-span-3 grid-rows-subgrid justify-items-center gap-4 min-w-0">
 
                   {/* Icono, sin fondo circular */}
                   <div
-                    className="flex flex-col items-center justify-center gap-2 flex-shrink-0"
+                    className="flex h-11 w-11 items-center justify-center self-center"
                     style={styleFor("timeline.icono", { color: "var(--brown-dark)" })}
                     onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
                   >
                     {renderIcono(punto)}
+                  </div>
                     <span
-                      className="font-display text-xl font-light"
+                      className="font-display text-xl font-light min-h-[1em]"
                       style={styleFor("timeline.hora", { color: "var(--bronze)", lineHeight: 1 })}
                       contentEditable={!designMode && editable}
                       suppressContentEditableWarning={true}
@@ -416,7 +418,6 @@ export function SeccionTimeline({
                     >
                       {punto.hora}
                     </span>
-                  </div>
 
                   {/* Tarjeta de contenido */}
                   <div
