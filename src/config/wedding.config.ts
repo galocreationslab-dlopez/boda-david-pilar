@@ -109,6 +109,8 @@ export type TemaColorExtra = {
   texturaUrl?: string;
   // Lado del mosaico en px al repetirse; sin valor se usa el tamaño natural de la imagen.
   texturaTamanoPx?: number;
+  // Con textura, el color del rol pasa a ser transparente (bordes y respaldos dejan ver la textura).
+  texturaBaseTransparente?: boolean;
 };
 
 export type TemaColorRoleBase =

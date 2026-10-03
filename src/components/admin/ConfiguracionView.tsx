@@ -1598,6 +1598,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       valor: paletaEditando?.colores[key] ?? "#000000",
                       texturaUrl: undefined as string | undefined,
                       texturaTamanoPx: undefined as number | undefined,
+                      texturaBaseTransparente: undefined as boolean | undefined,
                     })), ...(paletaEditando?.coloresExtra ?? []).map((extra) => ({
                       id: extra.id,
                       fixed: false,
@@ -1605,6 +1606,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       valor: extra.valor,
                       texturaUrl: extra.texturaUrl,
                       texturaTamanoPx: extra.texturaTamanoPx,
+                      texturaBaseTransparente: extra.texturaBaseTransparente,
                     }))].map((row) => (
                       <div key={row.id} className="space-y-1">
                       <div className="grid grid-cols-[28px_1fr_26px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
@@ -1707,6 +1709,21 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                                 }}
                               />
                               <span className="text-[11px] text-stone-500">px</span>
+                              <label className="flex items-center gap-1 text-[11px] text-stone-700" title="Bordes y fondos de respaldo dejan ver la textura en vez del color base">
+                                <input
+                                  type="checkbox"
+                                  checked={row.texturaBaseTransparente === true}
+                                  onChange={(e) => {
+                                    if (!paletaEditando) return;
+                                    const checked = e.target.checked;
+                                    updatePaleta(paletaEditando.id, (p) => ({
+                                      ...p,
+                                      coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, texturaBaseTransparente: checked } : c)),
+                                    }));
+                                  }}
+                                />
+                                Base transparente
+                              </label>
                               <button
                                 onClick={() => {
                                   if (!paletaEditando) return;

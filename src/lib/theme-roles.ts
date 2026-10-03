@@ -105,7 +105,7 @@ function getSwatchColorById(palette: TemaPaleta, swatchId: string): string | nul
     return palette.colores[swatchId as keyof TemaColores];
   }
   const extra = (palette.coloresExtra ?? []).find((item) => item.id === swatchId);
-  return extra?.valor ?? null;
+  return extra?.texturaUrl?.trim() && extra.texturaBaseTransparente ? "transparent" : extra?.valor ?? null;
 }
 
 export function resolvePaletteRoleColors(palette: TemaPaleta): Record<string, string> {
