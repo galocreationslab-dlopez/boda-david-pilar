@@ -11,7 +11,7 @@ import type {
   PortadaLibreConfig,
   TratamientoImagen,
 } from "@/config/wedding.config";
-import { getImageTreatmentStyle } from "@/lib/image-treatment";
+import ImageTreatmentFrame from "@/components/media/ImageTreatmentFrame";
 import {
   PANTALLA_ASPECTO,
   TEXTO_ANCHO_REFERENCIA,
@@ -159,9 +159,9 @@ export function PortadaElementoContenido({
       </>
   );
   const imagen = (
-    <div className="content-texture-media h-full w-full" style={getImageTreatmentStyle(imageTreatment)}>
+    <ImageTreatmentFrame src={src} fit={ajuste} treatment={imageTreatment}>
       {visual}
-    </div>
+    </ImageTreatmentFrame>
   );
   const enlaceUrl = getSafePortadaLinkUrl(elemento.enlaceUrl);
   if (enlaceUrl) {
