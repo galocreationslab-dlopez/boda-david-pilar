@@ -412,6 +412,8 @@ export type SeccionDiseno = {
   componentRoles?: Partial<Record<string, TemaColorRole>>;
   // Tamano (px) por componente: fontSize para textos, ancho de referencia para graficos.
   componentSizes?: Partial<Record<string, number>>;
+  // Componentes con borde: false lo oculta (sin valor se muestra).
+  componentBorders?: Partial<Record<string, boolean>>;
   // Rol de fuente por componente de texto (clave de componente -> FuenteRol).
   componentFonts?: Partial<Record<string, FuenteRol>>;
   separadorInterno?: SeparadorDiseno;

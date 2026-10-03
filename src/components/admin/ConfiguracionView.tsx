@@ -22,6 +22,8 @@ import {
   resolvePaletteToThemeColors,
   buildTextureCssVars,
   withTextureStyle,
+  withBorderStyle,
+  BORDER_TOGGLE_KEYS,
 } from "@/lib/theme-roles";
 import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
 import { getComponentSizeKind, getComponentDefaultSize, getComponentSizeStyle, COMPONENT_SIZE_RANGE } from "@/lib/component-size";
@@ -223,6 +225,30 @@ function slugifyRoleName(input: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/** Color medio (hex) de una imagen, sobre blanco si tiene transparencia. */
+async function getAverageImageColor(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas no disponible");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, 32, 32);
+  ctx.drawImage(bitmap, 0, 0, 32, 32);
+  bitmap.close();
+  const { data } = ctx.getImageData(0, 0, 32, 32);
+  let r = 0, g = 0, b = 0;
+  const pixels = data.length / 4;
+  for (let i = 0; i < data.length; i += 4) {
+    r += data[i];
+    g += data[i + 1];
+    b += data[i + 2];
+  }
+  const hex = (v: number) => Math.round(v / pixels).toString(16).padStart(2, "0");
+  return `#${hex(r)}${hex(g)}${hex(b)}`;
 }
 
 function normalizeTemaColores(colores: TemaColores): TemaColores {
@@ -788,9 +814,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     try {
       const url = await uploadDesignImage(file);
       if (!paletaEditando) return;
+      // El color base se usa en bordes y como fondo de respaldo: si sigue en el negro por defecto, se sustituye por el color medio de la textura.
+      const average = await getAverageImageColor(file).catch(() => null);
       updatePaleta(paletaEditando.id, (p) => ({
         ...p,
-        coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === colorId ? { ...c, texturaUrl: url } : c)),
+        coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === colorId
+          ? { ...c, texturaUrl: url, ...(average && c.valor.toLowerCase() === "#000000" ? { valor: average } : {}) }
+          : c)),
       }));
       showMsg("ok", "Textura subida. Guarda el diseño para aplicarla.");
     } catch (error) {
@@ -880,6 +910,16 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     });
   };
 
+  const patchEditingSectionComponentBorder = (componentKey: SectionComponentKey, visible: boolean) => {
+    if (!editingSectionDraft) return;
+    patchEditingSectionDraft({
+      componentBorders: {
+        ...(editingSectionDraft.componentBorders ?? {}),
+        [componentKey]: visible,
+      },
+    });
+  };
+
   const patchEditingSectionComponentFont = (componentKey: SectionComponentKey, role: FuenteRol | "") => {
     if (!editingSectionDraft) return;
     const next = { ...(editingSectionDraft.componentFonts ?? {}) };
@@ -944,7 +984,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       const role = getComponentRoleForSection(section, option.key);
       const color = roleColors[role];
       acc[option.key] = {
-        ...withTextureStyle(option.key, getComponentStyleByKey(option.key, color), roleTextures[role], resolveAdminPreviewSrc),
+        ...withBorderStyle(option.key, withTextureStyle(option.key, getComponentStyleByKey(option.key, color), roleTextures[role], resolveAdminPreviewSrc), section.componentBorders?.[option.key]),
         ...getComponentSizeStyle(option.key, section.componentSizes?.[option.key]),
         ...getComponentFontStyle(option.key, section.componentFonts?.[option.key]),
       };
@@ -1570,6 +1610,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       <div className="grid grid-cols-[28px_1fr_26px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
                         <input
                           type="color"
+                          title={row.fixed ? undefined : "Color base: se ve bajo la textura y se usa en bordes y fondos de respaldo"}
                           value={row.valor}
                           onChange={(e) => {
                             if (!paletaEditando) return;
@@ -2286,6 +2327,17 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           ))}
                         </select>
                       </div>
+                    )}
+
+                    {selectedComponentOption && BORDER_TOGGLE_KEYS.has(selectedComponentOption.key) && (
+                      <label className="flex items-center gap-2 rounded border border-stone-200 bg-white p-2 text-[11px] font-semibold text-stone-600">
+                        <input
+                          type="checkbox"
+                          checked={editingSectionDraft?.componentBorders?.[selectedComponentOption.key] !== false}
+                          onChange={(event) => patchEditingSectionComponentBorder(selectedComponentOption.key, event.target.checked)}
+                        />
+                        Mostrar bordes
+                      </label>
                     )}
 
                     {selectedComponentOption && getComponentSizeKind(selectedComponentOption.key) && (() => {

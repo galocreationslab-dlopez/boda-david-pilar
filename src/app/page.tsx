@@ -16,7 +16,7 @@ import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding
 import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
 import type { GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
-import { buildTextureCssVars, resolvePaletteRoleColors, resolvePaletteRoleTextures, resolvePaletteToThemeColors, withTextureStyle } from "@/lib/theme-roles";
+import { buildTextureCssVars, resolvePaletteRoleColors, resolvePaletteRoleTextures, resolvePaletteToThemeColors, withBorderStyle, withTextureStyle } from "@/lib/theme-roles";
 import { getComponentSizeStyle } from "@/lib/component-size";
 import { buildFontCssVars, getComponentFontStyle } from "@/lib/theme-fonts";
 import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
@@ -355,7 +355,7 @@ export default async function PaginaPrincipal({
       const role = section.componentRoles?.[option.key] ?? option.defaultRole;
       const color = roleColors[role];
       acc[option.key] = {
-        ...withTextureStyle(option.key, getComponentStyleByKey(option.key, color), roleTextures[role], resolveDriveMediaSrc),
+        ...withBorderStyle(option.key, withTextureStyle(option.key, getComponentStyleByKey(option.key, color), roleTextures[role], resolveDriveMediaSrc), section.componentBorders?.[option.key]),
         ...getComponentSizeStyle(option.key, section.componentSizes?.[option.key]),
         ...getComponentFontStyle(option.key, section.componentFonts?.[option.key]),
       };

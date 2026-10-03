@@ -171,6 +171,18 @@ export function withTextureStyle(
   return { ...style, backgroundImage: image, backgroundSize: size, backgroundRepeat: "repeat" };
 }
 
+// Componentes que dibujan un borde y admiten ocultarlo desde el panel de diseño.
+export const BORDER_TOGGLE_KEYS = new Set([
+  "historia.card", "timeline.card", "galeria.card",
+  "historia.fondoSeccion", "timeline.fondoSeccion", "galeria.fondoSeccion",
+  "portada.ctaFondo", "portada.separador",
+]);
+
+export function withBorderStyle(key: string, style: CSSProperties, visible: boolean | undefined): CSSProperties {
+  if (visible !== false || !BORDER_TOGGLE_KEYS.has(key)) return style;
+  return { ...style, border: "none", borderTop: "none", borderRight: "none", borderBottom: "none", borderLeft: "none" };
+}
+
 /** Variables CSS `--tex-*` que usan las clases `.tex-*` de globals.css; siempre definidas para sobrescribir las heredadas. */
 export function buildTextureCssVars(palette: TemaPaleta | null | undefined, resolveSrc: (src: string) => string): Record<string, string> {
   const textures = palette ? resolvePaletteRoleTextures(palette) : {};

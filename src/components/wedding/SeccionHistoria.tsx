@@ -201,7 +201,7 @@ export function SeccionHistoria({
               )}
               {!item.imagen && (
                 <div
-                  className="relative h-48 w-full"
+                  className="tex-cream relative h-48 w-full"
                   style={styleFor("historia.imagen", { backgroundColor: "var(--cream)" })}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -504,7 +504,7 @@ export function SeccionHistoria({
             {/* Placeholder si no hay imagen */}
             {!evento.imagen && (
               <div
-                className="relative flex w-2/5 flex-shrink-0 items-center justify-center"
+                className="tex-cream relative flex w-2/5 flex-shrink-0 items-center justify-center"
                 style={styleFor("historia.imagen", { backgroundColor: "var(--cream)" })}
                 onClick={(event) => {
                   event.stopPropagation();
