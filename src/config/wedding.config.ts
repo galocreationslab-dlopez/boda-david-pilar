@@ -440,6 +440,11 @@ export type SeparadorDiseno = {
   imagenColorRole?: TemaColorRole;
 };
 
+export type TratamientoImagen = {
+  opacidadOverlay?: number;
+  difuminadoBordePx?: number;
+};
+
 // "siempre_visible": la barra superior (logo + menú) se muestra siempre, incluso sobre la portada.
 // "visible_en_scroll": la barra permanece oculta mientras se ve la portada y aparece al hacer scroll
 // hacia las secciones siguientes.
@@ -512,6 +517,7 @@ export type WeddingConfig = {
   diseno?: {
     separador?: SeparadorDiseno;
     fondoPaginaImagen?: string;
+    tratamientosImagenes?: Record<string, TratamientoImagen>;
     secciones?: SeccionDiseno[];
     navegacion?: NavegacionDiseno;
   };

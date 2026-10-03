@@ -21,6 +21,7 @@ import {
   resolvePaletteRoleTextures,
   resolvePaletteToThemeColors,
   buildTextureCssVars,
+  textureToCssImage,
   withTextureStyle,
   withBorderStyle,
   BORDER_TOGGLE_KEYS,
@@ -47,6 +48,7 @@ import type {
   SeparadorDiseno,
   SeccionDiseno,
   TipoSeccionDiseno,
+  TratamientoImagen,
 } from "@/config/wedding.config";
 
 type SectionComponentKey =
@@ -531,7 +533,65 @@ function buildPreviewSeparator(
   );
 }
 
-export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCode: string; config: WeddingConfig }) {
+function ImageTreatmentFields({
+  treatment,
+  hasTexture,
+  onChange,
+}: {
+  treatment?: TratamientoImagen;
+  hasTexture: boolean;
+  onChange: (patch: Partial<TratamientoImagen>) => void;
+}) {
+  const overlayOpacity = Math.max(0, Math.min(100, treatment?.opacidadOverlay ?? 0));
+  const edgeFadePx = Math.max(0, Math.min(100, treatment?.difuminadoBordePx ?? 0));
+
+  return (
+    <div className="space-y-2">
+      <label className="block space-y-1 text-[11px] text-stone-600">
+        <span className="flex items-center justify-between">
+          <span>Opacidad del overlay</span>
+          <span>{overlayOpacity}%</span>
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={overlayOpacity}
+          disabled={!hasTexture}
+          onChange={(event) => onChange({ opacidadOverlay: Number(event.target.value) })}
+          className="w-full accent-amber-700 disabled:opacity-50"
+        />
+      </label>
+      {!hasTexture && <p className="text-[10px] text-stone-500">Asigna una textura al fondo de sección de la paleta para habilitar el overlay.</p>}
+      <label className="block space-y-1 text-[11px] text-stone-600">
+        <span className="flex items-center justify-between">
+          <span>Difuminado de bordes</span>
+          <span>{edgeFadePx} px</span>
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={edgeFadePx}
+          onChange={(event) => onChange({ difuminadoBordePx: Number(event.target.value) })}
+          className="w-full accent-amber-700"
+        />
+      </label>
+    </div>
+  );
+}
+
+export default function ConfiguracionView({
+  inviteCode,
+  config: ic,
+  galleryMedia,
+}: {
+  inviteCode: string;
+  config: WeddingConfig;
+  galleryMedia: PublicGalleryMedia[];
+}) {
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
@@ -550,6 +610,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   );
 
   const [separador, setSeparador] = useState<SeparadorDiseno>(buildInitialSeparador(ic));
+  const [tratamientosImagenes, setTratamientosImagenes] = useState<Record<string, TratamientoImagen>>(
+    ic.diseno?.tratamientosImagenes ?? {},
+  );
   const [uploadingSeparadorImage, setUploadingSeparadorImage] = useState(false);
   const [secciones, setSecciones] = useState<SeccionDiseno[]>(
     buildInitialSecciones(ic, initialPaletas[0]?.id ?? ""),
@@ -685,6 +748,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     if (!isDriveUrl(value)) return value;
     return `/api/admin/${encodeURIComponent(inviteCode)}/resources/preview?src=${encodeURIComponent(value)}`;
   }, [inviteCode]);
+
+  const previewTexture = paletaActiva ? resolvePaletteRoleTextures(paletaActiva).fondoSeccion : undefined;
+  const previewTextureCss = textureToCssImage(previewTexture, resolveAdminPreviewSrc);
 
   const uploadDesignImage = useCallback(async (file: File): Promise<string> => {
     const formData = new FormData();
@@ -1099,6 +1165,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     const palette = getPaletteBySection(section);
     const resolved = palette ? resolvePaletteToThemeColors(palette) : ic.tema.colores;
     const roles = palette ? resolvePaletteRoleColors(palette) : null;
+    const imageTexture = palette ? textureToCssImage(resolvePaletteRoleTextures(palette).fondoSeccion, resolveAdminPreviewSrc) : { image: "none", size: "auto" };
     return {
       ["--bronze" as string]: resolved.bronze,
       ["--bronze-light" as string]: resolved.bronzeLight,
@@ -1112,6 +1179,8 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       ["--white" as string]: resolved.white,
       ...buildTextureCssVars(palette, resolveAdminPreviewSrc),
       ...buildFontCssVars(fuentes),
+      ["--content-texture-image" as string]: imageTexture.image,
+      ["--content-texture-size" as string]: imageTexture.size,
     };
   };
 
@@ -1187,6 +1256,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     });
   };
 
+  const patchImageTreatment = (key: string, patch: Partial<TratamientoImagen>) => {
+    setTratamientosImagenes((current) => ({
+      ...current,
+      [key]: { ...current[key], ...patch },
+    }));
+  };
+
   const setPortadaWelcomeText = (text: string) => {
     if (!editingSectionDraft || !isInvitationType(editingSectionDraft.tipo)) return;
     const currentFirst = editingSectionDraft.items[0] ?? {
@@ -1225,6 +1301,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         },
         diseno: {
           separador,
+          tratamientosImagenes,
           secciones: seccionesConPendientes,
         },
         logo: logoUrl,
@@ -1253,7 +1330,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     } finally {
       setSaving(false);
     }
-  }, [fuentes, ic.textos, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador]);
+  }, [fuentes, ic.textos, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador, tratamientosImagenes]);
 
   const handleReset = async () => {
     if (!confirm("Restaurar todos los valores al diseno original? Esta accion no se puede deshacer.")) return;
@@ -1342,10 +1419,32 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
         url_publica: item.imagen ?? null,
         subido_por: "Galería",
         created_at: new Date().toISOString(),
+        tratamientoImagen: tratamientosImagenes[`galeria:${item.id}`],
       }));
 
     return fromSectionItems;
   };
+
+  const editingImageTargets = (() => {
+    if (!editingSectionDraft) return [];
+    if (editingSectionDraft.tipo === "historia") {
+      return historyEventsForSection(editingSectionDraft)
+        .filter((event) => event.imagen)
+        .map((event) => ({ key: `historia:${event.id}`, label: event.titulo || event.fecha, src: event.imagen ?? "" }));
+    }
+    if (editingSectionDraft.tipo === "galeria") {
+      const targets = [
+        ...(editingSectionDraft.items ?? [])
+          .filter((item) => item.imagen)
+          .map((item) => ({ key: `galeria:${item.id}`, label: item.titulo || item.id, src: item.imagen ?? "" })),
+        ...galleryMedia
+          .filter((media) => media.tipo === "foto" && media.url_publica)
+          .map((media) => ({ key: `galeria:${media.id}`, label: media.nombre, src: media.url_publica ?? "" })),
+      ];
+      return [...new Map(targets.map((target) => [target.key, target])).values()];
+    }
+    return [];
+  })();
 
   const renderSectionCanvas = (section: SeccionDiseno, compact = false, editable = false) => {
     const scale = compact ? 0.24 : editorViewport === "movil" ? 0.45 : 0.62;
@@ -1389,6 +1488,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                 config={section.portadaLibre}
                 roleColors={sectionRoleColors ?? {}}
                 resolveSrc={resolveAdminPreviewSrc}
+                imageTreatments={tratamientosImagenes}
                 forzarDispositivo={editorViewport === "movil" ? "movil" : "pc"}
               />
             </SeccionColapsable>
@@ -1409,6 +1509,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             >
               <SeccionHistoria
                 eventos={historyEventsForSection(section)}
+                imageTreatments={tratamientosImagenes}
                 viewport={editorViewport}
                 editable={false}
                 designMode={designMode}
@@ -2141,6 +2242,25 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       </div>
                     </div>
 
+                    {editingImageTargets.length > 0 && (
+                      <div className="space-y-2 rounded border border-stone-200 bg-white p-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-600">Tratamiento por imagen</p>
+                        {editingImageTargets.map((target) => (
+                          <div key={target.key} className="grid gap-2 border-t border-stone-100 py-2 sm:grid-cols-[48px_1fr]">
+                            <img src={resolveAdminPreviewSrc(target.src)} alt="" className="h-12 w-12 rounded object-cover" />
+                            <div className="min-w-0 space-y-1">
+                              <p className="truncate text-[11px] font-medium text-stone-700">{target.label}</p>
+                              <ImageTreatmentFields
+                                treatment={tratamientosImagenes[target.key]}
+                                hasTexture={Boolean(editingPalette && resolvePaletteRoleTextures(editingPalette).fondoSeccion)}
+                                onChange={(patch) => patchImageTreatment(target.key, patch)}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="rounded border border-blue-200 bg-blue-50 p-2 text-[11px] text-blue-900">
                       <p className="font-semibold uppercase tracking-wide">Depuración selección</p>
                       <p>Componente activo: {selectedComponentOption?.label ?? "(ninguno)"}</p>
@@ -2434,11 +2554,14 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
             </div>
 
             <div
-              className="min-h-[560px] overflow-auto rounded-xl border"
+              className="relative min-h-[560px] overflow-auto rounded-xl border"
               style={{
                 backgroundColor: paletaActivaResolvedColors.cream ?? "#F7F3EC",
                 borderColor: paletaActivaResolvedColors.bronzeLight ?? "#C4964A",
                 color: paletaActivaResolvedColors.brownDark ?? "#2E1F0E",
+                ...buildTextureCssVars(paletaActiva, resolveAdminPreviewSrc),
+                ["--content-texture-image" as string]: previewTextureCss.image,
+                ["--content-texture-size" as string]: previewTextureCss.size,
               }}
             >
               <div
@@ -2500,6 +2623,9 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                               roleColors={sectionRoleColors ?? {}}
                               resolveSrc={resolveAdminPreviewSrc}
                               onChange={(next) => patchEditingSectionDraft({ portadaLibre: next })}
+                              imageTreatments={tratamientosImagenes}
+                              overlayTextureAvailable={Boolean(editingPalette && resolvePaletteRoleTextures(editingPalette).fondoSeccion)}
+                              onChangeImageTreatment={patchImageTreatment}
                             />
                           ) : (
                             <SeccionColapsable
@@ -2513,6 +2639,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                                 config={sec.portadaLibre}
                                 roleColors={sectionRoleColors ?? {}}
                                 resolveSrc={resolveAdminPreviewSrc}
+                                imageTreatments={tratamientosImagenes}
                                 forzarDispositivo={editorViewport === "movil" ? "movil" : "pc"}
                               />
                             </SeccionColapsable>
@@ -2535,6 +2662,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           >
                             <SeccionHistoria
                               eventos={historyEventsForSection(sec)}
+                              imageTreatments={tratamientosImagenes}
                               viewport={editorViewport}
                               editable={false}
                               designMode={designMode}

@@ -9,7 +9,8 @@ import { Fragment, useState } from "react";
 import Image from "next/image";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
-import type { EventoHistoria } from "@/config/wedding.config";
+import type { EventoHistoria, TratamientoImagen } from "@/config/wedding.config";
+import { getImageTreatmentStyle } from "@/lib/image-treatment";
 import type { CSSProperties, ReactNode } from "react";
 
 export type HistoriaComponentKey =
@@ -24,6 +25,7 @@ export type HistoriaComponentKey =
 
 type Props = {
   eventos: EventoHistoria[];
+  imageTreatments?: Record<string, TratamientoImagen>;
   viewport?: "desktop" | "movil";
   editable?: boolean;
   designMode?: boolean;
@@ -45,6 +47,7 @@ function isDriveUrl(value: string): boolean {
 
 export function SeccionHistoria({
   eventos,
+  imageTreatments = {},
   viewport,
   editable = false,
   designMode = false,
@@ -137,8 +140,8 @@ export function SeccionHistoria({
             >
               {item.imagen && (
                 <div
-                  className="relative h-48 w-full"
-                  style={styleFor("historia.imagen")}
+                  className="content-texture-media relative h-48 w-full"
+                  style={{ ...styleFor("historia.imagen"), ...getImageTreatmentStyle(imageTreatments[`historia:${item.id}`]) }}
                   onClick={(event) => {
                     event.stopPropagation();
                     if (designMode) {
@@ -312,8 +315,8 @@ export function SeccionHistoria({
             {/* Imagen — izquierda o derecha según config */}
             {evento.imagen && evento.lado === "izquierda" && (
               <div
-                className="relative min-h-full w-2/5 flex-shrink-0"
-                style={styleFor("historia.imagen")}
+                className="content-texture-media relative min-h-full w-2/5 flex-shrink-0"
+                style={{ ...styleFor("historia.imagen"), ...getImageTreatmentStyle(imageTreatments[`historia:${evento.id}`]) }}
                 onClick={(event) => {
                   event.stopPropagation();
                   if (designMode) {
@@ -438,8 +441,8 @@ export function SeccionHistoria({
             {/* Imagen — derecha */}
             {evento.imagen && evento.lado === "derecha" && (
               <div
-                className="relative min-h-full w-2/5 flex-shrink-0"
-                style={styleFor("historia.imagen")}
+                className="content-texture-media relative min-h-full w-2/5 flex-shrink-0"
+                style={{ ...styleFor("historia.imagen"), ...getImageTreatmentStyle(imageTreatments[`historia:${evento.id}`]) }}
                 onClick={(event) => {
                   event.stopPropagation();
                   if (designMode) {
