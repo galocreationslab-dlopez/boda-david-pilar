@@ -2586,7 +2586,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     </div>
                   ))}
                   <button type="button" className="rounded-lg border border-stone-300 px-4 py-2 text-sm" onClick={() => patchSelectedItems((items) => [...items, { id: `item-${uid()}`, titulo: "", descripcion: "", imagen: "" }])}>Anadir foto por URL</button>
-                  <SeccionCarrusel key={selectedSection.id} items={selectedSection.items} resolveSrc={(src) => previewSrcForAdmin(inviteCode, src)} />
+                  <SeccionCarrusel key={selectedSection.id} items={selectedSection.items} resolveSrc={(src) => previewSrcForAdmin(inviteCode, src)} imageTreatments={config.diseno?.tratamientosImagenes} />
                 </div>
               )}
 

@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import type { ItemSeccionDiseno } from "@/config/wedding.config";
+import type { ItemSeccionDiseno, TratamientoImagen } from "@/config/wedding.config";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
+import ImageTreatmentFrame from "@/components/media/ImageTreatmentFrame";
 
 type Props = {
   items: ItemSeccionDiseno[];
   resolveSrc?: (src: string) => string;
   navigationStyle?: CSSProperties;
+  imageTreatments?: Record<string, TratamientoImagen>;
 };
 
-export function SeccionCarrusel({ items, resolveSrc = resolveDriveMediaSrc, navigationStyle }: Props) {
+export function SeccionCarrusel({ items, resolveSrc = resolveDriveMediaSrc, navigationStyle, imageTreatments }: Props) {
   const photos = items.filter((item) => item.imagen?.trim());
   const trackRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef(0);
@@ -52,7 +54,7 @@ export function SeccionCarrusel({ items, resolveSrc = resolveDriveMediaSrc, navi
             ref={trackRef}
             tabIndex={0}
             aria-label="Fotos del carrusel"
-            className="flex aspect-[4/5] max-h-[70svh] w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden rounded-lg bg-[var(--cream-dark)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden focus-visible:outline-2 focus-visible:outline-offset-4"
+            className="flex aspect-[4/5] max-h-[70svh] w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden rounded-lg [scrollbar-width:none] [&::-webkit-scrollbar]:hidden focus-visible:outline-2 focus-visible:outline-offset-4"
             style={{ overscrollBehaviorX: "contain" }}
             onScroll={(event) => {
               const track = event.currentTarget;
@@ -72,6 +74,7 @@ export function SeccionCarrusel({ items, resolveSrc = resolveDriveMediaSrc, navi
                 {failed[`${photo.id}:${photo.imagen}`] ? (
                   <p className="flex h-full items-center justify-center p-6 text-center text-sm text-brown-mid">No se pudo cargar esta foto.</p>
                 ) : (
+                  <ImageTreatmentFrame src={resolveSrc(photo.imagen!)} fit="contain" treatment={imageTreatments?.[`carrusel:${photo.id}`]}>
                   <img
                     src={resolveSrc(photo.imagen!)}
                     alt={photo.titulo || `Foto ${index + 1}`}
@@ -80,6 +83,7 @@ export function SeccionCarrusel({ items, resolveSrc = resolveDriveMediaSrc, navi
                     draggable={false}
                     onError={() => setFailed((previous) => ({ ...previous, [`${photo.id}:${photo.imagen}`]: true }))}
                   />
+                  </ImageTreatmentFrame>
                 )}
               </div>
             ))}

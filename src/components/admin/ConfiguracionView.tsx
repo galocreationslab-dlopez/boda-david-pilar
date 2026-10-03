@@ -1438,6 +1438,11 @@ export default function ConfiguracionView({
 
   const editingImageTargets = (() => {
     if (!editingSectionDraft) return [];
+    if (editingSectionDraft.tipo === "carrusel") {
+      return editingSectionDraft.items
+        .filter((item) => item.imagen?.trim())
+        .map((item) => ({ key: `carrusel:${item.id}`, label: item.titulo || item.id, src: item.imagen ?? "" }));
+    }
     if (editingSectionDraft.tipo === "historia") {
       return historyEventsForSection(editingSectionDraft)
         .filter((event) => event.imagen)
@@ -1568,7 +1573,7 @@ export default function ConfiguracionView({
               titleSelected={designMode && activeSelectedDesignComponentKey === "carrusel.tituloSeccion"}
               onSelectSectionBackground={() => setSelectedDesignComponentKey("carrusel.fondoSeccion")}
               onSelectTitleDesign={() => setSelectedDesignComponentKey("carrusel.tituloSeccion")}>
-              <SeccionCarrusel items={section.items} resolveSrc={resolveAdminPreviewSrc} navigationStyle={componentStyles["carrusel.navegacion"]} />
+              <SeccionCarrusel items={section.items} resolveSrc={resolveAdminPreviewSrc} navigationStyle={componentStyles["carrusel.navegacion"]} imageTreatments={tratamientosImagenes} />
             </SeccionColapsable>
           )}
           {section.tipo === "galeria" && (
@@ -2707,7 +2712,7 @@ export default function ConfiguracionView({
                             titleSelected={designMode && activeSelectedDesignComponentKey === "carrusel.tituloSeccion"}
                             onSelectSectionBackground={() => setSelectedDesignComponentKey("carrusel.fondoSeccion")}
                             onSelectTitleDesign={() => setSelectedDesignComponentKey("carrusel.tituloSeccion")}>
-                            <SeccionCarrusel items={sec.items} resolveSrc={resolveAdminPreviewSrc} navigationStyle={componentStyles["carrusel.navegacion"]} />
+                            <SeccionCarrusel items={sec.items} resolveSrc={resolveAdminPreviewSrc} navigationStyle={componentStyles["carrusel.navegacion"]} imageTreatments={tratamientosImagenes} />
                           </SeccionColapsable>
                         )}
                         {sec.tipo === "galeria" && (

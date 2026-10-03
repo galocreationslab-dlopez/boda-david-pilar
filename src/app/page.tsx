@@ -580,7 +580,7 @@ export default async function PaginaPrincipal({
                   sectionStyle={componentStyles["carrusel.fondoSeccion"]}
                   titleStyle={componentStyles["carrusel.tituloSeccion"]}
                 >
-                  <SeccionCarrusel items={section.source?.items ?? []} navigationStyle={componentStyles["carrusel.navegacion"]} />
+                  <SeccionCarrusel items={section.source?.items ?? []} navigationStyle={componentStyles["carrusel.navegacion"]} imageTreatments={tratamientosImagenes} />
                 </SeccionColapsable>
               )}
 
