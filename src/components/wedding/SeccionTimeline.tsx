@@ -2,7 +2,7 @@
 
 /**
  * components/wedding/SeccionTimeline.tsx
- * Timeline horizontal con camino curvo punteado.
+ * Timeline horizontal.
  * 3 puntos: Bus, Ceremonia, Celebración — con mini-mapa en el primero
  * e imagen + enlace en los otros dos.
  */
@@ -216,7 +216,6 @@ export function SeccionTimeline({
   headerDivider,
 }: Props) {
   const puntos = buildTimelinePoints(timeline, localizaciones);
-  const showCurvedLine = puntos.length === 3;
   const showStraightLine = puntos.length > 1 && puntos.length !== 3;
   const forceMobile = viewport === "movil";
 
@@ -352,26 +351,6 @@ export function SeccionTimeline({
         {/* ── Timeline escritorio (horizontal) ── */}
         <div className={forceMobile ? "hidden" : "relative hidden w-full pb-4 md:block"}>
           <div className="relative">
-
-            {/* Camino curvo punteado SVG entre los puntos */}
-            {showCurvedLine && (
-              <svg
-                viewBox="0 0 900 80"
-                className="absolute top-[52px] left-0 right-0 w-full"
-                style={{ height: "80px", zIndex: 0 }}
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M 120 40 C 200 10, 280 70, 380 40 C 480 10, 580 70, 680 40 C 730 25, 760 40, 780 40"
-                  fill="none"
-                  stroke="var(--bronze-pale)"
-                  strokeWidth="2"
-                  strokeDasharray="6 5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            )}
 
             {showStraightLine && (
               <div
