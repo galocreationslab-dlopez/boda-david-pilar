@@ -340,6 +340,7 @@ export type PortadaElemento = {
   tipo: "imagen" | "texto" | "enlace" | "mapa";
   nombre?: string;
   url?: string;
+  enlaceUrl?: string;
   texto?: string;
   alt?: string;
 };

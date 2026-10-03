@@ -2238,6 +2238,10 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                               <label className="label-field">Texto alternativo</label>
                               <input className="input-field" value={elemento.alt ?? ""} onChange={(e) => patchElemento(elemento.id, { alt: e.target.value })} />
                             </div>
+                            <div>
+                              <label className="label-field">Enlace al hacer clic (opcional)</label>
+                              <input type="url" className="input-field" placeholder="https://..." value={elemento.enlaceUrl ?? ""} onChange={(e) => patchElemento(elemento.id, { enlaceUrl: e.target.value })} />
+                            </div>
                           </>
                         ) : (
                           <div>

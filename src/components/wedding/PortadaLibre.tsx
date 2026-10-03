@@ -124,31 +124,25 @@ export function PortadaElementoContenido({
   const src = resolveSrc ? resolveSrc(elemento.url) : (elemento.url ?? "");
   if (!src) return null;
   const ajuste = layout.ajuste ?? "contain";
-
-  if (color) {
-    const mask = `url("${src.replace(/"/g, "%22")}")`;
-    return (
-      <div
-        role="img"
-        aria-label={elemento.alt ?? ""}
-        style={{
-          width: "100%",
-          height: "100%",
-          backgroundColor: color,
-          WebkitMaskImage: mask,
-          maskImage: mask,
-          WebkitMaskRepeat: "no-repeat",
-          maskRepeat: "no-repeat",
-          WebkitMaskPosition: "center",
-          maskPosition: "center",
-          WebkitMaskSize: ajuste,
-          maskSize: ajuste,
-        }}
-      />
-    );
-  }
-
-  return (
+  const imagen = color ? (
+    <div
+      role="img"
+      aria-label={elemento.alt ?? ""}
+      style={{
+        width: "100%",
+        height: "100%",
+        backgroundColor: color,
+        WebkitMaskImage: `url("${src.replace(/"/g, "%22")}")`,
+        maskImage: `url("${src.replace(/"/g, "%22")}")`,
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+        maskPosition: "center",
+        WebkitMaskSize: ajuste,
+        maskSize: ajuste,
+      }}
+    />
+  ) : (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
@@ -158,6 +152,23 @@ export function PortadaElementoContenido({
       style={{ width: "100%", height: "100%", objectFit: ajuste, display: "block" }}
     />
   );
+  const enlaceUrl = getSafePortadaLinkUrl(elemento.enlaceUrl);
+  if (enlaceUrl) {
+    const nuevaPestana = enlaceUrl.startsWith("http:") || enlaceUrl.startsWith("https:");
+    return (
+      <a
+        href={enlaceUrl}
+        target={nuevaPestana ? "_blank" : undefined}
+        rel={nuevaPestana ? "noopener noreferrer" : undefined}
+        aria-label={elemento.alt || elemento.nombre || "Abrir enlace"}
+        style={{ display: "block", width: "100%", height: "100%", cursor: "pointer" }}
+      >
+        {imagen}
+      </a>
+    );
+  }
+
+  return imagen;
 }
 
 function PortadaLienzo({
