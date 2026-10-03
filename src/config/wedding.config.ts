@@ -139,7 +139,7 @@ export type TemaPaleta = {
 };
 
 // `portada` se mantiene por compatibilidad con configuraciones antiguas.
-export type TipoSeccionDiseno = "intro" | "invitacion" | "portada" | "portadaLibre" | "historia" | "timeline" | "galeria";
+export type TipoSeccionDiseno = "intro" | "invitacion" | "portada" | "portadaLibre" | "historia" | "timeline" | "galeria" | "carrusel";
 
 export const DEFAULT_TEXTO_INVITACION =
   "Con mucha alegría os invitamos a compartir con nosotros el día más especial de nuestras vidas.";

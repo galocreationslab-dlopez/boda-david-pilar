@@ -9,6 +9,7 @@ import PortadaLibreEditor from "@/components/admin/PortadaLibreEditor";
 import { SeccionHistoria, type HistoriaComponentKey } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding/SeccionTimeline";
 import { SeccionGaleria, type GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
+import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
 import { DEFAULT_TEXTO_INVITACION } from "@/config/wedding.config";
 import {
@@ -65,7 +66,10 @@ type SectionComponentKey =
   | "timeline.tituloSeccion"
   | "timeline.fondoSeccion"
   | "galeria.tituloSeccion"
-  | "galeria.fondoSeccion";
+  | "galeria.fondoSeccion"
+  | "carrusel.tituloSeccion"
+  | "carrusel.fondoSeccion"
+  | "carrusel.navegacion";
 
 type ResourceUploadResponse = {
   resource?: {
@@ -95,6 +99,11 @@ function getSeparatorImageSize(separador: SeparadorDiseno): { maxWidthPx: number
 }
 
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; label: string; defaultRole: TemaColorRole }>> = {
+  carrusel: [
+    { key: "carrusel.tituloSeccion", label: "Título sección (colapsable)", defaultRole: "tituloSeccion" },
+    { key: "carrusel.fondoSeccion", label: "Fondo seccion", defaultRole: "fondoSeccion" },
+    { key: "carrusel.navegacion", label: "Controles del carrusel", defaultRole: "textoPrincipal" },
+  ],
   intro: [
     { key: "intro.fondo", label: "Fondo intro", defaultRole: "fondoSeccion" },
     { key: "intro.lacre", label: "Lacre", defaultRole: "logo" },
@@ -755,7 +764,6 @@ export default function ConfiguracionView({
   const uploadDesignImage = useCallback(async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("section", "diseno");
 
     const response = await fetch(`/api/admin/${inviteCode}/resources`, {
       method: "POST",
@@ -935,6 +943,7 @@ export default function ConfiguracionView({
   const getSectionComponentOptions = (section: SeccionDiseno) => SECTION_COMPONENT_OPTIONS[section.tipo] ?? [];
 
   const getComponentRoleForSection = useCallback((section: SeccionDiseno, componentKey: SectionComponentKey): TemaColorRole => {
+    if (componentKey.endsWith(".tituloSeccion")) return "tituloSeccion";
     const options = getSectionComponentOptions(section);
     const option = options.find((item) => item.key === componentKey);
     const direct = section.componentRoles?.[componentKey];
@@ -990,6 +999,7 @@ export default function ConfiguracionView({
       case "historia.fondoSeccion":
       case "timeline.fondoSeccion":
       case "galeria.fondoSeccion":
+      case "carrusel.fondoSeccion":
         return { backgroundColor: color };
       case "portada.separador":
         return { color, borderColor: color };
@@ -1002,6 +1012,7 @@ export default function ConfiguracionView({
       case "portada.cuentaAtrasLeyendas":
       case "portada.ctaTexto":
       case "historia.tituloSeccion":
+      case "carrusel.tituloSeccion":
       case "historia.tituloInterno":
       case "historia.fecha":
       case "historia.titulo":
@@ -1483,6 +1494,7 @@ export default function ConfiguracionView({
               titulo={section.portadaLibre?.mostrarTitulo ? section.titulo : ""}
               abiertaPorDefecto={section.portadaLibre?.abiertaPorDefecto !== false}
               ocultarCabecera={section.portadaLibre?.colapsable === false}
+              titleStyle={{ color: sectionRoleColors?.tituloSeccion }}
             >
               <PortadaLibre
                 config={section.portadaLibre}
@@ -1547,6 +1559,16 @@ export default function ConfiguracionView({
                 componentStyles={componentStyles}
                 headerDivider={renderSectionHeaderSeparatorPreview(section, sectionRoleColors)}
               />
+            </SeccionColapsable>
+          )}
+          {section.tipo === "carrusel" && (
+            <SeccionColapsable id={`canvas-${section.id}`} titulo={section.titulo || "Fotos"} abiertaPorDefecto={openInCanvas} bgColor="var(--cream)" designMode={designMode}
+              sectionStyle={componentStyles["carrusel.fondoSeccion"]} titleStyle={componentStyles["carrusel.tituloSeccion"]}
+              sectionSelected={designMode && activeSelectedDesignComponentKey === "carrusel.fondoSeccion"}
+              titleSelected={designMode && activeSelectedDesignComponentKey === "carrusel.tituloSeccion"}
+              onSelectSectionBackground={() => setSelectedDesignComponentKey("carrusel.fondoSeccion")}
+              onSelectTitleDesign={() => setSelectedDesignComponentKey("carrusel.tituloSeccion")}>
+              <SeccionCarrusel items={section.items} resolveSrc={resolveAdminPreviewSrc} navigationStyle={componentStyles["carrusel.navegacion"]} />
             </SeccionColapsable>
           )}
           {section.tipo === "galeria" && (
@@ -2416,6 +2438,7 @@ export default function ConfiguracionView({
                           <select
                             className="input-field h-8 w-full text-xs"
                             value={selectedComponentRole}
+                            disabled={selectedComponentOption?.key.endsWith(".tituloSeccion")}
                             onChange={(event) => {
                               if (!selectedComponentOption) return;
                               patchEditingSectionComponentRole(selectedComponentOption.key, event.target.value as TemaColorRole);
@@ -2634,6 +2657,7 @@ export default function ConfiguracionView({
                               abiertaPorDefecto={sec.portadaLibre?.abiertaPorDefecto !== false}
                               ocultarCabecera={sec.portadaLibre?.colapsable === false}
                               bgColor="var(--cream)"
+                              titleStyle={{ color: sectionRoleColors?.tituloSeccion }}
                             >
                               <PortadaLibre
                                 config={sec.portadaLibre}
@@ -2676,6 +2700,16 @@ export default function ConfiguracionView({
                           </SeccionColapsable>
                         )}
 
+                        {sec.tipo === "carrusel" && (
+                          <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "Fotos"} abiertaPorDefecto={sectionIsBeingEdited} bgColor="var(--cream)" designMode={designMode}
+                            sectionStyle={componentStyles["carrusel.fondoSeccion"]} titleStyle={componentStyles["carrusel.tituloSeccion"]}
+                            sectionSelected={designMode && activeSelectedDesignComponentKey === "carrusel.fondoSeccion"}
+                            titleSelected={designMode && activeSelectedDesignComponentKey === "carrusel.tituloSeccion"}
+                            onSelectSectionBackground={() => setSelectedDesignComponentKey("carrusel.fondoSeccion")}
+                            onSelectTitleDesign={() => setSelectedDesignComponentKey("carrusel.tituloSeccion")}>
+                            <SeccionCarrusel items={sec.items} resolveSrc={resolveAdminPreviewSrc} navigationStyle={componentStyles["carrusel.navegacion"]} />
+                          </SeccionColapsable>
+                        )}
                         {sec.tipo === "galeria" && (
                           <SeccionColapsable
                             id={`preview-${sec.id}`}

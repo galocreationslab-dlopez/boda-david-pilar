@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
+import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, ELEMENTOS_BARRA_POR_DEFECTO, normalizeIntroConfig } from "@/config/wedding.config";
 import { buildDefaultLayout, buildDefaultPortadaLibre, normalizePortadaLibre } from "@/lib/portada-libre";
@@ -45,6 +46,7 @@ const SECTION_TYPES: Array<{ value: TipoSeccionDiseno; label: string }> = [
   { value: "historia", label: "Historia" },
   { value: "timeline", label: "Timeline" },
   { value: "galeria", label: "Galeria" },
+  { value: "carrusel", label: "Carrusel de fotos" },
 ];
 
 const INTRO_ANIMATION_TYPES: Array<{ value: IntroAnimationType; label: string; description: string }> = [
@@ -291,6 +293,11 @@ function previewSrcForAdmin(inviteCode: string, src: string): string {
 }
 
 function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<string, TemaColorRole>> {
+  if (tipo === "carrusel") return {
+    "carrusel.tituloSeccion": "tituloSeccion",
+    "carrusel.fondoSeccion": "fondoSeccion",
+    "carrusel.navegacion": "textoPrincipal",
+  };
   if (tipo === "portadaLibre") return {};
   if (tipo === "intro") {
     return {
@@ -356,6 +363,7 @@ function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<strin
 }
 
 function sectionTitleByType(tipo: TipoSeccionDiseno): string {
+  if (tipo === "carrusel") return "Fotos";
   if (tipo === "intro") return "Intro";
   if (tipo === "portadaLibre") return "Portada";
   if (isInvitationType(tipo)) return "Invitacion";
@@ -365,6 +373,7 @@ function sectionTitleByType(tipo: TipoSeccionDiseno): string {
 }
 
 function sectionNameByType(tipo: TipoSeccionDiseno): string {
+  if (tipo === "carrusel") return "Carrusel";
   if (tipo === "intro") return "Intro";
   if (tipo === "portadaLibre") return "Portada";
   if (isInvitationType(tipo)) return "Invitacion";
@@ -556,6 +565,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [loadingResources, setLoadingResources] = useState(false);
   const [uploadingHistoriaId, setUploadingHistoriaId] = useState<string | null>(null);
   const [uploadingAssetKey, setUploadingAssetKey] = useState<string | null>(null);
+  const [uploadingCarrusel, setUploadingCarrusel] = useState(false);
   const [introDeviceTab, setIntroDeviceTab] = useState<"pc" | "movil">("pc");
   const [lacreNativeAnimations, setLacreNativeAnimations] = useState<NativeSvgAnimationOption[]>([]);
   const [lineAliveGenerating, setLineAliveGenerating] = useState<Record<string, boolean>>({});
@@ -598,20 +608,15 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     };
   }, [introConfig?.lacreUrl]);
 
-  const resourcesForHistoria = useMemo(
-    () =>
-      resources.filter(
-        (item) =>
-          (item.mime_type?.startsWith("image/") || item.mime_type === null) &&
-          (item.carpeta ?? "").toLowerCase() === "historia",
-      ),
-    [resources],
+  const resourcesForSelectedSection = useMemo(() => {
+    const sectionName = selectedSection?.tipo.toLowerCase();
+    if (!sectionName) return [];
+    return resources.filter((item) => (item.carpeta ?? "").trim().toLowerCase() === sectionName);
+  }, [resources, selectedSection?.tipo]);
+  const resourcesForHistoria = resourcesForSelectedSection.filter(
+    (item) => item.mime_type?.startsWith("image/") || item.mime_type === null,
   );
-
-  const resourcesForIntro = useMemo(
-    () => resources.filter((item) => (item.carpeta ?? "").toLowerCase() === "intro"),
-    [resources],
-  );
+  const resourcesForIntro = resourcesForSelectedSection;
 
   const findResourceByImageUrl = useCallback(
     (imageUrl?: string) => resources.find((item) => item.url_publica === imageUrl) ?? null,
@@ -632,8 +637,11 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     const loadResources = async () => {
       setLoadingResources(true);
       try {
-        const sectionParam = selectedSection?.tipo ?? "general";
-        const response = await fetch(`/api/admin/${inviteCode}/resources?section=${encodeURIComponent(sectionParam)}`);
+        if (!selectedSection) {
+          setResources([]);
+          return;
+        }
+        const response = await fetch(`/api/admin/${inviteCode}/resources?section=${encodeURIComponent(selectedSection.tipo)}`);
         const data: unknown = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error((data as { error?: string }).error ?? "No se pudieron cargar los recursos");
@@ -711,7 +719,12 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     });
   };
 
-  const uploadGenericAsset = async (key: string, file: File, onDone: (url: string) => void, section = "intro") => {
+  const uploadGenericAsset = async (key: string, file: File, onDone: (url: string) => void) => {
+    const section = selectedSection?.tipo;
+    if (!section) {
+      showMsg("error", "Selecciona una sección antes de subir el archivo");
+      return;
+    }
     setUploadingAssetKey(key);
     try {
       const formData = new FormData();
@@ -843,7 +856,9 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("section", "historia");
+      const section = selectedSection?.tipo;
+      if (!section) throw new Error("Selecciona una sección antes de subir la imagen");
+      formData.append("section", section);
       const response = await fetch(`/api/admin/${inviteCode}/resources`, {
         method: "POST",
         body: formData,
@@ -2233,7 +2248,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                               value={elemento.url ?? ""}
                               onChangeValue={(v) => patchElemento(elemento.id, { url: v })}
                               uploading={uploadingAssetKey === `portada-${elemento.id}`}
-                              onUpload={(file) => void uploadGenericAsset(`portada-${elemento.id}`, file, (url) => patchElemento(elemento.id, { url }), "general")}
+                              onUpload={(file) => void uploadGenericAsset(`portada-${elemento.id}`, file, (url) => patchElemento(elemento.id, { url }))}
                               disabled={!recursosDriveConfigured}
                               resources={imageResources}
                               placeholder="https://... (PNG/SVG con transparencia si se quiere colorear)"
@@ -2500,7 +2515,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                             value={item.imagen ?? ""}
                             onChangeValue={(v) => updateTimelineItem(item.id, "imagen", v)}
                             uploading={uploadingAssetKey === `timelineIcono-${item.id}`}
-                            onUpload={(file) => void uploadGenericAsset(`timelineIcono-${item.id}`, file, (url) => updateTimelineItem(item.id, "imagen", url), "timeline")}
+                            onUpload={(file) => void uploadGenericAsset(`timelineIcono-${item.id}`, file, (url) => updateTimelineItem(item.id, "imagen", url))}
                             disabled={false}
                             resources={resources}
                             placeholder="URL de Drive o imagen"
@@ -2521,6 +2536,57 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                   >
                     + Anadir evento
                   </button>
+                </div>
+              )}
+
+              {selectedSection.tipo === "carrusel" && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-stone-700">Fotos del carrusel</h3>
+                  <label className="inline-flex cursor-pointer items-center rounded-lg border border-stone-300 px-4 py-2 text-sm has-[:disabled]:cursor-wait has-[:disabled]:opacity-50">
+                    {uploadingCarrusel ? "Subiendo..." : "Subir fotos"}
+                    <input type="file" accept="image/*" multiple className="hidden" disabled={uploadingCarrusel} onChange={async (event) => {
+                      const files = Array.from(event.target.files ?? []);
+                      const sectionId = selectedSection.id;
+                      event.target.value = "";
+                      setUploadingCarrusel(true);
+                      try {
+                      for (const file of files) {
+                        if (!file.type.startsWith("image/")) { showMsg("error", "Selecciona solo imagenes"); continue; }
+                        await uploadGenericAsset(`carrusel-${sectionId}`, file, (url) => {
+                          setSections((previous) => previous.map((section) => section.id === sectionId ? {
+                            ...section,
+                            items: [...section.items, { id: `item-${uid()}`, titulo: file.name, descripcion: "", imagen: url }],
+                          } : section));
+                        });
+                      }
+                      } finally {
+                        setUploadingCarrusel(false);
+                      }
+                    }} />
+                  </label>
+                  <select aria-label="Anadir foto de recursos" className="input-field" value="" disabled={loadingResources} onChange={(event) => {
+                    const resource = resources.find((entry) => entry.id === event.target.value);
+                    if (resource?.url_publica) patchSelectedItems((items) => [...items, { id: `item-${uid()}`, titulo: resource.nombre, descripcion: "", imagen: resource.url_publica! }]);
+                  }}>
+                    <option value="">{loadingResources ? "Cargando recursos..." : "Anadir foto de recursos"}</option>
+                    {resources.filter((resource) => resource.url_publica && resource.mime_type?.startsWith("image/")).map((resource) => <option key={resource.id} value={resource.id}>{resource.nombre}</option>)}
+                  </select>
+                  {selectedSection.items.map((item, index) => (
+                    <div key={item.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-stone-200 p-3">
+                      {item.imagen && <img src={previewSrcForAdmin(inviteCode, item.imagen)} alt={item.titulo || `Foto ${index + 1}`} className="h-16 w-16 shrink-0 rounded object-contain" />}
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <input aria-label={`Texto alternativo foto ${index + 1}`} className="input-field" value={item.titulo} placeholder="Texto alternativo" onChange={(event) => patchHistoriaItem(item.id, (current) => ({ ...current, titulo: event.target.value }))} />
+                        <input aria-label={`URL foto ${index + 1}`} className="input-field" value={item.imagen ?? ""} placeholder="URL de la foto" onChange={(event) => patchHistoriaItem(item.id, (current) => ({ ...current, imagen: event.target.value }))} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button type="button" title="Mover antes" aria-label={`Mover foto ${index + 1} antes`} disabled={index === 0} onClick={() => moveSelectedItem(item.id, "up")} className="h-9 w-9 rounded border border-stone-300 disabled:opacity-30">&#8593;</button>
+                        <button type="button" title="Mover despues" aria-label={`Mover foto ${index + 1} despues`} disabled={index === selectedSection.items.length - 1} onClick={() => moveSelectedItem(item.id, "down")} className="h-9 w-9 rounded border border-stone-300 disabled:opacity-30">&#8595;</button>
+                        <button type="button" title="Eliminar foto" aria-label={`Eliminar foto ${index + 1}`} onClick={() => patchSelectedItems((items) => items.filter((current) => current.id !== item.id))} className="h-9 w-9 rounded border border-red-200 text-red-600">&#215;</button>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" className="rounded-lg border border-stone-300 px-4 py-2 text-sm" onClick={() => patchSelectedItems((items) => [...items, { id: `item-${uid()}`, titulo: "", descripcion: "", imagen: "" }])}>Anadir foto por URL</button>
+                  <SeccionCarrusel key={selectedSection.id} items={selectedSection.items} resolveSrc={(src) => previewSrcForAdmin(inviteCode, src)} />
                 </div>
               )}
 

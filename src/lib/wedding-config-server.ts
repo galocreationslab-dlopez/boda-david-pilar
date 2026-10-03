@@ -59,9 +59,9 @@ function normalizeImageUrl(value: unknown): string | undefined {
 }
 
 // Datos antiguos guardaban la portada con tipo "invitacion"; el código actual espera "portada".
-function normalizeSectionTipo(tipo: unknown): "intro" | "portada" | "portadaLibre" | "historia" | "timeline" | "galeria" {
+function normalizeSectionTipo(tipo: unknown): "intro" | "portada" | "portadaLibre" | "historia" | "timeline" | "galeria" | "carrusel" {
   if (tipo === "invitacion") return "portada";
-  if (tipo === "intro" || tipo === "portada" || tipo === "portadaLibre" || tipo === "historia" || tipo === "timeline" || tipo === "galeria") return tipo;
+  if (tipo === "intro" || tipo === "portada" || tipo === "portadaLibre" || tipo === "historia" || tipo === "timeline" || tipo === "galeria" || tipo === "carrusel") return tipo;
   return "portada";
 }
 

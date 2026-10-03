@@ -13,11 +13,9 @@ import {
 } from "@/lib/google-drive";
 import { getWeddingConfig } from "@/lib/wedding-config-server";
 
-type ResourceSection = "historia" | "timeline" | "intro" | "general";
-
-function parseSection(value: string | null): ResourceSection {
-  if (value === "historia" || value === "timeline" || value === "intro") return value;
-  return "general";
+function parseSection(value: string | null): string | null {
+  const section = value?.trim();
+  return section && /^[a-zA-Z0-9_-]{1,80}$/.test(section) ? section : null;
 }
 
 function inferMediaType(mimeType: string): "foto" | "video" | "audio" {
@@ -135,6 +133,18 @@ async function makeFilesPublicBestEffort(fileIds: string[]): Promise<void> {
   await Promise.all(fileIds.map((id) => makeDriveFilePublic(id).catch(() => undefined)));
 }
 
+async function ensureSectionSubfolder(input: {
+  parentFolderId: string;
+  folderName: string;
+  sharedDriveId?: string;
+}): Promise<string> {
+  const subfolders = await listDriveSubfolders(input);
+  const normalizedName = input.folderName.trim().toLowerCase();
+  const existing = subfolders.find((folder) => folder.name?.trim().toLowerCase() === normalizedName);
+  if (existing?.id) return existing.id;
+  return ensureDriveSubfolder(input);
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ inviteCode: string }> },
@@ -155,7 +165,11 @@ export async function GET(
 
   const folderByFileId = boda?.id ? await syncResourcesFromDrive(boda.id) : new Map<string, string>();
 
-  const sectionParam = parseSection(new URL(_request.url).searchParams.get("section"));
+  const rawSectionParam = new URL(_request.url).searchParams.get("section");
+  const sectionParam = parseSection(rawSectionParam);
+  if (!sectionParam) {
+    return NextResponse.json({ error: "La sección no es válida" }, { status: 400 });
+  }
   const query = supabase
     .from("multimedia")
     .select("id, nombre, google_drive_id, url_publica, mime_type, subido_por, created_at")
@@ -168,9 +182,9 @@ export async function GET(
   }
 
   const resources = (data ?? []).filter((resource) => {
-    if (sectionParam === "general") return true;
-    const folder = folderByFileId.get(resource.google_drive_id);
-    return folder === sectionParam || resource.subido_por === `admin:${sectionParam}` || resource.subido_por === `drive-sync:${sectionParam}`;
+    const folder = folderByFileId.get(resource.google_drive_id)
+      ?? resource.subido_por?.replace(/^(?:admin|drive-sync):/i, "");
+    return folder?.trim().toLowerCase() === sectionParam.toLowerCase();
   }).map((resource) => ({
     ...resource,
     carpeta: folderByFileId.get(resource.google_drive_id) ?? resource.subido_por?.replace(/^(?:admin|drive-sync):/i, "") ?? null,
@@ -194,7 +208,11 @@ export async function POST(
   try {
     const formData = await request.formData();
     const file = formData.get("file");
-    const section = parseSection(typeof formData.get("section") === "string" ? (formData.get("section") as string) : null);
+    const rawSection = formData.get("section");
+    const section = parseSection(typeof rawSection === "string" ? rawSection : null);
+    if (rawSection !== null && !section) {
+      return NextResponse.json({ error: "La sección no es válida" }, { status: 400 });
+    }
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Falta el archivo" }, { status: 400 });
@@ -210,32 +228,27 @@ export async function POST(
       return NextResponse.json({ error: "Configura primero la carpeta de recursos en Drive" }, { status: 400 });
     }
 
-    const sectionFolderName = section === "historia"
-      ? "historia"
-      : section === "timeline"
-        ? "timeline"
-        : section === "intro"
-          ? "intro"
-          : "general";
+    const sectionFolderName = section;
     let effectiveSharedDriveId = config.drive.recursosWeb.sharedDriveId;
-    let targetFolderId: string;
-    try {
-      targetFolderId = await ensureDriveSubfolder({
-        parentFolderId,
-        folderName: sectionFolderName,
-        sharedDriveId: effectiveSharedDriveId,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      if (effectiveSharedDriveId && message.includes("Shared drive not found")) {
-        // Si la carpeta pertenece a Mi unidad, ignoramos sharedDriveId y reintentamos.
-        effectiveSharedDriveId = undefined;
-        targetFolderId = await ensureDriveSubfolder({
+    let targetFolderId = parentFolderId;
+    if (sectionFolderName) {
+      try {
+        targetFolderId = await ensureSectionSubfolder({
           parentFolderId,
           folderName: sectionFolderName,
+          sharedDriveId: effectiveSharedDriveId,
         });
-      } else {
-        throw error;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        if (effectiveSharedDriveId && message.includes("Shared drive not found")) {
+          effectiveSharedDriveId = undefined;
+          targetFolderId = await ensureSectionSubfolder({
+            parentFolderId,
+            folderName: sectionFolderName,
+          });
+        } else {
+          throw error;
+        }
       }
     }
 
@@ -269,7 +282,7 @@ export async function POST(
       tipo: inferMediaType(file.type),
       google_drive_id: uploaded.id,
       url_publica: driveFilePublicUrl(uploaded.id),
-      subido_por: `admin:${section}`,
+      subido_por: section ? `admin:${section}` : "admin",
       mime_type: file.type,
       file_size: file.size,
       carpeta: sectionFolderName,

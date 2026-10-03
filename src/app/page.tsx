@@ -11,6 +11,7 @@ import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
 import PortadaLibre from "@/components/wedding/PortadaLibre";
 import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
+import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { SeccionHistoria, type HistoriaComponentKey } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding/SeccionTimeline";
 import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
@@ -66,9 +67,17 @@ type SectionComponentKey =
   | "timeline.tituloSeccion"
   | "timeline.fondoSeccion"
   | "galeria.tituloSeccion"
-  | "galeria.fondoSeccion";
+  | "galeria.fondoSeccion"
+  | "carrusel.tituloSeccion"
+  | "carrusel.fondoSeccion"
+  | "carrusel.navegacion";
 
 const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionComponentKey; defaultRole: TemaColorRole }>> = {
+  carrusel: [
+    { key: "carrusel.tituloSeccion", defaultRole: "tituloSeccion" },
+    { key: "carrusel.fondoSeccion", defaultRole: "fondoSeccion" },
+    { key: "carrusel.navegacion", defaultRole: "textoPrincipal" },
+  ],
   intro: [
     { key: "intro.fondo", defaultRole: "fondoSeccion" },
     { key: "intro.lacre", defaultRole: "logo" },
@@ -144,6 +153,7 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
     case "historia.fondoSeccion":
     case "timeline.fondoSeccion":
     case "galeria.fondoSeccion":
+    case "carrusel.fondoSeccion":
       return { backgroundColor: color };
     case "portada.separador":
       return { color, borderColor: color };
@@ -156,6 +166,7 @@ function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSPro
     case "portada.cuentaAtrasLeyendas":
     case "portada.ctaTexto":
     case "historia.tituloSeccion":
+    case "carrusel.tituloSeccion":
     case "historia.tituloInterno":
     case "historia.fecha":
     case "historia.titulo":
@@ -287,6 +298,7 @@ function renderSeparador(separadorInput: SeparadorDiseno | undefined, roleColors
 }
 
 function getAnchorId(tipo: TipoSeccionDiseno, sectionId?: string): string {
+  if (tipo === "carrusel") return `carrusel-${sectionId}`;
   if (tipo === "portadaLibre") return `portada-${sectionId ?? "libre"}`;
   if (tipo === "invitacion" || tipo === "portada") return "invitacion";
   if (tipo === "historia") return "historia";
@@ -367,7 +379,9 @@ export default async function PaginaPrincipal({
     const roleTextures = resolvePaletteRoleTextures(palette);
     const options = SECTION_COMPONENT_OPTIONS[section.tipo] ?? [];
     return options.reduce((acc, option) => {
-      const role = section.componentRoles?.[option.key] ?? option.defaultRole;
+        const role = option.key.endsWith(".tituloSeccion")
+          ? "tituloSeccion"
+          : section.componentRoles?.[option.key] ?? option.defaultRole;
       const color = roleColors[role];
       acc[option.key] = {
         ...withBorderStyle(option.key, withTextureStyle(option.key, getComponentStyleByKey(option.key, color), roleTextures[role], resolveDriveMediaSrc), section.componentBorders?.[option.key]),
@@ -492,7 +506,9 @@ export default async function PaginaPrincipal({
           const sectionPalette = section.source ? getPaletteBySection(section.source) : paletaGlobal;
           const sectionRoleColors = sectionPalette ? resolvePaletteRoleColors(sectionPalette) : null;
           const isLast = index === orderedSections.length - 1;
-          const anchorId = section.tipo === "portadaLibre"
+          const anchorId = section.tipo === "carrusel"
+            ? getAnchorId("carrusel", section.id)
+            : section.tipo === "portadaLibre"
             ? getAnchorId("portadaLibre", section.id)
             : section.tipo === "invitacion"
             ? "invitacion"
@@ -525,6 +541,7 @@ export default async function PaginaPrincipal({
                   abiertaPorDefecto={Boolean(seccionEnfocada) || section.source?.portadaLibre?.abiertaPorDefecto !== false}
                   ocultarCabecera={section.source?.portadaLibre?.colapsable === false}
                   bgColor="var(--cream)"
+                  titleStyle={{ color: sectionRoleColors?.tituloSeccion }}
                 >
                   <PortadaLibre
                     config={section.source?.portadaLibre}
@@ -551,6 +568,19 @@ export default async function PaginaPrincipal({
                     sectionInternalTitle={section.source?.subtituloInterno || "El camino hasta aquí"}
                     headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
                   />
+                </SeccionColapsable>
+              )}
+
+              {section.tipo === "carrusel" && (
+                <SeccionColapsable
+                  id={anchorId}
+                  titulo={section.titulo || "Fotos"}
+                  abiertaPorDefecto={Boolean(seccionEnfocada)}
+                  bgColor="var(--cream)"
+                  sectionStyle={componentStyles["carrusel.fondoSeccion"]}
+                  titleStyle={componentStyles["carrusel.tituloSeccion"]}
+                >
+                  <SeccionCarrusel items={section.source?.items ?? []} resolveSrc={resolvePublicImageSrc} navigationStyle={componentStyles["carrusel.navegacion"]} />
                 </SeccionColapsable>
               )}
 
