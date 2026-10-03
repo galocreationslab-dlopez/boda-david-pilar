@@ -1544,6 +1544,12 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     placeholder="Nombre de paleta"
                   />
 
+                  {paletaEditando && paletaEditando.id !== paletaActivaId && (
+                    <p className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                      Esta paleta no está activa: sus colores y texturas no aparecen al asignar roles a las secciones hasta que pulses &quot;Activar&quot;.
+                    </p>
+                  )}
+
                   <div className="space-y-1">
                     {[...CORE_COLOR_KEYS.map((key) => ({
                       id: key,
@@ -2250,7 +2256,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           </p>
                         </div>
                         <div className="rounded border border-stone-200 bg-white p-2">
-                          <label className="mb-1 block text-[11px] font-semibold text-stone-600">Color del rol</label>
+                          <label className="mb-1 block text-[11px] font-semibold text-stone-600">Color del rol (paleta: {editingPalette.nombre})</label>
                               <select
                             className="input-field h-8 w-full text-xs"
                             value={editingPaletteRoleMap?.[selectedComponentRole] ?? ""}
