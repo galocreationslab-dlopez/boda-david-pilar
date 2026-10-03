@@ -2139,6 +2139,8 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                 const addElemento = (tipo: PortadaElemento["tipo"]) => {
                   const elemento: PortadaElemento = tipo === "texto"
                     ? { id: `pel-${uid()}`, tipo, texto: "Nuevo texto" }
+                    : tipo === "enlace"
+                    ? { id: `pel-${uid()}`, tipo, texto: "Abrir enlace", url: "" }
                     : { id: `pel-${uid()}`, tipo, url: "" };
                   const index = portada.elementos.length;
                   patchPortada({
@@ -2170,14 +2172,20 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                   <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-stone-700">Portada: elementos</h3>
                     <p className="text-xs text-stone-500">
-                      Aquí se añaden las imágenes y los textos. Su posición, tamaño, fuente y color (en PC y en móvil) se ajustan en Diseño.
+                      Añade imágenes, textos, enlaces y mapas. Su posición y tamaño (y el estilo de texto) se ajustan en Diseño para PC y móvil.
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button type="button" className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50" onClick={() => addElemento("imagen")}>
                         + Añadir imagen
                       </button>
                       <button type="button" className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50" onClick={() => addElemento("texto")}>
                         + Añadir texto
+                      </button>
+                      <button type="button" className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50" onClick={() => addElemento("enlace")}>
+                        + Añadir enlace
+                      </button>
+                      <button type="button" className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50" onClick={() => addElemento("mapa")}>
+                        + Añadir mapa
                       </button>
                     </div>
                     {portada.elementos.length === 0 && (
@@ -2186,7 +2194,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     {portada.elementos.map((elemento, index) => (
                       <div key={elemento.id} className="space-y-3 rounded-xl border border-stone-200 p-3">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-semibold text-stone-700">{index + 1}. {elemento.tipo === "texto" ? "Texto" : "Imagen"}</p>
+                          <p className="text-xs font-semibold text-stone-700">{index + 1}. {elemento.tipo === "texto" ? "Texto" : elemento.tipo === "imagen" ? "Imagen" : elemento.tipo === "enlace" ? "Enlace" : "Mapa"}</p>
                           <div className="flex gap-1 text-xs">
                             <button type="button" className="rounded border border-stone-300 px-2 py-0.5" onClick={() => moveElemento(index, -1)} disabled={index === 0}>↑</button>
                             <button type="button" className="rounded border border-stone-300 px-2 py-0.5" onClick={() => moveElemento(index, 1)} disabled={index === portada.elementos.length - 1}>↓</button>
@@ -2202,7 +2210,18 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                             <label className="label-field">Texto</label>
                             <textarea className="input-field min-h-[70px]" value={elemento.texto ?? ""} onChange={(e) => patchElemento(elemento.id, { texto: e.target.value })} />
                           </div>
-                        ) : (
+                        ) : elemento.tipo === "enlace" ? (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="label-field">Texto del enlace</label>
+                              <input className="input-field" value={elemento.texto ?? ""} onChange={(e) => patchElemento(elemento.id, { texto: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className="label-field">URL de destino</label>
+                              <input type="url" className="input-field" placeholder="https://..." value={elemento.url ?? ""} onChange={(e) => patchElemento(elemento.id, { url: e.target.value })} />
+                            </div>
+                          </div>
+                        ) : elemento.tipo === "imagen" ? (
                           <>
                             <IntroAssetField
                               label="Imagen"
@@ -2220,6 +2239,12 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                               <input className="input-field" value={elemento.alt ?? ""} onChange={(e) => patchElemento(elemento.id, { alt: e.target.value })} />
                             </div>
                           </>
+                        ) : (
+                          <div>
+                            <label className="label-field">URL de Google Maps</label>
+                            <input type="url" className="input-field" placeholder="https://www.google.com/maps/embed?pb=..." value={elemento.url ?? ""} onChange={(e) => patchElemento(elemento.id, { url: e.target.value })} />
+                            <p className="mt-1 text-xs text-stone-500">Admite enlaces de inserción y URLs de Google Maps de tipo lugar o búsqueda. Su posición y tamaño se ajustan en Diseño.</p>
+                          </div>
                         )}
                       </div>
                     ))}

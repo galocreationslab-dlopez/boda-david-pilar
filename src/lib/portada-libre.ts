@@ -68,14 +68,53 @@ export function buildDefaultLayout(
   index: number,
 ): PortadaElementoLayout {
   const offset = (index % 6) * 4;
-  if (elemento.tipo === "texto") {
+  if (elemento.tipo === "texto" || elemento.tipo === "enlace") {
     return dispositivo === "pc"
       ? { x: 25 + offset, y: 40 + offset, w: 50, h: 20, tamano: 48, fuenteRol: "titulos", alineacion: "center", alineacionVertical: "center", colorModo: "paleta", colorRol: "titulo", z: index + 1 }
       : { x: 10 + offset, y: 40 + offset, w: 80, h: 12, tamano: 28, fuenteRol: "titulos", alineacion: "center", alineacionVertical: "center", colorModo: "paleta", colorRol: "titulo", z: index + 1 };
   }
+  if (elemento.tipo === "mapa") {
+    return dispositivo === "pc"
+      ? { x: 25 + offset, y: 30 + offset, w: 50, h: 35, ajuste: "cover", z: index + 1 }
+      : { x: 5 + offset, y: 30 + offset, w: 90, h: 25, ajuste: "cover", z: index + 1 };
+  }
   return dispositivo === "pc"
     ? { x: 35 + offset, y: 25 + offset, w: 30, h: 50, colorModo: "original", ajuste: "contain", z: index + 1 }
     : { x: 20 + offset, y: 30 + offset, w: 60, h: 25, colorModo: "original", ajuste: "contain", z: index + 1 };
+}
+
+export function getSafePortadaLinkUrl(value?: string): string | undefined {
+  if (!value?.trim()) return undefined;
+  try {
+    const url = new URL(value.trim());
+    return ["http:", "https:", "mailto:", "tel:"].includes(url.protocol) ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function getGoogleMapsEmbedUrl(value?: string): string | undefined {
+  if (!value?.trim()) return undefined;
+  try {
+    const url = new URL(value.trim());
+    const host = url.hostname.toLowerCase();
+    const isGoogleMapsHost =
+      host === "google.com" || host.endsWith(".google.com") ||
+      host === "google.es" || host.endsWith(".google.es") ||
+      host === "maps.app.goo.gl" || host === "goo.gl";
+    if (!isGoogleMapsHost || !url.pathname.includes("/maps")) return undefined;
+    if (url.pathname.includes("/maps/embed")) {
+      url.protocol = "https:";
+      return url.href;
+    }
+
+    const placePath = url.pathname.match(/\/maps\/(?:place|search)\/([^/]+)/)?.[1];
+    const query = url.searchParams.get("q") ?? url.searchParams.get("query") ?? (placePath ? decodeURIComponent(placePath) : undefined);
+    if (!query) return undefined;
+    return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+  } catch {
+    return undefined;
+  }
 }
 
 export function getElementoLayout(

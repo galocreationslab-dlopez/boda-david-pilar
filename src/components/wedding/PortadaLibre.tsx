@@ -14,6 +14,8 @@ import {
   PANTALLA_ASPECTO,
   TEXTO_ANCHO_REFERENCIA,
   getElementoLayout,
+  getGoogleMapsEmbedUrl,
+  getSafePortadaLinkUrl,
   getPantallas,
   normalizePortadaLibre,
   type PortadaDispositivo,
@@ -68,11 +70,11 @@ export function PortadaElementoContenido({
 }) {
   const color = resolvePortadaColor(layout.colorModo, layout.colorRol, layout.colorHex, roleColors);
 
-  if (elemento.tipo === "texto") {
+  if (elemento.tipo === "texto" || elemento.tipo === "enlace") {
     const tamano = layout.tamano ?? 32;
     const justify = layout.alineacion === "left" ? "flex-start" : layout.alineacion === "right" ? "flex-end" : "center";
-    return (
-      <div
+    const contenido = (
+      <span
         style={{
           width: "100%",
           height: "100%",
@@ -88,10 +90,34 @@ export function PortadaElementoContenido({
           fontSize: `${(tamano / TEXTO_ANCHO_REFERENCIA[dispositivo]) * 100}cqw`,
           fontWeight: layout.negrita ? 700 : 400,
           fontStyle: layout.cursiva ? "italic" : "normal",
+          ...(elemento.tipo === "enlace" ? { textDecoration: "underline", textUnderlineOffset: "0.15em" } : {}),
         }}
       >
-        {elemento.texto}
-      </div>
+        {elemento.texto || (elemento.tipo === "enlace" ? elemento.url : "")}
+      </span>
+    );
+    if (elemento.tipo === "enlace") {
+      const href = getSafePortadaLinkUrl(elemento.url);
+      const nuevaPestana = href?.startsWith("http:") || href?.startsWith("https:");
+      return href ? <a href={href} target={nuevaPestana ? "_blank" : undefined} rel={nuevaPestana ? "noopener noreferrer" : undefined} style={{ display: "block", width: "100%", height: "100%" }}>{contenido}</a> : contenido;
+    }
+    return (
+      <div style={{ width: "100%", height: "100%" }}>{contenido}</div>
+    );
+  }
+
+  if (elemento.tipo === "mapa") {
+    const mapSrc = getGoogleMapsEmbedUrl(elemento.url);
+    if (!mapSrc) return null;
+    return (
+      <iframe
+        src={mapSrc}
+        title={elemento.nombre || "Mapa de Google Maps"}
+        loading="lazy"
+        referrerPolicy="strict-origin-when-cross-origin"
+        allowFullScreen
+        style={{ width: "100%", height: "100%", border: 0 }}
+      />
     );
   }
 

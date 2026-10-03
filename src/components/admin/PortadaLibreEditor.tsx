@@ -310,7 +310,7 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
             onClick={() => setSelectedId(el.id)}
             className={`rounded border px-2 py-1 text-[11px] ${selectedId === el.id ? "border-amber-500 bg-amber-100 text-amber-800" : "border-stone-300 bg-white text-stone-600"}`}
           >
-            {el.tipo === "texto" ? "T" : "Img"} · {el.nombre || el.texto?.slice(0, 16) || `Elemento ${index + 1}`}
+            {el.tipo === "texto" ? "T" : el.tipo === "imagen" ? "Img" : el.tipo === "enlace" ? "Enlace" : "Mapa"} · {el.nombre || el.texto?.slice(0, 16) || `Elemento ${index + 1}`}
           </button>
         ))}
         <button type="button" onClick={copyFromOther} className="ml-auto rounded border border-stone-300 bg-white px-2 py-1 text-[11px] text-stone-600 hover:bg-stone-50">
@@ -384,7 +384,7 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
       {selected && selectedLayout && (
         <div className="space-y-3 rounded-lg border border-stone-200 bg-white p-3">
           <p className="text-xs font-semibold text-stone-700">
-            {selected.tipo === "texto" ? "Texto" : "Imagen"}: {selected.nombre || selected.texto?.slice(0, 30) || selected.url?.slice(-30) || selected.id}
+            {selected.tipo === "texto" ? "Texto" : selected.tipo === "imagen" ? "Imagen" : selected.tipo === "enlace" ? "Enlace" : "Mapa"}: {selected.nombre || selected.texto?.slice(0, 30) || selected.url?.slice(-30) || selected.id}
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <NumberField label="X (%)" value={selectedLayout.x} step={0.5} onChange={(v) => patchLayout(selected.id, { x: v }, maxY)} />
@@ -432,7 +432,7 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
                 </p>
               )}
             </div>
-          ) : (
+          ) : selected.tipo === "texto" || selected.tipo === "enlace" ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label className="block text-[11px] text-stone-600">
                 Fuente
@@ -481,6 +481,8 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
                 </div>
               </div>
             </div>
+          ) : (
+            <p className="text-[11px] text-stone-500">El mapa se muestra dentro de este recuadro. Ajusta su posición y tamaño con los controles del lienzo.</p>
           )}
         </div>
       )}
