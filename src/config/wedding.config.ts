@@ -337,7 +337,7 @@ export type ItemSeccionDiseno = {
 
 export type PortadaElemento = {
   id: string;
-  tipo: "imagen" | "texto";
+  tipo: "imagen" | "texto" | "enlace" | "mapa";
   nombre?: string;
   url?: string;
   texto?: string;
