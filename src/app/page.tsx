@@ -16,7 +16,7 @@ import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding
 import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
 import type { GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
-import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
+import { buildTextureCssVars, resolvePaletteRoleColors, resolvePaletteRoleTextures, resolvePaletteToThemeColors, withBorderStyle, withTextureStyle } from "@/lib/theme-roles";
 import { getComponentSizeStyle } from "@/lib/component-size";
 import { buildFontCssVars, getComponentFontStyle } from "@/lib/theme-fonts";
 import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
@@ -339,6 +339,7 @@ export default async function PaginaPrincipal({
       ["--brown-dark" as string]: resolved.brownDark,
       ["--brown-mid" as string]: roles?.textoSecundario ?? resolved.oliveMuted,
       ["--white" as string]: resolved.white,
+      ...buildTextureCssVars(palette, resolveDriveMediaSrc),
       ...buildFontCssVars(config.tema.fuentes),
     };
   };
@@ -348,12 +349,13 @@ export default async function PaginaPrincipal({
     const palette = getPaletteBySection(section);
     if (!palette) return {};
     const roleColors = resolvePaletteRoleColors(palette);
+    const roleTextures = resolvePaletteRoleTextures(palette);
     const options = SECTION_COMPONENT_OPTIONS[section.tipo] ?? [];
     return options.reduce((acc, option) => {
       const role = section.componentRoles?.[option.key] ?? option.defaultRole;
       const color = roleColors[role];
       acc[option.key] = {
-        ...getComponentStyleByKey(option.key, color),
+        ...withBorderStyle(option.key, withTextureStyle(option.key, getComponentStyleByKey(option.key, color), roleTextures[role], resolveDriveMediaSrc), section.componentBorders?.[option.key]),
         ...getComponentSizeStyle(option.key, section.componentSizes?.[option.key]),
         ...getComponentFontStyle(option.key, section.componentFonts?.[option.key]),
       };
@@ -595,6 +597,13 @@ export default async function PaginaPrincipal({
       )
     : [];
 
+  const introPalette = getPaletteBySection(introSection);
+  const sobreRole = introSection?.componentRoles?.["intro.sobre"] ?? "fondoSubseccion";
+  const sobreTexture = introPalette ? resolvePaletteRoleTextures(introPalette)[sobreRole] : undefined;
+  const envelopeTexture = sobreTexture
+    ? { url: resolveDriveMediaSrc(sobreTexture.url), sizePx: sobreTexture.sizePx, color: sobreTexture.color }
+    : undefined;
+
   return introSection?.intro ? (
     <>
       {lacreSrc ? <link rel="preload" href={lacreSrc} as="fetch" crossOrigin="anonymous" /> : null}
@@ -606,6 +615,7 @@ export default async function PaginaPrincipal({
         storageKey={introStorageKey}
         themeStyle={getSectionThemeVars(introSection)}
         introStyle={getSectionComponentStyles(introSection)["intro.fondo"]}
+        envelopeTexture={envelopeTexture}
       >
         <PostIntroSectionsGate>{pageContent}</PostIntroSectionsGate>
       </IntroReveal>

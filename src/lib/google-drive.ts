@@ -204,6 +204,7 @@ export async function exchangeGoogleDriveOAuthCode(code: string, redirectUri: st
   if (error) {
     throw new Error(`No se pudo guardar el refresh_token en la base de datos: ${error.message}`);
   }
+  cachedAccessToken = null;
 }
 
 export type GoogleDriveConnectionStatus = {
@@ -286,16 +287,20 @@ async function getAccessTokenFromServiceAccount(): Promise<string> {
 // de lectura; sin esto, cada imagen/SVG de Drive tardaba varios cientos de ms
 // extra solo en autenticarse antes de poder descargar nada.
 let cachedAccessToken: { token: string; expiresAt: number } | null = null;
+// El token de la cuenta de servicio (reserva) no puede subir a "Mi unidad"; se cachea poco para reintentar OAuth pronto.
+let usedServiceAccountFallback = false;
 
 async function getAccessToken(): Promise<string> {
   if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now()) {
     return cachedAccessToken.token;
   }
 
+  usedServiceAccountFallback = false;
   const token = await getFreshAccessToken();
   // Se resta un margen de seguridad (5 min) sobre la duración típica (1h) para
   // no arriesgarse a usar un token ya caducado por el lado del servidor.
-  cachedAccessToken = { token, expiresAt: Date.now() + 55 * 60 * 1000 };
+  const ttlMs = usedServiceAccountFallback ? 30 * 1000 : 55 * 60 * 1000;
+  cachedAccessToken = { token, expiresAt: Date.now() + ttlMs };
   return token;
 }
 
@@ -316,6 +321,7 @@ async function getFreshAccessToken(): Promise<string> {
     }
   }
 
+  usedServiceAccountFallback = true;
   return getAccessTokenFromServiceAccount();
 }
 

@@ -100,7 +100,7 @@ export function SeccionHistoria({
   };
 
   return (
-    <div className="section-wedding" style={{ backgroundColor: "var(--cream)" }}>
+    <div className="section-wedding tex-cream" style={{ backgroundColor: "var(--cream)" }}>
       <div className="container-wedding">
         {/* Cabecera */}
         <div className="text-center mb-10">
@@ -128,7 +128,7 @@ export function SeccionHistoria({
           {eventos.map((item, index) => (
             <article
               key={`${item.id || "historia"}-${index}`}
-              className="overflow-hidden border"
+              className="tex-white overflow-hidden border"
               style={styleFor("historia.card", {
                 backgroundColor: "var(--white)",
                 borderColor: "var(--cream-dark)",
@@ -201,7 +201,7 @@ export function SeccionHistoria({
               )}
               {!item.imagen && (
                 <div
-                  className="relative h-48 w-full"
+                  className="tex-cream relative h-48 w-full"
                   style={styleFor("historia.imagen", { backgroundColor: "var(--cream)" })}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -297,7 +297,7 @@ export function SeccionHistoria({
 
         {/* Visor escritorio */}
         <div
-          className={forceMobile ? "hidden" : "relative hidden overflow-hidden md:block"}
+          className={forceMobile ? "hidden" : "tex-white relative hidden overflow-hidden md:block"}
           style={styleFor("historia.card", {
             backgroundColor: "var(--white)",
             border: "1px solid var(--cream-dark)",
@@ -504,7 +504,7 @@ export function SeccionHistoria({
             {/* Placeholder si no hay imagen */}
             {!evento.imagen && (
               <div
-                className="relative flex w-2/5 flex-shrink-0 items-center justify-center"
+                className="tex-cream relative flex w-2/5 flex-shrink-0 items-center justify-center"
                 style={styleFor("historia.imagen", { backgroundColor: "var(--cream)" })}
                 onClick={(event) => {
                   event.stopPropagation();

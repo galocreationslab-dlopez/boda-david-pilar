@@ -18,7 +18,12 @@ import {
   getRoleLabel,
   resolvePaletteRoleColors,
   resolvePaletteRoleMap,
+  resolvePaletteRoleTextures,
   resolvePaletteToThemeColors,
+  buildTextureCssVars,
+  withTextureStyle,
+  withBorderStyle,
+  BORDER_TOGGLE_KEYS,
 } from "@/lib/theme-roles";
 import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
 import { getComponentSizeKind, getComponentDefaultSize, getComponentSizeStyle, COMPONENT_SIZE_RANGE } from "@/lib/component-size";
@@ -220,6 +225,30 @@ function slugifyRoleName(input: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/** Color medio (hex) de una imagen, sobre blanco si tiene transparencia. */
+async function getAverageImageColor(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas no disponible");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, 32, 32);
+  ctx.drawImage(bitmap, 0, 0, 32, 32);
+  bitmap.close();
+  const { data } = ctx.getImageData(0, 0, 32, 32);
+  let r = 0, g = 0, b = 0;
+  const pixels = data.length / 4;
+  for (let i = 0; i < data.length; i += 4) {
+    r += data[i];
+    g += data[i + 1];
+    b += data[i + 2];
+  }
+  const hex = (v: number) => Math.round(v / pixels).toString(16).padStart(2, "0");
+  return `#${hex(r)}${hex(g)}${hex(b)}`;
 }
 
 function normalizeTemaColores(colores: TemaColores): TemaColores {
@@ -534,6 +563,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [separadorCollapsed, setSeparadorCollapsed] = useState(true);
   const [fuentesCollapsed, setFuentesCollapsed] = useState(true);
   const [uploadingFont, setUploadingFont] = useState(false);
+  const [uploadingTextureId, setUploadingTextureId] = useState<string | null>(null);
 
   const [editorViewport, setEditorViewport] = useState<"desktop" | "movil">("desktop");
   const sectionCardRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -779,6 +809,27 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     }));
   };
 
+  const handleTextureUpload = async (colorId: string, file: File) => {
+    setUploadingTextureId(colorId);
+    try {
+      const url = await uploadDesignImage(file);
+      if (!paletaEditando) return;
+      // El color base se usa en bordes y como fondo de respaldo: si sigue en el negro por defecto, se sustituye por el color medio de la textura.
+      const average = await getAverageImageColor(file).catch(() => null);
+      updatePaleta(paletaEditando.id, (p) => ({
+        ...p,
+        coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === colorId
+          ? { ...c, texturaUrl: url, ...(average && c.valor.toLowerCase() === "#000000" ? { valor: average } : {}) }
+          : c)),
+      }));
+      showMsg("ok", "Textura subida. Guarda el diseño para aplicarla.");
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error subiendo la textura");
+    } finally {
+      setUploadingTextureId(null);
+    }
+  };
+
   const handleFontUpload = async (file: File) => {
     setUploadingFont(true);
     try {
@@ -859,6 +910,16 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     });
   };
 
+  const patchEditingSectionComponentBorder = (componentKey: SectionComponentKey, visible: boolean) => {
+    if (!editingSectionDraft) return;
+    patchEditingSectionDraft({
+      componentBorders: {
+        ...(editingSectionDraft.componentBorders ?? {}),
+        [componentKey]: visible,
+      },
+    });
+  };
+
   const patchEditingSectionComponentFont = (componentKey: SectionComponentKey, role: FuenteRol | "") => {
     if (!editingSectionDraft) return;
     const next = { ...(editingSectionDraft.componentFonts ?? {}) };
@@ -917,12 +978,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const getSectionComponentStyles = (section: SeccionDiseno): Partial<Record<SectionComponentKey, CSSProperties>> => {
     const palette = getPaletteBySection(section);
     const roleColors = resolvePaletteRoleColors(palette);
+    const roleTextures = resolvePaletteRoleTextures(palette);
     const options = getSectionComponentOptions(section);
     return options.reduce((acc, option) => {
       const role = getComponentRoleForSection(section, option.key);
       const color = roleColors[role];
       acc[option.key] = {
-        ...getComponentStyleByKey(option.key, color),
+        ...withBorderStyle(option.key, withTextureStyle(option.key, getComponentStyleByKey(option.key, color), roleTextures[role], resolveAdminPreviewSrc), section.componentBorders?.[option.key]),
         ...getComponentSizeStyle(option.key, section.componentSizes?.[option.key]),
         ...getComponentFontStyle(option.key, section.componentFonts?.[option.key]),
       };
@@ -1052,6 +1114,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       ["--brown-dark" as string]: resolved.brownDark,
       ["--brown-mid" as string]: roles?.textoSecundario ?? resolved.oliveMuted,
       ["--white" as string]: resolved.white,
+      ...buildTextureCssVars(palette, resolveAdminPreviewSrc),
       ...buildFontCssVars(fuentes),
     };
   };
@@ -1488,7 +1551,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       />
                     ))}
                     {(paletaEditando?.coloresExtra ?? []).map((extra) => (
-                      <span key={extra.id} className="h-4 w-4 rounded border border-stone-300" style={{ backgroundColor: extra.valor }} title={extra.nombre} />
+                      <span key={extra.id} className="h-4 w-4 rounded border border-stone-300" style={{ backgroundColor: extra.valor, ...(extra.texturaUrl ? { backgroundImage: `url("${resolveAdminPreviewSrc(extra.texturaUrl).replace(/["\\\n\r]/g, "")}")`, backgroundSize: "cover" } : {}) }} title={extra.nombre} />
                     ))}
                   </div>
                 </div>
@@ -1521,21 +1584,35 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                     placeholder="Nombre de paleta"
                   />
 
+                  {paletaEditando && paletaEditando.id !== paletaActivaId && (
+                    <p className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                      Esta paleta no está activa: sus colores y texturas no aparecen al asignar roles a las secciones hasta que pulses &quot;Activar&quot;.
+                    </p>
+                  )}
+
                   <div className="space-y-1">
                     {[...CORE_COLOR_KEYS.map((key) => ({
                       id: key,
                       fixed: true,
                       nombre: paletaEditando?.etiquetasColores?.[key] ?? DEFAULT_COLOR_LABELS[key],
                       valor: paletaEditando?.colores[key] ?? "#000000",
+                      texturaUrl: undefined as string | undefined,
+                      texturaTamanoPx: undefined as number | undefined,
+                      texturaBaseTransparente: undefined as boolean | undefined,
                     })), ...(paletaEditando?.coloresExtra ?? []).map((extra) => ({
                       id: extra.id,
                       fixed: false,
                       nombre: extra.nombre,
                       valor: extra.valor,
+                      texturaUrl: extra.texturaUrl,
+                      texturaTamanoPx: extra.texturaTamanoPx,
+                      texturaBaseTransparente: extra.texturaBaseTransparente,
                     }))].map((row) => (
-                      <div key={row.id} className="grid grid-cols-[28px_1fr_26px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
+                      <div key={row.id} className="space-y-1">
+                      <div className="grid grid-cols-[28px_1fr_26px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
                         <input
                           type="color"
+                          title={row.fixed ? undefined : "Color base: se ve bajo la textura y se usa en bordes y fondos de respaldo"}
                           value={row.valor}
                           onChange={(e) => {
                             if (!paletaEditando) return;
@@ -1586,6 +1663,83 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         >
                           -
                         </button>
+                      </div>
+                      {!row.fixed && (
+                        <div className="flex flex-wrap items-center gap-2 rounded border border-dashed border-stone-300 px-2 py-1">
+                          <span
+                            className="h-6 w-6 shrink-0 rounded border border-stone-300"
+                            style={{
+                              backgroundColor: row.valor,
+                              ...(row.texturaUrl ? { backgroundImage: `url("${resolveAdminPreviewSrc(row.texturaUrl).replace(/["\\\n\r]/g, "")}")`, backgroundSize: row.texturaTamanoPx ? `${row.texturaTamanoPx}px` : "auto" } : {}),
+                            }}
+                            title="Vista previa del mosaico"
+                          />
+                          <label className="cursor-pointer rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-700 hover:bg-white">
+                            {uploadingTextureId === row.id ? "Subiendo..." : row.texturaUrl ? "Cambiar textura (PNG)" : "Usar textura (PNG)"}
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              className="hidden"
+                              disabled={uploadingTextureId !== null}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void handleTextureUpload(row.id, file);
+                                e.currentTarget.value = "";
+                              }}
+                            />
+                          </label>
+                          {row.texturaUrl && (
+                            <>
+                              <input
+                                type="number"
+                                min={16}
+                                max={2048}
+                                className="w-20 rounded border border-stone-300 px-1 py-0.5 text-[11px]"
+                                placeholder="auto"
+                                title="Lado del mosaico en px (vacío = tamaño natural)"
+                                value={row.texturaTamanoPx ?? ""}
+                                onChange={(e) => {
+                                  if (!paletaEditando) return;
+                                  const raw = e.target.value;
+                                  const parsed = raw === "" ? undefined : Math.max(16, Math.min(2048, Number(raw) || 16));
+                                  updatePaleta(paletaEditando.id, (p) => ({
+                                    ...p,
+                                    coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, texturaTamanoPx: parsed } : c)),
+                                  }));
+                                }}
+                              />
+                              <span className="text-[11px] text-stone-500">px</span>
+                              <label className="flex items-center gap-1 text-[11px] text-stone-700" title="Bordes y fondos de respaldo dejan ver la textura en vez del color base">
+                                <input
+                                  type="checkbox"
+                                  checked={row.texturaBaseTransparente === true}
+                                  onChange={(e) => {
+                                    if (!paletaEditando) return;
+                                    const checked = e.target.checked;
+                                    updatePaleta(paletaEditando.id, (p) => ({
+                                      ...p,
+                                      coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, texturaBaseTransparente: checked } : c)),
+                                    }));
+                                  }}
+                                />
+                                Base transparente
+                              </label>
+                              <button
+                                onClick={() => {
+                                  if (!paletaEditando) return;
+                                  updatePaleta(paletaEditando.id, (p) => ({
+                                    ...p,
+                                    coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, texturaUrl: undefined, texturaTamanoPx: undefined } : c)),
+                                  }));
+                                }}
+                                className="rounded border border-red-200 px-2 py-1 text-[11px] text-red-600"
+                              >
+                                Quitar textura
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
                       </div>
                     ))}
                     <button onClick={addExtraColor} className="w-full rounded border border-dashed border-stone-300 py-1 text-xs text-stone-600">+ Anadir color</button>
@@ -2160,7 +2314,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           </p>
                         </div>
                         <div className="rounded border border-stone-200 bg-white p-2">
-                          <label className="mb-1 block text-[11px] font-semibold text-stone-600">Color del rol</label>
+                          <label className="mb-1 block text-[11px] font-semibold text-stone-600">Color del rol (paleta: {editingPalette.nombre})</label>
                               <select
                             className="input-field h-8 w-full text-xs"
                             value={editingPaletteRoleMap?.[selectedComponentRole] ?? ""}
@@ -2190,6 +2344,17 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                           ))}
                         </select>
                       </div>
+                    )}
+
+                    {selectedComponentOption && BORDER_TOGGLE_KEYS.has(selectedComponentOption.key) && (
+                      <label className="flex items-center gap-2 rounded border border-stone-200 bg-white p-2 text-[11px] font-semibold text-stone-600">
+                        <input
+                          type="checkbox"
+                          checked={editingSectionDraft?.componentBorders?.[selectedComponentOption.key] !== false}
+                          onChange={(event) => patchEditingSectionComponentBorder(selectedComponentOption.key, event.target.checked)}
+                        />
+                        Mostrar bordes
+                      </label>
                     )}
 
                     {selectedComponentOption && getComponentSizeKind(selectedComponentOption.key) && (() => {

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { TemaColores, TemaColorRoleBase, TemaPaleta } from "@/config/wedding.config";
 
 export const ROLE_KEYS = [
@@ -104,7 +105,7 @@ function getSwatchColorById(palette: TemaPaleta, swatchId: string): string | nul
     return palette.colores[swatchId as keyof TemaColores];
   }
   const extra = (palette.coloresExtra ?? []).find((item) => item.id === swatchId);
-  return extra?.valor ?? null;
+  return extra?.texturaUrl?.trim() && extra.texturaBaseTransparente ? "transparent" : extra?.valor ?? null;
 }
 
 export function resolvePaletteRoleColors(palette: TemaPaleta): Record<string, string> {
@@ -117,6 +118,84 @@ export function resolvePaletteRoleColors(palette: TemaPaleta): Record<string, st
     acc[role] = fromMap ?? fallback;
     return acc;
   }, {} as Record<string, string>);
+}
+
+export type PaletteTexture = {
+  url: string;
+  sizePx?: number;
+  /** Color base que queda bajo la textura. */
+  color: string;
+};
+
+function getSwatchTexture(palette: TemaPaleta, swatchId: string): PaletteTexture | null {
+  const extra = (palette.coloresExtra ?? []).find((item) => item.id === swatchId);
+  const url = extra?.texturaUrl?.trim();
+  if (!extra || !url) return null;
+  return { url, sizePx: extra.texturaTamanoPx, color: extra.valor };
+}
+
+/** Solo incluye los roles cuyo color elegido es una textura. */
+export function resolvePaletteRoleTextures(palette: TemaPaleta): Record<string, PaletteTexture> {
+  const map = resolvePaletteRoleMap(palette);
+  return getPaletteRoleKeys(palette).reduce((acc, role) => {
+    const texture = getSwatchTexture(palette, map[role]);
+    if (texture) acc[role] = texture;
+    return acc;
+  }, {} as Record<string, PaletteTexture>);
+}
+
+export function textureToCssImage(texture: PaletteTexture | undefined, resolveSrc: (src: string) => string): { image: string; size: string } {
+  if (!texture) return { image: "none", size: "auto" };
+  const src = resolveSrc(texture.url).replace(/["\\\n\r]/g, "");
+  return {
+    image: src ? `url("${src}")` : "none",
+    size: texture.sizePx && texture.sizePx > 0 ? `${Math.round(texture.sizePx)}px` : "auto",
+  };
+}
+
+// Componentes cuyo fondo ya lleva una clase `.tex-*`: si su rol no es textura hay que anular la de la clase.
+const CLASS_TEXTURED_KEYS = new Set([
+  "historia.card", "timeline.card", "galeria.card",
+  "historia.fondoSeccion", "timeline.fondoSeccion", "galeria.fondoSeccion",
+]);
+
+export function withTextureStyle(
+  key: string,
+  style: CSSProperties,
+  texture: PaletteTexture | undefined,
+  resolveSrc: (src: string) => string,
+): CSSProperties {
+  if (!("backgroundColor" in style)) return style;
+  if (!texture) return CLASS_TEXTURED_KEYS.has(key) ? { ...style, backgroundImage: "none" } : style;
+  const { image, size } = textureToCssImage(texture, resolveSrc);
+  return { ...style, backgroundImage: image, backgroundSize: size, backgroundRepeat: "repeat" };
+}
+
+// Componentes que dibujan un borde y admiten ocultarlo desde el panel de diseño.
+export const BORDER_TOGGLE_KEYS = new Set([
+  "historia.card", "timeline.card", "galeria.card",
+  "historia.fondoSeccion", "timeline.fondoSeccion", "galeria.fondoSeccion",
+  "portada.ctaFondo", "portada.separador",
+]);
+
+export function withBorderStyle(key: string, style: CSSProperties, visible: boolean | undefined): CSSProperties {
+  if (visible !== false || !BORDER_TOGGLE_KEYS.has(key)) return style;
+  return { ...style, border: "none", borderTop: "none", borderRight: "none", borderBottom: "none", borderLeft: "none" };
+}
+
+/** Variables CSS `--tex-*` que usan las clases `.tex-*` de globals.css; siempre definidas para sobrescribir las heredadas. */
+export function buildTextureCssVars(palette: TemaPaleta | null | undefined, resolveSrc: (src: string) => string): Record<string, string> {
+  const textures = palette ? resolvePaletteRoleTextures(palette) : {};
+  const section = textureToCssImage(textures.fondoSeccion, resolveSrc);
+  const sub = textureToCssImage(textures.fondoSubseccion, resolveSrc);
+  return {
+    "--tex-cream": section.image,
+    "--tex-cream-size": section.size,
+    "--tex-white": sub.image,
+    "--tex-white-size": sub.size,
+    "--tex-cream-dark": sub.image,
+    "--tex-cream-dark-size": sub.size,
+  };
 }
 
 export function resolvePaletteToThemeColors(palette: TemaPaleta): TemaColores {

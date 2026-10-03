@@ -104,7 +104,13 @@ export type TemaFuentes = {
 export type TemaColorExtra = {
   id: string;
   nombre: string;
+  // Color base; si hay textura, queda debajo (se ve a través de los píxeles transparentes del PNG).
   valor: string;
+  texturaUrl?: string;
+  // Lado del mosaico en px al repetirse; sin valor se usa el tamaño natural de la imagen.
+  texturaTamanoPx?: number;
+  // Con textura, el color del rol pasa a ser transparente (bordes y respaldos dejan ver la textura).
+  texturaBaseTransparente?: boolean;
 };
 
 export type TemaColorRoleBase =
@@ -408,6 +414,8 @@ export type SeccionDiseno = {
   componentRoles?: Partial<Record<string, TemaColorRole>>;
   // Tamano (px) por componente: fontSize para textos, ancho de referencia para graficos.
   componentSizes?: Partial<Record<string, number>>;
+  // Componentes con borde: false lo oculta (sin valor se muestra).
+  componentBorders?: Partial<Record<string, boolean>>;
   // Rol de fuente por componente de texto (clave de componente -> FuenteRol).
   componentFonts?: Partial<Record<string, FuenteRol>>;
   separadorInterno?: SeparadorDiseno;

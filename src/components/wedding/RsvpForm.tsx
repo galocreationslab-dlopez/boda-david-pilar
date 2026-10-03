@@ -149,7 +149,7 @@ export function RsvpForm({ config }: Props) {
   };
 
   return (
-    <div className="section-wedding" style={{ backgroundColor: "var(--cream)" }}>
+    <div className="section-wedding tex-cream" style={{ backgroundColor: "var(--cream)" }}>
       <div className="container-wedding max-w-4xl">
         <div className="text-center mb-10">
           <p className="section-subtitle">confirmación</p>
@@ -162,7 +162,7 @@ export function RsvpForm({ config }: Props) {
 
         <form
           onSubmit={handleSubmit}
-          className="card-wedding space-y-8"
+          className="card-wedding tex-white space-y-8"
           style={{ backgroundColor: "var(--white)" }}
         >
           <div className="grid gap-6 md:grid-cols-2">

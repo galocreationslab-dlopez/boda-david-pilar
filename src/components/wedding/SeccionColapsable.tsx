@@ -47,6 +47,7 @@ export function SeccionColapsable({
 }: Props) {
   const [abierta, setAbierta] = useState(abiertaPorDefecto);
   const sectionRef = useRef<HTMLElement | null>(null);
+  const texClass = bgColor === "var(--cream)" ? "tex-cream" : bgColor === "var(--cream-dark)" ? "tex-cream-dark" : bgColor === "var(--white)" ? "tex-white" : "";
 
   useEffect(() => {
     setAbierta(abiertaPorDefecto);
@@ -81,6 +82,7 @@ export function SeccionColapsable({
   return (
     <section
       id={id}
+      className={texClass}
       ref={(node) => {
         sectionRef.current = node;
       }}
@@ -101,7 +103,7 @@ export function SeccionColapsable({
       {!ocultarCabecera && (
         <button
           onClick={() => setAbierta(!abierta)}
-          className="group flex w-full items-center justify-between gap-4 px-4 py-4 sm:px-12 sm:py-5"
+          className={`group flex w-full items-center justify-between gap-4 px-4 py-4 sm:px-12 sm:py-5 ${texClass}`}
           style={{
             borderBottom: abierta ? "1px solid var(--cream-dark)" : "none",
             backgroundColor: bgColor,
