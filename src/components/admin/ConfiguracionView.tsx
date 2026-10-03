@@ -18,7 +18,10 @@ import {
   getRoleLabel,
   resolvePaletteRoleColors,
   resolvePaletteRoleMap,
+  resolvePaletteRoleTextures,
   resolvePaletteToThemeColors,
+  buildTextureCssVars,
+  withTextureStyle,
 } from "@/lib/theme-roles";
 import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
 import { getComponentSizeKind, getComponentDefaultSize, getComponentSizeStyle, COMPONENT_SIZE_RANGE } from "@/lib/component-size";
@@ -534,6 +537,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const [separadorCollapsed, setSeparadorCollapsed] = useState(true);
   const [fuentesCollapsed, setFuentesCollapsed] = useState(true);
   const [uploadingFont, setUploadingFont] = useState(false);
+  const [uploadingTextureId, setUploadingTextureId] = useState<string | null>(null);
 
   const [editorViewport, setEditorViewport] = useState<"desktop" | "movil">("desktop");
   const sectionCardRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -779,6 +783,23 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
     }));
   };
 
+  const handleTextureUpload = async (colorId: string, file: File) => {
+    setUploadingTextureId(colorId);
+    try {
+      const url = await uploadDesignImage(file);
+      if (!paletaEditando) return;
+      updatePaleta(paletaEditando.id, (p) => ({
+        ...p,
+        coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === colorId ? { ...c, texturaUrl: url } : c)),
+      }));
+      showMsg("ok", "Textura subida. Guarda el diseño para aplicarla.");
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error subiendo la textura");
+    } finally {
+      setUploadingTextureId(null);
+    }
+  };
+
   const handleFontUpload = async (file: File) => {
     setUploadingFont(true);
     try {
@@ -917,12 +938,13 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
   const getSectionComponentStyles = (section: SeccionDiseno): Partial<Record<SectionComponentKey, CSSProperties>> => {
     const palette = getPaletteBySection(section);
     const roleColors = resolvePaletteRoleColors(palette);
+    const roleTextures = resolvePaletteRoleTextures(palette);
     const options = getSectionComponentOptions(section);
     return options.reduce((acc, option) => {
       const role = getComponentRoleForSection(section, option.key);
       const color = roleColors[role];
       acc[option.key] = {
-        ...getComponentStyleByKey(option.key, color),
+        ...withTextureStyle(option.key, getComponentStyleByKey(option.key, color), roleTextures[role], resolveAdminPreviewSrc),
         ...getComponentSizeStyle(option.key, section.componentSizes?.[option.key]),
         ...getComponentFontStyle(option.key, section.componentFonts?.[option.key]),
       };
@@ -1052,6 +1074,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
       ["--brown-dark" as string]: resolved.brownDark,
       ["--brown-mid" as string]: roles?.textoSecundario ?? resolved.oliveMuted,
       ["--white" as string]: resolved.white,
+      ...buildTextureCssVars(palette, resolveAdminPreviewSrc),
       ...buildFontCssVars(fuentes),
     };
   };
@@ -1488,7 +1511,7 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       />
                     ))}
                     {(paletaEditando?.coloresExtra ?? []).map((extra) => (
-                      <span key={extra.id} className="h-4 w-4 rounded border border-stone-300" style={{ backgroundColor: extra.valor }} title={extra.nombre} />
+                      <span key={extra.id} className="h-4 w-4 rounded border border-stone-300" style={{ backgroundColor: extra.valor, ...(extra.texturaUrl ? { backgroundImage: `url("${resolveAdminPreviewSrc(extra.texturaUrl).replace(/["\\\n\r]/g, "")}")`, backgroundSize: "cover" } : {}) }} title={extra.nombre} />
                     ))}
                   </div>
                 </div>
@@ -1527,13 +1550,18 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                       fixed: true,
                       nombre: paletaEditando?.etiquetasColores?.[key] ?? DEFAULT_COLOR_LABELS[key],
                       valor: paletaEditando?.colores[key] ?? "#000000",
+                      texturaUrl: undefined as string | undefined,
+                      texturaTamanoPx: undefined as number | undefined,
                     })), ...(paletaEditando?.coloresExtra ?? []).map((extra) => ({
                       id: extra.id,
                       fixed: false,
                       nombre: extra.nombre,
                       valor: extra.valor,
+                      texturaUrl: extra.texturaUrl,
+                      texturaTamanoPx: extra.texturaTamanoPx,
                     }))].map((row) => (
-                      <div key={row.id} className="grid grid-cols-[28px_1fr_26px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
+                      <div key={row.id} className="space-y-1">
+                      <div className="grid grid-cols-[28px_1fr_26px] items-center gap-2 rounded border border-stone-200 bg-stone-50 px-2 py-1">
                         <input
                           type="color"
                           value={row.valor}
@@ -1586,6 +1614,68 @@ export default function ConfiguracionView({ inviteCode, config: ic }: { inviteCo
                         >
                           -
                         </button>
+                      </div>
+                      {!row.fixed && (
+                        <div className="flex flex-wrap items-center gap-2 rounded border border-dashed border-stone-300 px-2 py-1">
+                          <span
+                            className="h-6 w-6 shrink-0 rounded border border-stone-300"
+                            style={{
+                              backgroundColor: row.valor,
+                              ...(row.texturaUrl ? { backgroundImage: `url("${resolveAdminPreviewSrc(row.texturaUrl).replace(/["\\\n\r]/g, "")}")`, backgroundSize: row.texturaTamanoPx ? `${row.texturaTamanoPx}px` : "auto" } : {}),
+                            }}
+                            title="Vista previa del mosaico"
+                          />
+                          <label className="cursor-pointer rounded border border-stone-300 px-2 py-1 text-[11px] text-stone-700 hover:bg-white">
+                            {uploadingTextureId === row.id ? "Subiendo..." : row.texturaUrl ? "Cambiar textura (PNG)" : "Usar textura (PNG)"}
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp"
+                              className="hidden"
+                              disabled={uploadingTextureId !== null}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void handleTextureUpload(row.id, file);
+                                e.currentTarget.value = "";
+                              }}
+                            />
+                          </label>
+                          {row.texturaUrl && (
+                            <>
+                              <input
+                                type="number"
+                                min={16}
+                                max={2048}
+                                className="w-20 rounded border border-stone-300 px-1 py-0.5 text-[11px]"
+                                placeholder="auto"
+                                title="Lado del mosaico en px (vacío = tamaño natural)"
+                                value={row.texturaTamanoPx ?? ""}
+                                onChange={(e) => {
+                                  if (!paletaEditando) return;
+                                  const raw = e.target.value;
+                                  const parsed = raw === "" ? undefined : Math.max(16, Math.min(2048, Number(raw) || 16));
+                                  updatePaleta(paletaEditando.id, (p) => ({
+                                    ...p,
+                                    coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, texturaTamanoPx: parsed } : c)),
+                                  }));
+                                }}
+                              />
+                              <span className="text-[11px] text-stone-500">px</span>
+                              <button
+                                onClick={() => {
+                                  if (!paletaEditando) return;
+                                  updatePaleta(paletaEditando.id, (p) => ({
+                                    ...p,
+                                    coloresExtra: (p.coloresExtra ?? []).map((c) => (c.id === row.id ? { ...c, texturaUrl: undefined, texturaTamanoPx: undefined } : c)),
+                                  }));
+                                }}
+                                className="rounded border border-red-200 px-2 py-1 text-[11px] text-red-600"
+                              >
+                                Quitar textura
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
                       </div>
                     ))}
                     <button onClick={addExtraColor} className="w-full rounded border border-dashed border-stone-300 py-1 text-xs text-stone-600">+ Anadir color</button>

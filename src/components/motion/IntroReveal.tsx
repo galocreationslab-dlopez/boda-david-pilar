@@ -4,7 +4,7 @@ import { useCallback, useEffect, useSyncExternalStore, useState, type CSSPropert
 import { IntroProvider } from "@/contexts/IntroContext";
 import AutoDrawSVG, { parseNativeSvgAnimations, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
 import IntroAnimationStage from "@/components/motion/IntroAnimationStage";
-import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
+import EnvelopeOpenReveal, { type EnvelopeTexture } from "@/components/motion/EnvelopeOpenReveal";
 import { useDeviceViewport } from "@/components/motion/useDeviceViewport";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { normalizeIntroConfig, type IntroDeviceConfig, type IntroSeccionConfig } from "@/config/wedding.config";
@@ -61,10 +61,11 @@ type Props = {
   storageKey: string;
   themeStyle?: CSSProperties;
   introStyle?: CSSProperties;
+  envelopeTexture?: EnvelopeTexture;
   children: ReactNode;
 };
 
-export default function IntroReveal({ config: rawConfig, storageKey, themeStyle, introStyle, children }: Props) {
+export default function IntroReveal({ config: rawConfig, storageKey, themeStyle, introStyle, envelopeTexture, children }: Props) {
   const config = normalizeIntroConfig(rawConfig) ?? rawConfig;
   const viewport = useDeviceViewport();
   const deviceConfig = (viewport === "movil" ? config.movil : config.pc) ?? DEFAULT_DEVICE_CONFIG;
@@ -218,6 +219,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
                 el texto de la intro se superpone encima en vez de envolverlo en un layout con padding. */}
             <EnvelopeOpenReveal
               config={deviceConfig.envelope ?? {}}
+              texture={envelopeTexture}
               fondo={introBackground}
               sealSizePercent={lacreSizePercent}
               sealBroken={lacreGone}

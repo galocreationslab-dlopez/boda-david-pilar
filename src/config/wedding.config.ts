@@ -104,7 +104,11 @@ export type TemaFuentes = {
 export type TemaColorExtra = {
   id: string;
   nombre: string;
+  // Color base; si hay textura, queda debajo (se ve a través de los píxeles transparentes del PNG).
   valor: string;
+  texturaUrl?: string;
+  // Lado del mosaico en px al repetirse; sin valor se usa el tamaño natural de la imagen.
+  texturaTamanoPx?: number;
 };
 
 export type TemaColorRoleBase =

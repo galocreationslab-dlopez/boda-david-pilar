@@ -100,7 +100,7 @@ export function SeccionHistoria({
   };
 
   return (
-    <div className="section-wedding" style={{ backgroundColor: "var(--cream)" }}>
+    <div className="section-wedding tex-cream" style={{ backgroundColor: "var(--cream)" }}>
       <div className="container-wedding">
         {/* Cabecera */}
         <div className="text-center mb-10">
@@ -128,7 +128,7 @@ export function SeccionHistoria({
           {eventos.map((item, index) => (
             <article
               key={`${item.id || "historia"}-${index}`}
-              className="overflow-hidden border"
+              className="tex-white overflow-hidden border"
               style={styleFor("historia.card", {
                 backgroundColor: "var(--white)",
                 borderColor: "var(--cream-dark)",
@@ -297,7 +297,7 @@ export function SeccionHistoria({
 
         {/* Visor escritorio */}
         <div
-          className={forceMobile ? "hidden" : "relative hidden overflow-hidden md:block"}
+          className={forceMobile ? "hidden" : "tex-white relative hidden overflow-hidden md:block"}
           style={styleFor("historia.card", {
             backgroundColor: "var(--white)",
             border: "1px solid var(--cream-dark)",

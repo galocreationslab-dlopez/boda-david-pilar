@@ -52,6 +52,8 @@ html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
 body {
   font-family: var(--font-body);
   background-color: var(--role-fondo-principal);
+  background-image: var(--tex-cream, none);
+  background-size: var(--tex-cream-size, auto);
   color: var(--role-texto-principal);
   font-size: 1rem;
   line-height: 1.7;
@@ -64,6 +66,11 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--role-titulos);
 }
 .font-display { font-family: var(--font-display); }
+
+/* Fondos con textura: la imagen sale de las variables --tex-* (ver buildTextureCssVars). */
+.tex-cream { background-image: var(--tex-cream, none); background-size: var(--tex-cream-size, auto); background-repeat: repeat; }
+.tex-white { background-image: var(--tex-white, none); background-size: var(--tex-white-size, auto); background-repeat: repeat; }
+.tex-cream-dark { background-image: var(--tex-cream-dark, none); background-size: var(--tex-cream-dark-size, auto); background-repeat: repeat; }
 .smallcaps {
   font-family: var(--font-display);
   font-variant: small-caps;

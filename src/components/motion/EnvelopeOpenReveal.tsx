@@ -4,8 +4,16 @@ import { useEffect, useId, useLayoutEffect, useState, type CSSProperties, type R
 import type { IntroEnvelopeConfig } from "@/config/wedding.config";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 
+export type EnvelopeTexture = {
+  url: string;
+  sizePx?: number;
+  color: string;
+};
+
 export type EnvelopeOpenRevealProps = {
   config: IntroEnvelopeConfig;
+  /** Textura de la paleta (se repite como mosaico); sustituye a los colores y a la imagen del sobre. */
+  texture?: EnvelopeTexture;
   fondo?: string;
   /** Se activa cuando el lacre ha terminado su animación (el sello se ha roto). */
   sealBroken: boolean;
@@ -80,16 +88,17 @@ function useViewportSize() {
  * margen configurado pasa a ser un mínimo, y el lado sobrante se reparte como
  * margen extra en el eje que le sobre espacio.
  */
-export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot, sealSizePercent = 24, onComplete, children }: EnvelopeOpenRevealProps) {
+export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken, sealSlot, sealSizePercent = 24, onComplete, children }: EnvelopeOpenRevealProps) {
   const [phase, setPhase] = useState<Phase>("closed");
   const patternId = useId();
   const viewport = useViewportSize();
 
   const modoFondo = config.modoFondo ?? "colores";
-  const colorBase = config.colorBase || "#e8ddc7";
+  const tex = texture?.url ? texture : undefined;
+  const colorBase = tex?.color || config.colorBase || "#e8ddc7";
   // Color de la trasera y la cara exterior de la solapa: son la misma pieza de papel,
   // por eso comparten color, independiente del color del frontal.
-  const colorTrasera = config.colorTrasera || colorBase;
+  const colorTrasera = tex?.color || config.colorTrasera || colorBase;
   const colorBorde = config.colorBorde || "#a9895f";
   const grosorBorde = Math.max(0, config.grosorBordePorcentaje ?? 0.6);
   const radioEsquinas = Math.max(0, config.radioEsquinasPorcentaje ?? 2);
@@ -99,7 +108,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
   const sombraDesenfoque = Math.max(0, config.sombraDesenfoquePorcentaje ?? 3);
   const flapPct = Math.min(70, Math.max(20, config.alturaSolapaPorcentaje ?? 42));
   const radioPico = Math.min(50, Math.max(0, config.radioPicoSolapaPorcentaje ?? 10)) / 100;
-  const usaImagen = modoFondo !== "colores" && Boolean(config.imagenUrl);
+  const usaImagen = !tex && modoFondo !== "colores" && Boolean(config.imagenUrl);
   const imagenSobreSrc = usaImagen ? resolveDriveMediaSrc(config.imagenUrl) : "";
   const colorSombraApertura = config.colorSombraApertura || "rgba(0,0,0,0.55)";
   const intensidadSombraApertura = Math.min(100, Math.max(0, config.intensidadSombraAperturaPorcentaje ?? 45)) / 100;
@@ -213,7 +222,30 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
     return () => window.clearTimeout(t);
   }, [phase, duracionZoom, onComplete]);
 
-  const bodyFill: CSSProperties = usaImagen
+  const tileStyle: CSSProperties = tex
+    ? {
+        backgroundImage: `url("${tex.url.replace(/["\\\n\r]/g, "")}")`,
+        backgroundSize: tex.sizePx && tex.sizePx > 0 ? `${Math.round(tex.sizePx)}px` : "auto",
+        backgroundRepeat: "repeat",
+      }
+    : {};
+
+  // Recorta el mosaico con la silueta de la pieza (el SVG se estira sin proporción, el mosaico no).
+  const shapeMask = (path: string): CSSProperties => {
+    const uri = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='${path}'/></svg>`)}")`;
+    return {
+      maskImage: uri,
+      WebkitMaskImage: uri,
+      maskSize: "100% 100%",
+      WebkitMaskSize: "100% 100%",
+      maskRepeat: "no-repeat",
+      WebkitMaskRepeat: "no-repeat",
+    };
+  };
+
+  const bodyFill: CSSProperties = tex
+    ? { ...tileStyle, backgroundColor: colorTrasera }
+    : usaImagen
     ? {
         backgroundImage: `url(${imagenSobreSrc})`,
         backgroundSize: "100% 100%",
@@ -450,6 +482,21 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                       style={{ stroke: colorCostura, strokeWidth: "0.35vmin", vectorEffect: "non-scaling-stroke" } as CSSProperties}
                     />
                   </svg>
+                  {tex ? (
+                    <>
+                      <div
+                        className="absolute inset-0"
+                        style={{ ...tileStyle, ...shapeMask(flapPath), backfaceVisibility: "hidden" }}
+                      />
+                      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" style={{ backfaceVisibility: "hidden" }}>
+                        <path
+                          d={flapPath}
+                          fill="none"
+                          style={{ stroke: colorCostura, strokeWidth: "0.35vmin", vectorEffect: "non-scaling-stroke" } as CSSProperties}
+                        />
+                      </svg>
+                    </>
+                  ) : null}
                   {/* Cara interior de la solapa, visible al girar más de 90º */}
                   <div
                     className="absolute inset-0"
@@ -522,6 +569,7 @@ export default function EnvelopeOpenReveal({ config, fondo, sealBroken, sealSlot
                   />
                 ) : null}
               </svg>
+              {tex ? <div className="absolute inset-0" style={{ ...tileStyle, ...shapeMask(frontPath) }} /> : null}
             </div>
           </div>
         </div>

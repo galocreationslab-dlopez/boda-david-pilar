@@ -235,7 +235,7 @@ export function SeccionTimeline({
   };
 
   return (
-    <div className="section-wedding" style={{ backgroundColor: "var(--cream-dark)" }}>
+    <div className="section-wedding tex-cream-dark" style={{ backgroundColor: "var(--cream-dark)" }}>
       <div className="container-wedding">
         {/* Cabecera */}
         <div className="text-center mb-14">
@@ -248,7 +248,7 @@ export function SeccionTimeline({
           {puntos.map((punto) => (
             <article key={punto.id}>
               <div
-                className="space-y-3 border px-4 pb-4 pt-3"
+                className="tex-white space-y-3 border px-4 pb-4 pt-3"
                 style={styleFor("timeline.card", {
                   backgroundColor: "var(--white)",
                   borderColor: "var(--cream-dark)",
@@ -420,7 +420,7 @@ export function SeccionTimeline({
 
                   {/* Tarjeta de contenido */}
                   <div
-                    className="w-full"
+                    className="tex-white w-full"
                     style={styleFor("timeline.card", {
                       backgroundColor: "var(--white)",
                       border: "1px solid var(--cream-dark)",

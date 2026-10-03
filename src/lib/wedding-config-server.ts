@@ -7,7 +7,8 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { weddingConfig, normalizeIntroConfig, type IntroDeviceConfig, type WeddingConfig } from "@/config/wedding.config";
-import { resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
+import { buildTextureCssVars, resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
+import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { buildFontCssVars, buildFontFaceCss } from "@/lib/theme-fonts";
 import { unstable_noStore as noStore } from "next/cache";
 
@@ -318,6 +319,9 @@ export function buildCssOverrides(config: WeddingConfig): string {
   if (c.cream)        lines.push(`  --cream: ${c.cream};`);
   if (c.brownDark)    lines.push(`  --brown-dark: ${c.brownDark};`);
   if (c.white)        lines.push(`  --white: ${c.white};`);
+  for (const [name, value] of Object.entries(buildTextureCssVars(activePalette, resolveDriveMediaSrc))) {
+    lines.push(`  ${name}: ${value};`);
+  }
   for (const color of extraColors) {
     const slug = color.nombre
       .toLowerCase()

@@ -144,7 +144,7 @@ export function SeccionGaleria({
   };
 
   return (
-    <div className="section-wedding" style={{ backgroundColor: "var(--cream)" }}>
+    <div className="section-wedding tex-cream" style={{ backgroundColor: "var(--cream)" }}>
       <div className="container-wedding">
         <div className="text-center mb-14">
           <p className="section-subtitle">galería</p>
