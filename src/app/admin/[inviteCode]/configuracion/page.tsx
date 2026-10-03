@@ -4,6 +4,7 @@
  */
 
 import { getWeddingConfig } from "@/lib/wedding-config-server";
+import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
 import ConfiguracionView from "@/components/admin/ConfiguracionView";
 
 export default async function ConfiguracionPage({
@@ -12,7 +13,7 @@ export default async function ConfiguracionPage({
   params: Promise<{ inviteCode: string }>;
 }) {
   const { inviteCode } = await params;
-  const config = await getWeddingConfig();
+  const [config, galleryMedia] = await Promise.all([getWeddingConfig(), getFeaturedGalleryMedia()]);
 
-  return <ConfiguracionView inviteCode={inviteCode} config={config} />;
+  return <ConfiguracionView inviteCode={inviteCode} config={config} galleryMedia={galleryMedia} />;
 }

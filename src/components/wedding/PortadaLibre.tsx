@@ -9,7 +9,9 @@ import type {
   PortadaElemento,
   PortadaElementoLayout,
   PortadaLibreConfig,
+  TratamientoImagen,
 } from "@/config/wedding.config";
+import { getImageTreatmentStyle } from "@/lib/image-treatment";
 import {
   PANTALLA_ASPECTO,
   TEXTO_ANCHO_REFERENCIA,
@@ -61,12 +63,14 @@ export function PortadaElementoContenido({
   dispositivo,
   roleColors,
   resolveSrc,
+  imageTreatment,
 }: {
   elemento: PortadaElemento;
   layout: PortadaElementoLayout;
   dispositivo: PortadaDispositivo;
   roleColors: RoleColors;
   resolveSrc?: (src?: string) => string;
+  imageTreatment?: TratamientoImagen;
 }) {
   const color = resolvePortadaColor(layout.colorModo, layout.colorRol, layout.colorHex, roleColors);
 
@@ -124,7 +128,7 @@ export function PortadaElementoContenido({
   const src = resolveSrc ? resolveSrc(elemento.url) : (elemento.url ?? "");
   if (!src) return null;
   const ajuste = layout.ajuste ?? "contain";
-  const imagen = color ? (
+  const visual = color ? (
     <div
       role="img"
       aria-label={elemento.alt ?? ""}
@@ -143,14 +147,21 @@ export function PortadaElementoContenido({
       }}
     />
   ) : (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={elemento.alt ?? ""}
-      loading="lazy"
-      draggable={false}
-      style={{ width: "100%", height: "100%", objectFit: ajuste, display: "block" }}
-    />
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={elemento.alt ?? ""}
+        loading="lazy"
+        draggable={false}
+        style={{ width: "100%", height: "100%", objectFit: ajuste, display: "block" }}
+      />
+      </>
+  );
+  const imagen = (
+    <div className="content-texture-media h-full w-full" style={getImageTreatmentStyle(imageTreatment)}>
+      {visual}
+    </div>
   );
   const enlaceUrl = getSafePortadaLinkUrl(elemento.enlaceUrl);
   if (enlaceUrl) {
@@ -176,12 +187,14 @@ function PortadaLienzo({
   dispositivo,
   roleColors,
   resolveSrc,
+  imageTreatments,
   className,
 }: {
   config: PortadaLibreConfig;
   dispositivo: PortadaDispositivo;
   roleColors: RoleColors;
   resolveSrc?: (src?: string) => string;
+  imageTreatments?: Record<string, TratamientoImagen>;
   className?: string;
 }) {
   const disp = config[dispositivo];
@@ -211,6 +224,7 @@ function PortadaLienzo({
               dispositivo={dispositivo}
               roleColors={roleColors}
               resolveSrc={resolveSrc}
+              imageTreatment={imageTreatments?.[`portada:${elemento.id}`]}
             />
           </div>
         );
@@ -223,21 +237,23 @@ export default function PortadaLibre({
   config,
   roleColors,
   resolveSrc,
+  imageTreatments,
   forzarDispositivo,
 }: {
   config?: PortadaLibreConfig;
   roleColors: RoleColors;
   resolveSrc?: (src?: string) => string;
+  imageTreatments?: Record<string, TratamientoImagen>;
   forzarDispositivo?: PortadaDispositivo;
 }) {
   const normalizado = normalizePortadaLibre(config);
   if (forzarDispositivo) {
-    return <PortadaLienzo config={normalizado} dispositivo={forzarDispositivo} roleColors={roleColors} resolveSrc={resolveSrc} />;
+    return <PortadaLienzo config={normalizado} dispositivo={forzarDispositivo} roleColors={roleColors} resolveSrc={resolveSrc} imageTreatments={imageTreatments} />;
   }
   return (
     <>
-      <PortadaLienzo config={normalizado} dispositivo="pc" roleColors={roleColors} resolveSrc={resolveSrc} className="hidden md:block" />
-      <PortadaLienzo config={normalizado} dispositivo="movil" roleColors={roleColors} resolveSrc={resolveSrc} className="md:hidden" />
+      <PortadaLienzo config={normalizado} dispositivo="pc" roleColors={roleColors} resolveSrc={resolveSrc} imageTreatments={imageTreatments} className="hidden md:block" />
+      <PortadaLienzo config={normalizado} dispositivo="movil" roleColors={roleColors} resolveSrc={resolveSrc} imageTreatments={imageTreatments} className="md:hidden" />
     </>
   );
 }

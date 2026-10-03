@@ -71,6 +71,23 @@ h1, h2, h3, h4, h5, h6 {
 .tex-cream { background-image: var(--tex-cream, none); background-size: var(--tex-cream-size, auto); background-repeat: repeat; }
 .tex-white { background-image: var(--tex-white, none); background-size: var(--tex-white-size, auto); background-repeat: repeat; }
 .tex-cream-dark { background-image: var(--tex-cream-dark, none); background-size: var(--tex-cream-dark-size, auto); background-repeat: repeat; }
+.content-texture-media {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.content-texture-media::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: var(--content-texture-image, none);
+  background-size: var(--content-texture-size, auto);
+  background-repeat: repeat;
+  opacity: var(--content-texture-opacity, 0);
+  mix-blend-mode: multiply;
+  content: "";
+}
 .smallcaps {
   font-family: var(--font-display);
   font-variant: small-caps;

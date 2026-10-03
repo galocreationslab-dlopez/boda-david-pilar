@@ -277,7 +277,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
           </div>
         </div>
       ) : (
-        <div className="fixed inset-0 z-[100] h-[100svh] w-full bg-transparent">
+        <div className="fixed inset-0 z-[100] h-[100svh] w-full bg-transparent" style={themeStyle}>
           <div className="relative h-full w-full px-0 py-0 sm:px-0 sm:py-0" style={introFrameStyle}>
             <IntroAnimationStage
               deviceConfig={deviceConfig}

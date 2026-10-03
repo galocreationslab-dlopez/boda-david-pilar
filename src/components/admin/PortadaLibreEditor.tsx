@@ -7,6 +7,7 @@ import type {
   PortadaDispositivoConfig,
   PortadaElementoLayout,
   PortadaLibreConfig,
+  TratamientoImagen,
 } from "@/config/wedding.config";
 import { PortadaElementoContenido, getPortadaBoxStyle, resolvePortadaColor } from "@/components/wedding/PortadaLibre";
 import { FONT_ROLE_KEYS, FONT_ROLE_LABELS } from "@/lib/theme-fonts";
@@ -47,6 +48,9 @@ type Props = {
   roleColors: Record<string, string | undefined>;
   resolveSrc: (src?: string) => string;
   onChange: (next: PortadaLibreConfig) => void;
+  imageTreatments: Record<string, TratamientoImagen>;
+  overlayTextureAvailable: boolean;
+  onChangeImageTreatment: (key: string, patch: Partial<TratamientoImagen>) => void;
 };
 
 function NumberField({ label, value, onChange, step = 1, min, max }: { label: string; value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number }) {
@@ -126,7 +130,7 @@ function ColorControl({
   );
 }
 
-export default function PortadaLibreEditor({ config, dispositivo, roles, roleColors, resolveSrc, onChange }: Props) {
+export default function PortadaLibreEditor({ config, dispositivo, roles, roleColors, resolveSrc, onChange, imageTreatments, overlayTextureAvailable, onChangeImageTreatment }: Props) {
   const normalizado = normalizePortadaLibre(config);
   const disp = normalizado[dispositivo];
   const porPantallas = disp.alturaModo === "pantallas";
@@ -356,7 +360,14 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
                 onPointerDown={(event) => startDrag(event, el.id, "move", layout)}
               >
                 <div className="pointer-events-none h-full w-full">
-                  <PortadaElementoContenido elemento={el} layout={layout} dispositivo={dispositivo} roleColors={roleColors} resolveSrc={resolveSrc} />
+                  <PortadaElementoContenido
+                    elemento={el}
+                    layout={layout}
+                    dispositivo={dispositivo}
+                    roleColors={roleColors}
+                    resolveSrc={resolveSrc}
+                    imageTreatment={imageTreatments[`portada:${el.id}`]}
+                  />
                 </div>
                 {isSelected && HANDLES.map((handle) => (
                   <span
@@ -410,6 +421,40 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
 
           {selected.tipo === "imagen" ? (
             <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <label className="block space-y-1 text-[11px] text-stone-600">
+                  <span className="flex items-center justify-between">
+                    <span>Opacidad del overlay</span>
+                    <span>{imageTreatments[`portada:${selected.id}`]?.opacidadOverlay ?? 0}%</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={imageTreatments[`portada:${selected.id}`]?.opacidadOverlay ?? 0}
+                    disabled={!overlayTextureAvailable}
+                    onChange={(event) => onChangeImageTreatment(`portada:${selected.id}`, { opacidadOverlay: Number(event.target.value) })}
+                    className="w-full accent-amber-700 disabled:opacity-50"
+                  />
+                </label>
+                {!overlayTextureAvailable && <p className="text-[10px] text-stone-500">Asigna una textura al fondo de sección de la paleta para habilitar el overlay.</p>}
+                <label className="block space-y-1 text-[11px] text-stone-600">
+                  <span className="flex items-center justify-between">
+                    <span>Difuminado de bordes</span>
+                    <span>{imageTreatments[`portada:${selected.id}`]?.difuminadoBordePx ?? 0} px</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={imageTreatments[`portada:${selected.id}`]?.difuminadoBordePx ?? 0}
+                    onChange={(event) => onChangeImageTreatment(`portada:${selected.id}`, { difuminadoBordePx: Number(event.target.value) })}
+                    className="w-full accent-amber-700"
+                  />
+                </label>
+              </div>
               <ColorControl
                 label="Color de la imagen"
                 modo={selectedLayout.colorModo ?? "original"}

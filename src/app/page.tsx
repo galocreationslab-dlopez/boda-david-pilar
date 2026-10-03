@@ -16,7 +16,7 @@ import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding
 import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
 import type { GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
-import { buildTextureCssVars, resolvePaletteRoleColors, resolvePaletteRoleTextures, resolvePaletteToThemeColors, withBorderStyle, withTextureStyle } from "@/lib/theme-roles";
+import { buildTextureCssVars, resolvePaletteRoleColors, resolvePaletteRoleTextures, resolvePaletteToThemeColors, textureToCssImage, withBorderStyle, withTextureStyle } from "@/lib/theme-roles";
 import { getComponentSizeStyle } from "@/lib/component-size";
 import { buildFontCssVars, getComponentFontStyle } from "@/lib/theme-fonts";
 import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
@@ -319,6 +319,7 @@ export default async function PaginaPrincipal({
   const separador = config.diseno?.separador;
   const paletas = config.tema.paletas ?? [];
   const paletaGlobal = paletas.find((p) => p.id === config.tema.paletaActivaId) ?? paletas[0];
+  const tratamientosImagenes = config.diseno?.tratamientosImagenes ?? {};
 
   const getPaletteBySection = (section?: SeccionDiseno): TemaPaleta | undefined => {
     if (!section) return paletaGlobal;
@@ -330,6 +331,7 @@ export default async function PaginaPrincipal({
     const palette = getPaletteBySection(section);
     const resolved = palette ? resolvePaletteToThemeColors(palette) : config.tema.colores;
     const roles = palette ? resolvePaletteRoleColors(palette) : null;
+    const imageTexture = palette ? textureToCssImage(resolvePaletteRoleTextures(palette).fondoSeccion, resolveDriveMediaSrc) : { image: "none", size: "auto" };
     return {
       ["--role-fondo-principal" as string]: roles?.fondoSeccion,
       ["--role-fondo-alterno" as string]: roles?.fondoSubseccion,
@@ -352,6 +354,8 @@ export default async function PaginaPrincipal({
       ["--white" as string]: resolved.white,
       ...buildTextureCssVars(palette, resolveDriveMediaSrc),
       ...buildFontCssVars(config.tema.fuentes),
+      ["--content-texture-image" as string]: imageTexture.image,
+      ["--content-texture-size" as string]: imageTexture.size,
     };
   };
 
@@ -460,7 +464,10 @@ export default async function PaginaPrincipal({
     if (section?.galeriaConfig?.mostrarSeleccionNovios === false) {
       return [];
     }
-    return galleryMedia;
+    return galleryMedia.map((media) => ({
+      ...media,
+      tratamientoImagen: tratamientosImagenes[`galeria:${media.id}`],
+    }));
   };
 
   const pageContent = (
@@ -523,6 +530,7 @@ export default async function PaginaPrincipal({
                     config={section.source?.portadaLibre}
                     roleColors={sectionRoleColors ?? {}}
                     resolveSrc={resolvePublicImageSrc}
+                    imageTreatments={tratamientosImagenes}
                   />
                 </SeccionColapsable>
               )}
@@ -538,6 +546,7 @@ export default async function PaginaPrincipal({
                 >
                   <SeccionHistoria
                     eventos={getHistoriaForSection(section.source)}
+                    imageTreatments={tratamientosImagenes}
                     componentStyles={componentStyles}
                     sectionInternalTitle={section.source?.subtituloInterno || "El camino hasta aquí"}
                     headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
@@ -556,6 +565,7 @@ export default async function PaginaPrincipal({
                 >
                   <SeccionGaleria
                     media={getGalleryMediaForSection(section.source)}
+                    imageTreatments={tratamientosImagenes}
                     componentStyles={componentStyles}
                     headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
                     galeriaConfig={section.source?.galeriaConfig}

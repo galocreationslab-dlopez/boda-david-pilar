@@ -2,6 +2,7 @@
 
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { PublicGalleryMedia } from "@/lib/wedding-gallery-server";
+import { getImageTreatmentStyle } from "@/lib/image-treatment";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
@@ -209,7 +210,7 @@ export function SeccionGaleria({
             <div className={galleryGridClass}>
               {media.map((item) => (
                 <article key={item.id} className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm" style={styleFor("galeria.card")} onClick={() => select("galeria.card")}>
-                  <div className="relative aspect-[4/3] bg-stone-100" style={styleFor("galeria.imagen")} onClick={(event) => { event.stopPropagation(); select("galeria.imagen"); }}>
+                  <div className="content-texture-media relative aspect-[4/3] bg-stone-100" style={{ ...styleFor("galeria.imagen"), ...getImageTreatmentStyle(item.tratamientoImagen) }} onClick={(event) => { event.stopPropagation(); select("galeria.imagen"); }}>
                     {!designMode && editable && (
                       <>
                         <button
@@ -306,7 +307,7 @@ export function SeccionGaleria({
               <div className={galleryGridClass}>
                 {privateMedia.map((item) => (
                   <article key={item.id} className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-                    <div className="aspect-[4/3] bg-stone-100">
+                    <div className="content-texture-media aspect-[4/3] bg-stone-100">
                       {item.tipo === "video" ? (
                         <video src={resolveDriveMediaSrc(item.url_publica) || undefined} className="h-full w-full object-cover" controls />
                       ) : (

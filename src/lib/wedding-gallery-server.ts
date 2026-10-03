@@ -1,5 +1,5 @@
 import { unstable_noStore as noStore } from "next/cache";
-import { weddingConfig } from "@/config/wedding.config";
+import { weddingConfig, type TratamientoImagen } from "@/config/wedding.config";
 import { createServerClient } from "@/lib/supabase/server";
 
 export type PublicGalleryMedia = {
@@ -10,6 +10,7 @@ export type PublicGalleryMedia = {
   url_publica: string | null;
   subido_por: string | null;
   created_at: string;
+  tratamientoImagen?: TratamientoImagen;
 };
 
 export async function getFeaturedGalleryMedia(): Promise<PublicGalleryMedia[]> {
