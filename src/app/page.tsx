@@ -7,7 +7,8 @@ import { getWeddingConfig } from "@/lib/wedding-config-server";
 import { NavegacionPublica } from "@/components/layout/NavegacionPublica";
 import { PieDePagina } from "@/components/layout/PieDePagina";
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
-import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
+import { SeccionColapsable, SectionChain, SectionChainDecoration } from "@/components/wedding/SeccionColapsable";
+import { getPublicSectionGroups, getSectionAnchor, getLegacySectionAnchor } from "@/lib/section-chains";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
 import PortadaLibre from "@/components/wedding/PortadaLibre";
 import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
@@ -299,15 +300,6 @@ function renderSeparador(separadorInput: SeparadorDiseno | undefined, roleColors
   );
 }
 
-function getAnchorId(tipo: TipoSeccionDiseno, sectionId?: string): string {
-  if (tipo === "carrusel") return `carrusel-${sectionId}`;
-  if (tipo === "portadaLibre") return `portada-${sectionId ?? "libre"}`;
-  if (tipo === "invitacion" || tipo === "portada") return "invitacion";
-  if (tipo === "historia") return "historia";
-  if (tipo === "galeria") return "galeria";
-  return "timeline";
-}
-
 export default async function PaginaPrincipal({
   searchParams,
 }: {
@@ -394,33 +386,28 @@ export default async function PaginaPrincipal({
     }, {} as Partial<Record<SectionComponentKey, CSSProperties>>);
   };
 
-  const perfilPublicoFilter = (s: SeccionDiseno): boolean => {
-    if (!s.perfiles || s.perfiles.length === 0) return true;
-    return s.perfiles.includes("publico");
-  };
-
-  const todasLasSecciones = (config.diseno?.secciones ?? []).filter(perfilPublicoFilter);
+  const publicGroups = getPublicSectionGroups(config.diseno?.secciones ?? []);
 
   // Secciones con acceso directo desde el menu hamburguesa (aunque no esten en pantalla principal).
-  const menuSecciones = todasLasSecciones
+  const menuSecciones = publicGroups.map((group) => group.head)
     .filter((s) => s.menuDirecto && s.tipo !== "intro")
     .map((s) => ({
-      anchorId: getAnchorId(s.tipo === "portada" ? "invitacion" : s.tipo, s.id),
+      anchorId: getSectionAnchor(s),
       titulo: s.titulo || s.nombre,
       enPantallaPrincipal: s.visible,
     }));
 
   // Seccion pedida via el menu de "solo acceso directo" (no visible en el scroll principal).
   const seccionEnfocada = seccionFoco
-    ? todasLasSecciones.find((s) => s.menuDirecto && !s.visible && getAnchorId(s.tipo === "portada" ? "invitacion" : s.tipo, s.id) === seccionFoco)
+    ? publicGroups.find((group) => group.head.menuDirecto && !group.head.visible && group.sections.some((section) => getSectionAnchor(section) === seccionFoco || getLegacySectionAnchor(section) === seccionFoco))
     : undefined;
 
-  const visibleSections = seccionEnfocada
+  const visibleGroups = seccionEnfocada
     ? [seccionEnfocada]
-    : todasLasSecciones.filter((s) => s.visible);
+    : publicGroups.filter((group) => group.head.visible);
 
-  const introSection = seccionEnfocada ? undefined : visibleSections.find((section) => section.tipo === "intro" && section.intro);
-  const contentSections = visibleSections.filter((section) => section.tipo !== "intro");
+  const introSection = seccionEnfocada ? undefined : visibleGroups.find((group) => group.head.tipo === "intro" && group.head.intro)?.head;
+  const contentGroups = visibleGroups.filter((group) => group.head.tipo !== "intro");
 
   const fallbackSections: Array<{ id: string; tipo: TipoSeccionDiseno; titulo: string; source?: SeccionDiseno }> = [
     { id: "sec-invitacion-fallback", tipo: "invitacion", titulo: "Invitacion" },
@@ -431,11 +418,19 @@ export default async function PaginaPrincipal({
 
   const normalizeSectionType = (tipo: TipoSeccionDiseno): TipoSeccionDiseno => (tipo === "portada" ? "invitacion" : tipo);
 
-  const orderedSections = contentSections.length > 0
-    ? contentSections.map((s) => ({ id: s.id, tipo: normalizeSectionType(s.tipo), titulo: s.titulo || s.nombre, source: s }))
-    : seccionEnfocada
+  const orderedGroups = contentGroups.length > 0
+    ? contentGroups.map((group) => group.sections.map((section) => ({ id: section.id, tipo: normalizeSectionType(section.tipo), titulo: section.titulo || section.nombre, source: section })))
+    : seccionEnfocada || config.diseno?.secciones?.length
       ? []
-      : fallbackSections;
+      : fallbackSections.map((section) => [section]);
+
+  const legacyAnchorOwners = new Map<string, string>();
+  for (const group of orderedGroups) {
+    for (const section of group) {
+      const legacyAnchor = getLegacySectionAnchor(section);
+      if (!legacyAnchorOwners.has(legacyAnchor)) legacyAnchorOwners.set(legacyAnchor, section.id);
+    }
+  }
 
   const renderSectionSpacing = (section?: SeccionDiseno) => {
     const mobile = Math.max(0, section?.distanciaSiguiente?.movil ?? 0);
@@ -518,22 +513,21 @@ export default async function PaginaPrincipal({
         </div>
       )}
       <main>
-        {orderedSections.map((section, index) => {
+        {orderedGroups.map((group, groupIndex) => (
+          <SectionChain
+            key={group[0].id}
+            ids={group.map(getSectionAnchor)}
+            abiertaPorDefecto={Boolean(seccionEnfocada) || (group[0].tipo === "portadaLibre" && group[0].source?.portadaLibre?.abiertaPorDefecto !== false)}
+          >
+        {group.map((section, index) => {
           const componentStyles = getSectionComponentStyles(section.source);
           const sectionPalette = section.source ? getPaletteBySection(section.source) : paletaGlobal;
           const sectionRoleColors = sectionPalette ? resolvePaletteRoleColors(sectionPalette) : null;
-          const isLast = index === orderedSections.length - 1;
-          const anchorId = section.tipo === "carrusel"
-            ? getAnchorId("carrusel", section.id)
-            : section.tipo === "portadaLibre"
-            ? getAnchorId("portadaLibre", section.id)
-            : section.tipo === "invitacion"
-            ? "invitacion"
-            : section.tipo === "historia"
-            ? "historia"
-            : section.tipo === "galeria"
-            ? "galeria"
-            : "timeline";
+          const isLastInGroup = index === group.length - 1;
+          const isLast = isLastInGroup && groupIndex === orderedGroups.length - 1;
+          const anchorId = getSectionAnchor(section);
+          const legacyAnchor = getLegacySectionAnchor(section);
+          const anchorAliases = legacyAnchor !== anchorId && legacyAnchorOwners.get(legacyAnchor) === section.id ? [legacyAnchor] : [];
           const sectionInternalSeparator = section.source?.separadorInterno ?? {
             modo: "suave",
             grafico: "ornamento",
@@ -541,9 +535,9 @@ export default async function PaginaPrincipal({
           };
           const sectionSpacing = !isLast ? renderSectionSpacing(section.source) : null;
           return (
-            <div key={section.id} style={getSectionThemeVars(section.source)}>
+            <div key={section.id} id={anchorAliases[0]} style={getSectionThemeVars(section.source)}>
               {section.tipo === "invitacion" && (
-                <SeccionColapsable id={anchorId} abiertaPorDefecto={true} ocultarCabecera={true} afterContent={sectionSpacing}>
+                <SeccionColapsable id={anchorId} anchorAliases={anchorAliases} abiertaPorDefecto={true} ocultarCabecera={true} afterContent={sectionSpacing}>
                   <MainWithInvite
                     config={getInvitacionConfigForSection(section.source)}
                     componentStyles={componentStyles}
@@ -555,6 +549,7 @@ export default async function PaginaPrincipal({
               {section.tipo === "portadaLibre" && (
                 <SeccionColapsable
                   id={anchorId}
+                  anchorAliases={anchorAliases}
                   titulo={section.source?.portadaLibre?.mostrarTitulo ? section.titulo : ""}
                   abiertaPorDefecto={Boolean(seccionEnfocada) || section.source?.portadaLibre?.abiertaPorDefecto !== false}
                   ocultarCabecera={section.source?.portadaLibre?.colapsable === false}
@@ -574,6 +569,7 @@ export default async function PaginaPrincipal({
               {section.tipo === "historia" && (
                 <SeccionColapsable
                   id={anchorId}
+                  anchorAliases={anchorAliases}
                   titulo={section.titulo || "Nuestra historia"}
                   abiertaPorDefecto={Boolean(seccionEnfocada)}
                   bgColor="var(--cream)"
@@ -594,6 +590,7 @@ export default async function PaginaPrincipal({
               {section.tipo === "carrusel" && (
                 <SeccionColapsable
                   id={anchorId}
+                  anchorAliases={anchorAliases}
                   titulo={section.titulo || "Fotos"}
                   abiertaPorDefecto={Boolean(seccionEnfocada)}
                   bgColor="var(--cream)"
@@ -608,6 +605,7 @@ export default async function PaginaPrincipal({
               {section.tipo === "galeria" && (
                 <SeccionColapsable
                   id={anchorId}
+                  anchorAliases={anchorAliases}
                   titulo={section.titulo || "Galeria"}
                   abiertaPorDefecto={Boolean(seccionEnfocada)}
                   bgColor="var(--cream)"
@@ -627,6 +625,7 @@ export default async function PaginaPrincipal({
               {section.tipo === "timeline" && (
                 <SeccionColapsable
                   id={anchorId}
+                  anchorAliases={anchorAliases}
                   titulo={section.titulo || "El gran dia"}
                   abiertaPorDefecto={Boolean(seccionEnfocada)}
                   bgColor="var(--cream-dark)"
@@ -644,10 +643,16 @@ export default async function PaginaPrincipal({
                 </SeccionColapsable>
               )}
 
-              {!isLast && section.tipo !== "timeline" && section.tipo !== "carrusel" && renderSeparador(separador, sectionRoleColors, `${section.id}-separator`)}
+              {!isLast && section.tipo !== "timeline" && section.tipo !== "carrusel" && (
+                isLastInGroup
+                  ? renderSeparador(separador, sectionRoleColors, `${section.id}-separator`)
+                  : <SectionChainDecoration>{renderSeparador(separador, sectionRoleColors, `${section.id}-separator`)}</SectionChainDecoration>
+              )}
             </div>
           );
         })}
+          </SectionChain>
+        ))}
       </main>
       <PieDePagina config={config} />
     </div>

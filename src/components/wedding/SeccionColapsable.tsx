@@ -5,11 +5,39 @@
  * La portada (ocultarCabecera=true) no muestra cabecera.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+
+const SectionChainContext = createContext<{
+  ids: string[];
+  abierta: boolean;
+  setAbierta: React.Dispatch<React.SetStateAction<boolean>>;
+} | null>(null);
+
+export function SectionChain({ ids, abiertaPorDefecto, children }: {
+  ids: string[];
+  abiertaPorDefecto: boolean;
+  children: React.ReactNode;
+}) {
+  const [abierta, setAbierta] = useState(abiertaPorDefecto);
+  useEffect(() => {
+    setAbierta(abiertaPorDefecto);
+  }, [abiertaPorDefecto]);
+  return (
+    <SectionChainContext.Provider value={ids.length > 1 ? { ids, abierta, setAbierta } : null}>
+      {children}
+    </SectionChainContext.Provider>
+  );
+}
+
+export function SectionChainDecoration({ children }: { children: React.ReactNode }) {
+  const chain = useContext(SectionChainContext);
+  return <div hidden={chain ? !chain.abierta : false}>{children}</div>;
+}
 
 type Props = {
   id: string;
+  anchorAliases?: string[];
   titulo?: string;
   abiertaPorDefecto: boolean;
   ocultarCabecera?: boolean;
@@ -30,6 +58,7 @@ type Props = {
 
 export function SeccionColapsable({
   id,
+  anchorAliases = [],
   titulo,
   abiertaPorDefecto,
   ocultarCabecera = false,
@@ -47,18 +76,24 @@ export function SeccionColapsable({
   afterContent,
   children,
 }: Props) {
-  const [abierta, setAbierta] = useState(abiertaPorDefecto);
+  const chain = useContext(SectionChainContext);
+  const [abiertaLocal, setAbiertaLocal] = useState(abiertaPorDefecto);
+  const abierta = chain?.abierta ?? abiertaLocal;
+  const setAbierta = chain?.setAbierta ?? setAbiertaLocal;
+  const esContinuacion = Boolean(chain && chain.ids[0] !== id);
+  const anchorAliasesKey = anchorAliases.join("\n");
   const sectionRef = useRef<HTMLElement | null>(null);
   const texClass = bgColor === "var(--cream)" ? "tex-cream" : bgColor === "var(--cream-dark)" ? "tex-cream-dark" : bgColor === "var(--white)" ? "tex-white" : "";
 
   useEffect(() => {
-    setAbierta(abiertaPorDefecto);
+    setAbiertaLocal(abiertaPorDefecto);
   }, [abiertaPorDefecto]);
 
   // Enlaces del menu de navegacion deben desplegar la seccion antes de saltar a ella.
   // El evento "seccion:abrir" cubre la navegacion in-app (Next no dispara "hashchange" via pushState);
   // el chequeo de hash cubre cargas de pagina completas (ej. llegar directamente a "/#historia").
   useEffect(() => {
+    const isDestination = (anchor: string) => anchor === id || anchorAliasesKey.split("\n").includes(anchor);
     const abrirYDesplazar = () => {
       setAbierta(true);
       window.setTimeout(() => {
@@ -66,11 +101,11 @@ export function SeccionColapsable({
       }, 150);
     };
     const abrirSiEsElDestino = () => {
-      if (typeof window !== "undefined" && window.location.hash === `#${id}`) abrirYDesplazar();
+      if (typeof window !== "undefined" && window.location.hash && isDestination(window.location.hash.slice(1))) abrirYDesplazar();
     };
     const abrirPorEvento = (event: Event) => {
       const anchorId = (event as CustomEvent<{ anchorId: string }>).detail?.anchorId;
-      if (anchorId === id) abrirYDesplazar();
+      if (anchorId && isDestination(anchorId)) abrirYDesplazar();
     };
     abrirSiEsElDestino();
     window.addEventListener("hashchange", abrirSiEsElDestino);
@@ -79,7 +114,7 @@ export function SeccionColapsable({
       window.removeEventListener("hashchange", abrirSiEsElDestino);
       window.removeEventListener("seccion:abrir", abrirPorEvento);
     };
-  }, [id]);
+  }, [id, anchorAliasesKey, setAbierta]);
 
   return (
     <section
@@ -102,7 +137,7 @@ export function SeccionColapsable({
       }}
     >
       {/* Cabecera colapsable — oculta en la portada */}
-      {!ocultarCabecera && (
+      {!ocultarCabecera && !esContinuacion && (
         <button
           onClick={() => setAbierta(!abierta)}
           className={`group flex w-full items-center justify-between gap-4 px-4 py-4 sm:px-12 sm:py-5 ${texClass}`}
@@ -112,7 +147,7 @@ export function SeccionColapsable({
             ...(sectionStyle ?? {}),
           }}
           aria-expanded={abierta}
-          aria-controls={`contenido-${id}`}
+          aria-controls={chain ? chain.ids.map((sectionId) => `contenido-${sectionId}`).join(" ") : `contenido-${id}`}
         >
           <span
             className="font-display text-left font-light"
@@ -174,14 +209,18 @@ export function SeccionColapsable({
       {/* Contenido animado */}
       <div
         id={`contenido-${id}`}
-        className="overflow-hidden transition-all duration-500"
+        className="grid transition-[grid-template-rows,opacity] duration-500 motion-reduce:transition-none"
+        inert={!abierta}
+        aria-hidden={!abierta}
         style={{
-          maxHeight: abierta ? "9999px" : "0",
+          gridTemplateRows: abierta ? "1fr" : "0fr",
           opacity: abierta ? 1 : 0,
         }}
       >
-        {children}
-        {afterContent}
+        <div className="min-h-0 overflow-hidden">
+          {children}
+          {afterContent}
+        </div>
       </div>
     </section>
   );

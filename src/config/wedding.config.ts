@@ -452,6 +452,7 @@ export type SeccionDiseno = {
   componentFonts?: Partial<Record<string, FuenteRol>>;
   separadorInterno?: SeparadorDiseno;
   distanciaSiguiente?: DistanciaSiguienteSeccion;
+  encadenarAnterior?: boolean;
   visible: boolean;
   // Si es true, la sección aparece como acceso directo en el menú de hamburguesa.
   menuDirecto?: boolean;

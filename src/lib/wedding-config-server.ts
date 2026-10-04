@@ -12,6 +12,7 @@ import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { buildFontCssVars, buildFontFaceCss } from "@/lib/theme-fonts";
 import { normalizeAlineacionLogoTimeline, normalizeTamanoLogoTimeline } from "@/lib/timeline-logo-size";
 import { unstable_noStore as noStore } from "next/cache";
+import { normalizeSectionChains } from "@/lib/section-chains";
 
 type SectionRow = {
   id: string;
@@ -116,7 +117,7 @@ function normalizeSecciones(config: WeddingConfig): WeddingConfig {
     ...config,
     diseno: {
       ...config.diseno,
-      secciones: secciones.map((section) => ({
+      secciones: normalizeSectionChains(secciones.map((section) => ({
         ...section,
         tipo: normalizeSectionTipo(section.tipo),
         distanciaSiguiente: normalizeSectionSpacing(section.distanciaSiguiente),
@@ -150,7 +151,7 @@ function normalizeSecciones(config: WeddingConfig): WeddingConfig {
                 : normalized;
             })()
           : section.intro,
-      })),
+      }))),
     },
   };
 }

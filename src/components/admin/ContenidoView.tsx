@@ -7,6 +7,7 @@ import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, ELEMENTOS_BARRA_POR_DEFECTO, normalizeIntroConfig } from "@/config/wedding.config";
 import { buildDefaultLayout, buildDefaultPortadaLibre, normalizePortadaLibre } from "@/lib/portada-libre";
+import { normalizeSectionChains, preserveSectionChainNeighbors } from "@/lib/section-chains";
 import {
   TIMELINE_LOGO_HORIZONTAL,
   TIMELINE_LOGO_RANGE,
@@ -805,6 +806,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
       ...source,
       id: `sec-${uid()}`,
       nombre: `${source.nombre} copia`,
+      encadenarAnterior: false,
       items: source.items.map((item) => ({ ...item, id: `item-${uid()}` })),
     };
     setSections((prev) => [...prev, clone]);
@@ -814,7 +816,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const removeSection = (sectionId: string) => {
     if (!confirm("Eliminar esta seccion?")) return;
     setSections((prev) => {
-      const next = prev.filter((section) => section.id !== sectionId);
+      const next = preserveSectionChainNeighbors(prev, prev.filter((section) => section.id !== sectionId));
       setSelectedSectionId(next[0]?.id ?? "");
       return next;
     });
@@ -829,7 +831,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
       const next = [...prev];
       const [moved] = next.splice(index, 1);
       next.splice(target, 0, moved);
-      return next;
+      return preserveSectionChainNeighbors(prev, next);
     });
   };
 
@@ -1043,7 +1045,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
         body: JSON.stringify({
           diseno: {
             ...(config.diseno ?? {}),
-            secciones: sections,
+            secciones: normalizeSectionChains(sections),
             navegacion: {
               comportamiento: navegacionComportamiento,
               texto: bannerTexto.trim(),
@@ -1144,6 +1146,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                   <button onClick={() => setSelectedSectionId(section.id)} className="w-full text-left">
                     <p className="text-xs font-semibold text-stone-800">{section.nombre || sectionNameByType(section.tipo)}</p>
                     <p className="text-[11px] text-stone-500">{section.titulo || sectionTitleByType(section.tipo)} · {section.tipo}</p>
+                    {section.encadenarAnterior && <p className="text-[11px] text-amber-800">Encadenada a la anterior</p>}
                   </button>
                   <div className="mt-2 flex flex-wrap gap-1">
                     <button onClick={() => moveSection(section.id, "up")} disabled={index === 0} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40">↑</button>

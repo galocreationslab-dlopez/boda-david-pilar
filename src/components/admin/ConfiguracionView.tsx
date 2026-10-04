@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
 import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
-import { SeccionColapsable } from "@/components/wedding/SeccionColapsable";
+import { SeccionColapsable, SectionChain, SectionChainDecoration } from "@/components/wedding/SeccionColapsable";
+import { buildSectionGroups, canLeadSectionChain, getSectionGroupsForProfile, normalizeSectionChains } from "@/lib/section-chains";
 import PortadaLibre from "@/components/wedding/PortadaLibre";
 import PortadaLibreEditor from "@/components/admin/PortadaLibreEditor";
 import { SeccionHistoria, type HistoriaComponentKey } from "@/components/wedding/SeccionHistoria";
@@ -680,9 +681,12 @@ export default function ConfiguracionView({
   );
 
   const seccionesEfectivas = useMemo(
-    () => secciones.map((sec) => sectionDrafts[sec.id] ?? sec),
+    () => normalizeSectionChains(secciones.map((sec) => sectionDrafts[sec.id] ?? sec)),
     [secciones, sectionDrafts],
   );
+
+  const sectionGroups = buildSectionGroups(seccionesEfectivas);
+  const groupBySectionId = new Map(sectionGroups.flatMap((group) => group.sections.map((section) => [section.id, group] as const)));
 
   const sectionBaseMap = useMemo(
     () => Object.fromEntries(secciones.map((sec) => [sec.id, sec])) as Record<string, SeccionDiseno>,
@@ -717,20 +721,15 @@ export default function ConfiguracionView({
     return options[0]?.key ?? null;
   }, [editingSectionDraft, sectionEditMode, selectedDesignComponentKey]);
 
-  const visiblePreviewSections = useMemo(
-    () =>
-      seccionesEfectivas.filter((s) => {
-        if (!s.visible) return false;
-        if (!s.perfiles || s.perfiles.length === 0) return true;
-        return s.perfiles.includes(previewRole) || s.perfiles.includes("publico");
-      }),
+  const visiblePreviewGroups = useMemo(
+    () => getSectionGroupsForProfile(seccionesEfectivas, previewRole).filter((group) => group.head.visible && group.head.tipo !== "intro"),
     [previewRole, seccionesEfectivas],
   );
 
-  const previewSectionsToRender = useMemo(() => {
-    if (!hasAnySectionInEditMode) return visiblePreviewSections;
-    return visiblePreviewSections.filter((section) => section.id === selectedSectionId);
-  }, [hasAnySectionInEditMode, selectedSectionId, visiblePreviewSections]);
+  const previewGroupsToRender = useMemo(() => {
+    if (!hasAnySectionInEditMode) return visiblePreviewGroups;
+    return visiblePreviewGroups.filter((group) => group.sections.some((section) => section.id === selectedSectionId));
+  }, [hasAnySectionInEditMode, selectedSectionId, visiblePreviewGroups]);
 
   useEffect(() => {
     const node = sectionCardRefs.current[selectedSectionId];
@@ -1311,7 +1310,7 @@ export default function ConfiguracionView({
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const seccionesConPendientes = secciones.map((sec) => sectionDrafts[sec.id] ?? sec);
+      const seccionesConPendientes = normalizeSectionChains(secciones.map((sec) => sectionDrafts[sec.id] ?? sec));
       const seccionInvitacion = seccionesConPendientes.find((sec) => isInvitationType(sec.tipo));
       const bienvenidaInvitacion = seccionInvitacion?.items?.[0]?.descripcion?.trim() || DEFAULT_TEXTO_INVITACION;
       const colors = paletaActivaResolvedColors;
@@ -1624,15 +1623,8 @@ export default function ConfiguracionView({
   };
 
   const renderSectionSpacing = (section: SeccionDiseno) => {
-    const mobile = Math.max(0, section.distanciaSiguiente?.movil ?? 0);
-    const pc = Math.max(0, section.distanciaSiguiente?.pc ?? 0);
-    if (mobile === 0 && pc === 0) return null;
-    return (
-      <>
-        <div className="sm:hidden" style={{ height: `${mobile}px` }} aria-hidden="true" />
-        <div className="hidden sm:block" style={{ height: `${pc}px` }} aria-hidden="true" />
-      </>
-    );
+    const spacing = Math.max(0, section.distanciaSiguiente?.[editorViewport === "movil" ? "movil" : "pc"] ?? 0);
+    return spacing > 0 ? <div style={{ height: `${spacing}px` }} aria-hidden="true" /> : null;
   };
 
   return (
@@ -2160,10 +2152,14 @@ export default function ConfiguracionView({
               </div>
 
               <div className="space-y-2">
-                {secciones.map((sec) => {
+                {secciones.map((sec, index) => {
                   const secDraft = sectionDrafts[sec.id] ?? sec;
                   const secDirty = isSectionDirty(sec.id);
                   const secEditing = editingSectionId === sec.id;
+                  const group = groupBySectionId.get(sec.id);
+                  const isChained = Boolean(group && group.head.id !== sec.id);
+                  const previousGroup = groupBySectionId.get(secciones[index - 1]?.id);
+                  const canChain = secDraft.tipo !== "intro" && Boolean(previousGroup && canLeadSectionChain(previousGroup.head));
 
                   return (
                     <article
@@ -2186,6 +2182,33 @@ export default function ConfiguracionView({
                             : `Personalizada (${paletas.find((p) => p.id === secDraft.paletaId)?.nombre ?? "sin nombre"})`}
                         </p>
                       </div>
+
+                      {secDraft.tipo !== "intro" && (
+                        <label
+                          className={`mb-2 flex items-start gap-2 text-xs ${canChain || isChained ? "cursor-pointer text-stone-700" : "text-stone-400"}`}
+                          title={canChain ? undefined : "La anterior debe pertenecer a una seccion con cabecera colapsable"}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 accent-amber-700"
+                            checked={isChained}
+                            disabled={!canChain && !isChained}
+                            onChange={(event) => {
+                              const encadenarAnterior = event.target.checked;
+                              setSelectedSectionId(sec.id);
+                              setSectionDrafts((previous) => ({
+                                ...previous,
+                                [sec.id]: { ...(previous[sec.id] ?? sec), encadenarAnterior },
+                              }));
+                            }}
+                          />
+                          <span className="min-w-0 break-words">
+                            Encadenar a la anterior
+                            {isChained && <span className="mt-0.5 block text-[11px] text-amber-800">Grupo: {group?.head.titulo || group?.head.nombre}</span>}
+                          </span>
+                        </label>
+                      )}
 
                       <div className="relative">
                         {renderSectionCanvas(secDraft, true, secEditing)}
@@ -2675,8 +2698,15 @@ export default function ConfiguracionView({
               >
                 <style dangerouslySetInnerHTML={{ __html: buildFontFaceCss(fuentes, true) }} />
                 <main className={editorViewport === "movil" ? "mx-auto max-w-[430px]" : ""}>
-                  {previewSectionsToRender.map((sec, idx) => {
-                    const isLast = idx === previewSectionsToRender.length - 1;
+                  {previewGroupsToRender.map((group, groupIndex) => (
+                    <SectionChain
+                      key={group.head.id}
+                      ids={group.sections.map((section) => `preview-${section.id}`)}
+                      abiertaPorDefecto={hasAnySectionInEditMode || (group.head.tipo === "portadaLibre" && group.head.portadaLibre?.abiertaPorDefecto !== false)}
+                    >
+                  {group.sections.map((sec, idx) => {
+                    const isLastInGroup = idx === group.sections.length - 1;
+                    const isLast = isLastInGroup && groupIndex === previewGroupsToRender.length - 1;
                     const sectionIsBeingEdited = hasAnySectionInEditMode && editingSectionId === sec.id;
                     const designMode = sectionIsBeingEdited && sectionEditMode === "diseno";
                     const sectionThemeVars = getSectionThemeVars(sec);
@@ -2710,7 +2740,16 @@ export default function ConfiguracionView({
                         )}
 
                         {sec.tipo === "portadaLibre" && (
-                          sectionIsBeingEdited ? (
+                          <SeccionColapsable
+                            id={`preview-${sec.id}`}
+                            titulo={sec.portadaLibre?.mostrarTitulo ? sec.titulo : ""}
+                            abiertaPorDefecto={sectionIsBeingEdited || sec.portadaLibre?.abiertaPorDefecto !== false}
+                            ocultarCabecera={sec.portadaLibre?.colapsable === false}
+                            bgColor="var(--cream)"
+                            titleStyle={{ color: sectionRoleColors?.tituloSeccion }}
+                            afterContent={sectionSpacing}
+                          >
+                          {sectionIsBeingEdited ? (
                             <PortadaLibreEditor
                               config={sec.portadaLibre}
                               dispositivo={editorViewport === "movil" ? "movil" : "pc"}
@@ -2723,15 +2762,6 @@ export default function ConfiguracionView({
                               onChangeImageTreatment={patchImageTreatment}
                             />
                           ) : (
-                            <SeccionColapsable
-                              id={`preview-${sec.id}`}
-                              titulo={sec.portadaLibre?.mostrarTitulo ? sec.titulo : ""}
-                              abiertaPorDefecto={sec.portadaLibre?.abiertaPorDefecto !== false}
-                              ocultarCabecera={sec.portadaLibre?.colapsable === false}
-                              bgColor="var(--cream)"
-                              titleStyle={{ color: sectionRoleColors?.tituloSeccion }}
-                              afterContent={sectionSpacing}
-                            >
                               <PortadaLibre
                                 config={sec.portadaLibre}
                                 roleColors={sectionRoleColors ?? {}}
@@ -2739,8 +2769,8 @@ export default function ConfiguracionView({
                                 imageTreatments={tratamientosImagenes}
                                 forzarDispositivo={editorViewport === "movil" ? "movil" : "pc"}
                               />
-                            </SeccionColapsable>
-                          )
+                          )}
+                          </SeccionColapsable>
                         )}
 
                         {sec.tipo === "historia" && (
@@ -2844,12 +2874,18 @@ export default function ConfiguracionView({
                           </SeccionColapsable>
                         )}
 
-                        {!isLast && buildPreviewSeparator(separador, resolveAdminPreviewSrc, paletaActivaRoleColors)}
+                        {!isLast && sec.tipo !== "timeline" && sec.tipo !== "carrusel" && (
+                          isLastInGroup
+                            ? buildPreviewSeparator(separador, resolveAdminPreviewSrc, sectionRoleColors)
+                            : <SectionChainDecoration>{buildPreviewSeparator(separador, resolveAdminPreviewSrc, sectionRoleColors)}</SectionChainDecoration>
+                        )}
                       </div>
                     );
                   })}
+                    </SectionChain>
+                  ))}
 
-                  {previewSectionsToRender.length === 0 && (
+                  {previewGroupsToRender.length === 0 && (
                     <div className="rounded-xl border border-dashed border-stone-300 p-8 text-center text-sm text-stone-500">
                       No hay secciones visibles para este perfil.
                     </div>
