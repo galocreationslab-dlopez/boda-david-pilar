@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import MainWithInvite from "@/components/wedding/MainWithInvite";
 import type { HeroComponentKey } from "@/components/wedding/HeroPortada";
 import { SeccionColapsable, SectionChain, SectionChainDecoration } from "@/components/wedding/SeccionColapsable";
-import { buildSectionGroups, canLeadSectionChain, getSectionGroupsForProfile, normalizeSectionChains } from "@/lib/section-chains";
+import { buildSectionGroups, canLeadSectionChain, getPieSectionForProfile, getSectionGroupsForProfile, normalizeSectionChains } from "@/lib/section-chains";
 import PortadaLibre from "@/components/wedding/PortadaLibre";
 import PortadaLibreEditor from "@/components/admin/PortadaLibreEditor";
+import { PieDePagina } from "@/components/layout/PieDePagina";
 import { SeccionHistoria, type HistoriaComponentKey } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding/SeccionTimeline";
 import { SeccionGaleria, type GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
@@ -174,6 +175,7 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
     { key: "galeria.titulo", label: "Título galería", defaultRole: "textoPrincipal" },
     { key: "galeria.subtitulo", label: "Subtítulo galería", defaultRole: "textoSecundario" },
   ],
+  pie: [],
 };
 
 function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<string, TemaColorRole>> {
@@ -721,8 +723,9 @@ export default function ConfiguracionView({
     return options[0]?.key ?? null;
   }, [editingSectionDraft, sectionEditMode, selectedDesignComponentKey]);
 
+  // El pie de pagina personalizado nunca forma parte del scroll principal: se previsualiza aparte, siempre al final.
   const visiblePreviewGroups = useMemo(
-    () => getSectionGroupsForProfile(seccionesEfectivas, previewRole).filter((group) => group.head.visible && group.head.tipo !== "intro"),
+    () => getSectionGroupsForProfile(seccionesEfectivas, previewRole).filter((group) => group.head.visible && group.head.tipo !== "intro" && group.head.tipo !== "pie"),
     [previewRole, seccionesEfectivas],
   );
 
@@ -730,6 +733,14 @@ export default function ConfiguracionView({
     if (!hasAnySectionInEditMode) return visiblePreviewGroups;
     return visiblePreviewGroups.filter((group) => group.sections.some((section) => section.id === selectedSectionId));
   }, [hasAnySectionInEditMode, selectedSectionId, visiblePreviewGroups]);
+
+  // Como maximo hay un pie personalizado; se previsualiza fuera del bucle de grupos, siempre al final.
+  const pieSectionForPreview = useMemo(
+    () => getPieSectionForProfile(seccionesEfectivas, previewRole),
+    [previewRole, seccionesEfectivas],
+  );
+  const showPieInPreview = !hasAnySectionInEditMode || pieSectionForPreview?.id === selectedSectionId;
+  const pieIsBeingEdited = hasAnySectionInEditMode && editingSectionId !== null && editingSectionId === pieSectionForPreview?.id;
 
   useEffect(() => {
     const node = sectionCardRefs.current[selectedSectionId];
@@ -1523,6 +1534,18 @@ export default function ConfiguracionView({
               />
             </SeccionColapsable>
           )}
+          {section.tipo === "pie" && (
+            // El pie nunca es colapsable: se renderiza como un bloque plano, sin cabecera.
+            <footer id={`canvas-${section.id}`} style={{ backgroundColor: "var(--cream)" }}>
+              <PortadaLibre
+                config={section.pie}
+                roleColors={sectionRoleColors ?? {}}
+                resolveSrc={resolveAdminPreviewSrc}
+                imageTreatments={tratamientosImagenes}
+                forzarDispositivo={editorViewport === "movil" ? "movil" : "pc"}
+              />
+            </footer>
+          )}
           {section.tipo === "historia" && (
             <SeccionColapsable
               id={`canvas-${section.id}`}
@@ -2159,7 +2182,7 @@ export default function ConfiguracionView({
                   const group = groupBySectionId.get(sec.id);
                   const isChained = Boolean(group && group.head.id !== sec.id);
                   const previousGroup = groupBySectionId.get(secciones[index - 1]?.id);
-                  const canChain = secDraft.tipo !== "intro" && Boolean(previousGroup && canLeadSectionChain(previousGroup.head));
+                  const canChain = secDraft.tipo !== "intro" && secDraft.tipo !== "pie" && Boolean(previousGroup && canLeadSectionChain(previousGroup.head));
 
                   return (
                     <article
@@ -2183,7 +2206,9 @@ export default function ConfiguracionView({
                         </p>
                       </div>
 
-                      {secDraft.tipo !== "intro" && (
+                      {secDraft.tipo === "pie" ? (
+                        <p className="mb-2 text-[11px] text-amber-800">Pie de página: siempre al final, nunca colapsable.</p>
+                      ) : secDraft.tipo !== "intro" && (
                         <label
                           className={`mb-2 flex items-start gap-2 text-xs ${canChain || isChained ? "cursor-pointer text-stone-700" : "text-stone-400"}`}
                           title={canChain ? undefined : "La anterior debe pertenecer a una seccion con cabecera colapsable"}
@@ -2267,7 +2292,7 @@ export default function ConfiguracionView({
 
                   <div className="space-y-2">
                     <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-                      {editingSectionDraft.tipo === "portadaLibre"
+                      {editingSectionDraft.tipo === "portadaLibre" || editingSectionDraft.tipo === "pie"
                         ? "Modo diseño activo: arrastra los elementos del lienzo y tira de las esquinas para cambiar su tamaño. PC y móvil se configuran por separado (selector Vista PC / Vista móvil)."
                         : "Modo diseño activo: selecciona un componente en el lienzo para asignar rol y color."}
                     </p>
@@ -2891,6 +2916,38 @@ export default function ConfiguracionView({
                     </div>
                   )}
                 </main>
+
+                {/* El pie de pagina personalizado nunca forma parte del scroll principal: se previsualiza aparte, siempre al final. */}
+                {showPieInPreview && (() => {
+                  const pieRoleColors = pieSectionForPreview ? resolvePaletteRoleColors(getPaletteBySection(pieSectionForPreview)) : {};
+                  if (pieIsBeingEdited && pieSectionForPreview) {
+                    return (
+                      <footer className="tex-cream" style={{ backgroundColor: "var(--cream)", ...getSectionThemeVars(pieSectionForPreview) }}>
+                        <PortadaLibreEditor
+                          config={pieSectionForPreview.pie}
+                          dispositivo={editorViewport === "movil" ? "movil" : "pc"}
+                          roles={availableRoleKeys.map((key) => ({ key, label: getRoleLabelForUI(key) }))}
+                          roleColors={pieRoleColors}
+                          resolveSrc={resolveAdminPreviewSrc}
+                          onChange={(next) => patchEditingSectionDraft({ pie: next })}
+                          imageTreatments={tratamientosImagenes}
+                          overlayTextureAvailable={Boolean(editingPalette && resolvePaletteRoleTextures(editingPalette).fondoSeccion)}
+                          onChangeImageTreatment={patchImageTreatment}
+                        />
+                      </footer>
+                    );
+                  }
+                  return (
+                    <PieDePagina
+                      config={ic}
+                      seccionPie={pieSectionForPreview}
+                      roleColors={pieRoleColors}
+                      resolveSrc={resolveAdminPreviewSrc}
+                      imageTreatments={tratamientosImagenes}
+                      themeVars={pieSectionForPreview ? getSectionThemeVars(pieSectionForPreview) : undefined}
+                    />
+                  );
+                })()}
               </div>
             </div>
           </section>

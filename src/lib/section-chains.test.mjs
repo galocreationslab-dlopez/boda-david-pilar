@@ -5,7 +5,7 @@ import ts from "typescript";
 
 const source = await readFile(new URL("./section-chains.ts", import.meta.url), "utf8");
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
-const { buildSectionGroups, normalizeSectionChains, preserveSectionChainNeighbors, getPublicSectionGroups, getSectionAnchor, getLegacySectionAnchor } =
+const { buildSectionGroups, normalizeSectionChains, preserveSectionChainNeighbors, getPublicSectionGroups, getSectionAnchor, getLegacySectionAnchor, getPublicPieSection } =
   await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
 
 const section = (id, extra = {}) => ({
@@ -52,4 +52,16 @@ test("deleting or moving sections cuts changed neighbor links without losing con
   assert.deepEqual(ids(buildSectionGroups(moved)), [["before"], ["child"], ["head"], ["tail"]]);
   assert.deepEqual(deleted[1].distanciaSiguiente, { movil: 32, pc: 64 });
   assert.deepEqual(normalizeSectionChains(JSON.parse(JSON.stringify(deleted))), deleted);
+});
+
+test("pie section never chains and stays its own group even if flagged otherwise", () => {
+  const pie = section("footer", { tipo: "pie", encadenarAnterior: true });
+  const sections = [section("one"), pie, section("child", { encadenarAnterior: true })];
+  assert.deepEqual(ids(buildSectionGroups(sections)), [["one"], ["footer"], ["child"]]);
+  assert.equal(normalizeSectionChains(sections).find((s) => s.id === "footer").encadenarAnterior, false);
+  assert.deepEqual(ids(buildSectionGroups([pie, section("after", { encadenarAnterior: true })])), [["footer"], ["after"]]);
+  assert.equal(getSectionAnchor(pie), "pie");
+  assert.equal(getLegacySectionAnchor(pie), "pie");
+  assert.equal(getPublicPieSection(sections).id, "footer");
+  assert.equal(getPublicPieSection([section("one")]), undefined);
 });

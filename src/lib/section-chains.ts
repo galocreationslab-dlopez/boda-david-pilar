@@ -9,6 +9,7 @@ export function canLeadSectionChain(section: SeccionDiseno): boolean {
   return section.tipo !== "intro"
     && section.tipo !== "portada"
     && section.tipo !== "invitacion"
+    && section.tipo !== "pie"
     && (section.tipo !== "portadaLibre" || section.portadaLibre?.colapsable !== false);
 }
 
@@ -16,7 +17,8 @@ export function buildSectionGroups(sections: SeccionDiseno[]): SectionGroup[] {
   const groups: SectionGroup[] = [];
   for (const section of sections) {
     const previous = groups[groups.length - 1];
-    if (section.encadenarAnterior === true && section.tipo !== "intro" && previous && canLeadSectionChain(previous.head)) {
+    // El pie de pagina nunca se encadena a un contenedor anterior: siempre es cabeza de su propio grupo.
+    if (section.encadenarAnterior === true && section.tipo !== "intro" && section.tipo !== "pie" && previous && canLeadSectionChain(previous.head)) {
       previous.sections.push(section);
     } else {
       groups.push({ head: section, sections: [section] });
@@ -58,7 +60,7 @@ export function getSectionGroupsForProfile(sections: SeccionDiseno[], profile: s
 
 export function getSectionAnchor(section: Pick<SeccionDiseno, "tipo" | "id">): string {
   const legacy = getLegacySectionAnchor(section);
-  return section.tipo === "carrusel" || section.tipo === "portadaLibre" ? legacy : `${legacy}-${section.id}`;
+  return section.tipo === "carrusel" || section.tipo === "portadaLibre" || section.tipo === "pie" ? legacy : `${legacy}-${section.id}`;
 }
 
 export function getLegacySectionAnchor(section: Pick<SeccionDiseno, "tipo" | "id">): string {
@@ -67,5 +69,17 @@ export function getLegacySectionAnchor(section: Pick<SeccionDiseno, "tipo" | "id
   if (section.tipo === "invitacion" || section.tipo === "portada") return "invitacion";
   if (section.tipo === "historia") return "historia";
   if (section.tipo === "galeria") return "galeria";
+  // Como maximo hay un pie personalizado por configuracion: ancla fija, sin sufijo de id.
+  if (section.tipo === "pie") return "pie";
   return "timeline";
+}
+
+/** Encuentra el (como maximo uno) pie de pagina personalizado visible para un perfil dado. */
+export function getPieSectionForProfile(sections: SeccionDiseno[], profile: string): SeccionDiseno | undefined {
+  const isPublic = (section: SeccionDiseno) => !section.perfiles?.length || section.perfiles.includes("publico") || section.perfiles.includes(profile);
+  return sections.find((section) => section.tipo === "pie" && section.visible && isPublic(section));
+}
+
+export function getPublicPieSection(sections: SeccionDiseno[]): SeccionDiseno | undefined {
+  return getPieSectionForProfile(sections, "publico");
 }

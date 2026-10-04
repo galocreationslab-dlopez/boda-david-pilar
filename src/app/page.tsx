@@ -8,7 +8,7 @@ import { NavegacionPublica } from "@/components/layout/NavegacionPublica";
 import { PieDePagina } from "@/components/layout/PieDePagina";
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
 import { SeccionColapsable, SectionChain, SectionChainDecoration } from "@/components/wedding/SeccionColapsable";
-import { getPublicSectionGroups, getSectionAnchor, getLegacySectionAnchor } from "@/lib/section-chains";
+import { getPublicSectionGroups, getSectionAnchor, getLegacySectionAnchor, getPublicPieSection } from "@/lib/section-chains";
 import MainWithInvite from "@/components/wedding/MainWithInvite";
 import PortadaLibre from "@/components/wedding/PortadaLibre";
 import { SeccionGaleria } from "@/components/wedding/SeccionGaleria";
@@ -147,6 +147,7 @@ const SECTION_COMPONENT_OPTIONS: Record<TipoSeccionDiseno, Array<{ key: SectionC
     { key: "galeria.titulo", defaultRole: "textoPrincipal" },
     { key: "galeria.subtitulo", defaultRole: "textoSecundario" },
   ],
+  pie: [],
 };
 
 function getComponentStyleByKey(key: SectionComponentKey, color: string): CSSProperties {
@@ -387,10 +388,12 @@ export default async function PaginaPrincipal({
   };
 
   const publicGroups = getPublicSectionGroups(config.diseno?.secciones ?? []);
+  // El pie de pagina personalizado nunca forma parte del scroll principal: se renderiza aparte, siempre al final.
+  const pieSection = getPublicPieSection(config.diseno?.secciones ?? []);
 
   // Secciones con acceso directo desde el menu hamburguesa (aunque no esten en pantalla principal).
   const menuSecciones = publicGroups.map((group) => group.head)
-    .filter((s) => s.menuDirecto && s.tipo !== "intro")
+    .filter((s) => s.menuDirecto && s.tipo !== "intro" && s.tipo !== "pie")
     .map((s) => ({
       anchorId: getSectionAnchor(s),
       titulo: s.titulo || s.nombre,
@@ -399,7 +402,7 @@ export default async function PaginaPrincipal({
 
   // Seccion pedida via el menu de "solo acceso directo" (no visible en el scroll principal).
   const seccionEnfocada = seccionFoco
-    ? publicGroups.find((group) => group.head.menuDirecto && !group.head.visible && group.sections.some((section) => getSectionAnchor(section) === seccionFoco || getLegacySectionAnchor(section) === seccionFoco))
+    ? publicGroups.find((group) => group.head.tipo !== "pie" && group.head.menuDirecto && !group.head.visible && group.sections.some((section) => getSectionAnchor(section) === seccionFoco || getLegacySectionAnchor(section) === seccionFoco))
     : undefined;
 
   const visibleGroups = seccionEnfocada
@@ -407,7 +410,7 @@ export default async function PaginaPrincipal({
     : publicGroups.filter((group) => group.head.visible);
 
   const introSection = seccionEnfocada ? undefined : visibleGroups.find((group) => group.head.tipo === "intro" && group.head.intro)?.head;
-  const contentGroups = visibleGroups.filter((group) => group.head.tipo !== "intro");
+  const contentGroups = visibleGroups.filter((group) => group.head.tipo !== "intro" && group.head.tipo !== "pie");
 
   const fallbackSections: Array<{ id: string; tipo: TipoSeccionDiseno; titulo: string; source?: SeccionDiseno }> = [
     { id: "sec-invitacion-fallback", tipo: "invitacion", titulo: "Invitacion" },
@@ -654,7 +657,14 @@ export default async function PaginaPrincipal({
           </SectionChain>
         ))}
       </main>
-      <PieDePagina config={config} />
+      <PieDePagina
+        config={config}
+        seccionPie={pieSection}
+        roleColors={getPaletteBySection(pieSection) ? resolvePaletteRoleColors(getPaletteBySection(pieSection)!) : {}}
+        resolveSrc={resolvePublicImageSrc}
+        imageTreatments={tratamientosImagenes}
+        themeVars={getSectionThemeVars(pieSection)}
+      />
     </div>
   );
 

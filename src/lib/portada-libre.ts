@@ -61,6 +61,16 @@ export function normalizePortadaLibre(config?: PortadaLibreConfig): PortadaLibre
   };
 }
 
+/** Pie de pagina personalizado: mismo modelo que portadaLibre, pero nunca colapsable ni con cabecera propia. */
+export function buildDefaultPieConfig(): PortadaLibreConfig {
+  return { ...buildDefaultPortadaLibre(), colapsable: false, mostrarTitulo: false, abiertaPorDefecto: true };
+}
+
+/** Normaliza y fuerza siempre los flags de "nunca colapsable" aunque vengan corruptos de datos antiguos. */
+export function normalizePieConfig(config?: PortadaLibreConfig): PortadaLibreConfig {
+  return { ...normalizePortadaLibre(config), colapsable: false, mostrarTitulo: false, abiertaPorDefecto: true };
+}
+
 /** Posicion inicial de un elemento nuevo; el indice escalona los elementos para que no se tapen del todo. */
 export function buildDefaultLayout(
   elemento: PortadaElemento,

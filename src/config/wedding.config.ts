@@ -158,7 +158,9 @@ export type TemaPaleta = {
 };
 
 // `portada` se mantiene por compatibilidad con configuraciones antiguas.
-export type TipoSeccionDiseno = "intro" | "invitacion" | "portada" | "portadaLibre" | "historia" | "timeline" | "galeria" | "carrusel";
+// `pie` es un pie de pagina personalizado (formato libre, como portadaLibre); como maximo una por configuracion,
+// siempre se renderiza al final del contenido y nunca es colapsable (ver normalizePieConfig en lib/portada-libre.ts).
+export type TipoSeccionDiseno = "intro" | "invitacion" | "portada" | "portadaLibre" | "historia" | "timeline" | "galeria" | "carrusel" | "pie";
 
 export const DEFAULT_TEXTO_INVITACION =
   "Con mucha alegría os invitamos a compartir con nosotros el día más especial de nuestras vidas.";
@@ -434,6 +436,8 @@ export type SeccionDiseno = {
   nombre: string;
   titulo: string;
   portadaLibre?: PortadaLibreConfig;
+  // Config del pie de pagina personalizado (solo aplica cuando tipo === "pie"); reutiliza el modelo de PortadaLibreConfig.
+  pie?: PortadaLibreConfig;
   subtituloInterno?: string;
   fondos?: {
     seccion?: string;

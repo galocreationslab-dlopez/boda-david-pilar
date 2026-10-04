@@ -6,7 +6,7 @@ import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
 import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, ELEMENTOS_BARRA_POR_DEFECTO, normalizeIntroConfig } from "@/config/wedding.config";
-import { buildDefaultLayout, buildDefaultPortadaLibre, normalizePortadaLibre } from "@/lib/portada-libre";
+import { buildDefaultLayout, buildDefaultPieConfig, buildDefaultPortadaLibre, normalizePieConfig, normalizePortadaLibre } from "@/lib/portada-libre";
 import { normalizeSectionChains, preserveSectionChainNeighbors } from "@/lib/section-chains";
 import {
   TIMELINE_LOGO_HORIZONTAL,
@@ -57,6 +57,7 @@ const SECTION_TYPES: Array<{ value: TipoSeccionDiseno; label: string }> = [
   { value: "timeline", label: "Timeline" },
   { value: "galeria", label: "Galeria" },
   { value: "carrusel", label: "Carrusel de fotos" },
+  { value: "pie", label: "Pie de pagina personalizado" },
 ];
 
 const INTRO_ANIMATION_TYPES: Array<{ value: IntroAnimationType; label: string; description: string }> = [
@@ -286,6 +287,11 @@ function isInvitationType(tipo: TipoSeccionDiseno): boolean {
   return tipo === "invitacion" || tipo === "portada";
 }
 
+// Como maximo puede existir un pie de pagina personalizado por configuracion.
+function hasPieSection(sections: SeccionDiseno[], excludeId?: string): boolean {
+  return sections.some((section) => section.tipo === "pie" && section.id !== excludeId);
+}
+
 function uid() {
   return Math.random().toString(36).slice(2);
 }
@@ -308,7 +314,7 @@ function getDefaultComponentRoles(tipo: TipoSeccionDiseno): Partial<Record<strin
     "carrusel.fondoSeccion": "fondoSeccion",
     "carrusel.navegacion": "textoPrincipal",
   };
-  if (tipo === "portadaLibre") return {};
+  if (tipo === "portadaLibre" || tipo === "pie") return {};
   if (tipo === "intro") {
     return {
       "intro.fondo": "fondoSeccion",
@@ -377,6 +383,7 @@ function sectionTitleByType(tipo: TipoSeccionDiseno): string {
   if (tipo === "carrusel") return "Fotos";
   if (tipo === "intro") return "Intro";
   if (tipo === "portadaLibre") return "Portada";
+  if (tipo === "pie") return "Pie de pagina";
   if (isInvitationType(tipo)) return "Invitacion";
   if (tipo === "historia") return "Nuestra historia";
   if (tipo === "timeline") return "El gran dia";
@@ -387,6 +394,7 @@ function sectionNameByType(tipo: TipoSeccionDiseno): string {
   if (tipo === "carrusel") return "Carrusel";
   if (tipo === "intro") return "Intro";
   if (tipo === "portadaLibre") return "Portada";
+  if (tipo === "pie") return "Pie de pagina";
   if (isInvitationType(tipo)) return "Invitacion";
   if (tipo === "historia") return "Historia";
   if (tipo === "timeline") return "Timeline";
@@ -774,6 +782,10 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
 
 
   const addSection = () => {
+    if (newSectionType === "pie" && hasPieSection(sections)) {
+      showMsg("error", "Ya existe un pie de pagina personalizado. Solo puede haber uno por configuracion.");
+      return;
+    }
     const section: SeccionDiseno = {
       id: `sec-${uid()}`,
       nombre: sectionNameByType(newSectionType),
@@ -782,10 +794,12 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
       paletaId: selectedSection?.paletaId ?? config.tema.paletaActivaId ?? config.tema.paletas?.[0]?.id ?? "",
       usarPaletaGlobal: true,
       visible: true,
+      encadenarAnterior: false,
       perfiles: ["publico"],
       componentRoles: getDefaultComponentRoles(newSectionType),
       intro: newSectionType === "intro" ? buildDefaultIntroConfig() : undefined,
       portadaLibre: newSectionType === "portadaLibre" ? buildDefaultPortadaLibre() : undefined,
+      pie: newSectionType === "pie" ? buildDefaultPieConfig() : undefined,
       items:
         isInvitationType(newSectionType)
           ? [{ id: `item-${uid()}`, titulo: "Invitacion", descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION }]
@@ -802,6 +816,10 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const duplicateSection = (sectionId: string) => {
     const source = sections.find((section) => section.id === sectionId);
     if (!source) return;
+    if (source.tipo === "pie") {
+      showMsg("error", "El pie de pagina personalizado no se puede clonar: solo puede haber uno.");
+      return;
+    }
     const clone: SeccionDiseno = {
       ...source,
       id: `sec-${uid()}`,
@@ -822,12 +840,13 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     });
   };
 
+  // El pie de pagina personalizado se renderiza siempre al final: no se puede reordenar.
   const moveSection = (sectionId: string, direction: "up" | "down") => {
     setSections((prev) => {
       const index = prev.findIndex((section) => section.id === sectionId);
-      if (index < 0) return prev;
+      if (index < 0 || prev[index].tipo === "pie") return prev;
       const target = direction === "up" ? index - 1 : index + 1;
-      if (target < 0 || target >= prev.length) return prev;
+      if (target < 0 || target >= prev.length || prev[target].tipo === "pie") return prev;
       const next = [...prev];
       const [moved] = next.splice(index, 1);
       next.splice(target, 0, moved);
@@ -1128,7 +1147,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
             <h2 className="text-sm font-semibold text-stone-700">Estructura</h2>
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <select className="input-field" value={newSectionType} onChange={(e) => setNewSectionType(e.target.value as TipoSeccionDiseno)}>
-                {SECTION_TYPES.map((option) => (
+                {SECTION_TYPES.filter((option) => option.value !== "pie" || !hasPieSection(sections)).map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
@@ -1138,7 +1157,9 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
             </div>
 
             <div className="space-y-2">
-              {sections.map((section, index) => (
+              {sections.map((section, index) => {
+                const isPie = section.tipo === "pie";
+                return (
                 <article
                   key={section.id}
                   className={`rounded-xl border p-3 ${selectedSection?.id === section.id ? "border-amber-400 bg-amber-50/50" : "border-stone-200 bg-stone-50"}`}
@@ -1147,18 +1168,21 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     <p className="text-xs font-semibold text-stone-800">{section.nombre || sectionNameByType(section.tipo)}</p>
                     <p className="text-[11px] text-stone-500">{section.titulo || sectionTitleByType(section.tipo)} · {section.tipo}</p>
                     {section.encadenarAnterior && <p className="text-[11px] text-amber-800">Encadenada a la anterior</p>}
+                    {isPie && <p className="text-[11px] text-amber-800">Siempre al final · no colapsable</p>}
                   </button>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    <button onClick={() => moveSection(section.id, "up")} disabled={index === 0} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40">↑</button>
-                    <button onClick={() => moveSection(section.id, "down")} disabled={index === sections.length - 1} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40">↓</button>
-                    <button onClick={() => duplicateSection(section.id)} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px]">Clonar</button>
+                    <button onClick={() => moveSection(section.id, "up")} disabled={isPie || index === 0} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40">↑</button>
+                    <button onClick={() => moveSection(section.id, "down")} disabled={isPie || index === sections.length - 1} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40">↓</button>
+                    <button onClick={() => duplicateSection(section.id)} disabled={isPie} className="rounded border border-stone-300 px-1.5 py-0.5 text-[11px] disabled:opacity-40">Clonar</button>
                     <button onClick={() => removeSection(section.id)} className="rounded border border-red-200 px-1.5 py-0.5 text-[11px] text-red-600">Eliminar</button>
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
           </section>
         </aside>
+
 
         <section className="rounded-2xl border border-stone-200 bg-white p-4 space-y-4">
           {!selectedSection ? (
@@ -1186,8 +1210,10 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         componentRoles: getDefaultComponentRoles(tipo),
                         nombre: sectionNameByType(tipo),
                         titulo: sectionTitleByType(tipo),
+                        encadenarAnterior: tipo === "pie" ? false : selectedSection.encadenarAnterior,
                         intro: tipo === "intro" ? selectedSection.intro ?? buildDefaultIntroConfig() : selectedSection.intro,
                         portadaLibre: tipo === "portadaLibre" ? selectedSection.portadaLibre ?? buildDefaultPortadaLibre() : selectedSection.portadaLibre,
+                        pie: tipo === "pie" ? selectedSection.pie ?? buildDefaultPieConfig() : selectedSection.pie,
                         items:
                           isInvitationType(tipo)
                             ? [{ id: `item-${uid()}`, titulo: "Invitacion", descripcion: config.textos.bienvenida || DEFAULT_TEXTO_INVITACION }]
@@ -1195,11 +1221,16 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                       });
                     }}
                   >
-                    {SECTION_TYPES.map((option) => (
+                    {SECTION_TYPES.filter((option) => option.value !== "pie" || selectedSection.tipo === "pie" || !hasPieSection(sections)).map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
                 </div>
+                {selectedSection.tipo === "pie" && (
+                  <p className="text-xs text-stone-500 sm:col-span-2">
+                    El pie de página siempre se muestra al final del contenido y nunca es colapsable. Ajusta sus elementos, colores y posición (PC/móvil) igual que en Portada.
+                  </p>
+                )}
                 {selectedSection.tipo === "portadaLibre" && (() => {
                   const portada = normalizePortadaLibre(selectedSection.portadaLibre);
                   return (
@@ -1240,17 +1271,23 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     />
                     Seccion visible
                   </label>
-                  <label className="inline-flex items-center gap-2 text-sm text-stone-700">
-                    <input
-                      type="checkbox"
-                      checked={selectedSection.menuDirecto ?? false}
-                      onChange={(e) => patchSection(selectedSection.id, { menuDirecto: e.target.checked })}
-                    />
-                    Acceso directo en menu
-                  </label>
+                  {selectedSection.tipo !== "pie" && (
+                    <label className="inline-flex items-center gap-2 text-sm text-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={selectedSection.menuDirecto ?? false}
+                        onChange={(e) => patchSection(selectedSection.id, { menuDirecto: e.target.checked })}
+                      />
+                      Acceso directo en menu
+                    </label>
+                  )}
                 </div>
                 <p className="text-xs text-stone-500">
-                  {selectedSection.visible && selectedSection.menuDirecto
+                  {selectedSection.tipo === "pie"
+                    ? selectedSection.visible
+                      ? "Pie de página visible: sustituye al pie por defecto, siempre al final."
+                      : "Pie de página oculto: se muestra el pie por defecto."
+                    : selectedSection.visible && selectedSection.menuDirecto
                     ? "Accesible en pantalla principal y desde el menu."
                     : selectedSection.visible
                     ? "Solo visible en pantalla principal."
@@ -2247,10 +2284,11 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                 </div>
               )}
 
-              {selectedSection.tipo === "portadaLibre" && (() => {
-                const portada = normalizePortadaLibre(selectedSection.portadaLibre);
+              {(selectedSection.tipo === "portadaLibre" || selectedSection.tipo === "pie") && (() => {
+                const isPie = selectedSection.tipo === "pie";
+                const portada = isPie ? normalizePieConfig(selectedSection.pie) : normalizePortadaLibre(selectedSection.portadaLibre);
                 const imageResources = resources.filter((item) => item.mime_type === null || item.mime_type.startsWith("image/"));
-                const patchPortada = (next: PortadaLibreConfig) => patchSection(selectedSection.id, { portadaLibre: next });
+                const patchPortada = (next: PortadaLibreConfig) => patchSection(selectedSection.id, isPie ? { pie: next } : { portadaLibre: next });
                 const patchElemento = (id: string, patch: Partial<PortadaElemento>) =>
                   patchPortada({ ...portada, elementos: portada.elementos.map((el) => (el.id === id ? { ...el, ...patch } : el)) });
                 const addElemento = (tipo: PortadaElemento["tipo"]) => {
@@ -2287,7 +2325,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                 };
                 return (
                   <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-stone-700">Portada: elementos</h3>
+                    <h3 className="text-sm font-semibold text-stone-700">{isPie ? "Pie de página: elementos" : "Portada: elementos"}</h3>
                     <p className="text-xs text-stone-500">
                       Añade imágenes, textos, enlaces y mapas. Su posición y tamaño (y el estilo de texto) se ajustan en Diseño para PC y móvil.
                     </p>
