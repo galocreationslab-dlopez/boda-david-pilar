@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { InviteRsvpForm } from "@/components/wedding/InviteRsvpForm";
+import { getWeddingConfig } from "@/lib/wedding-config-server";
 
 export const dynamic = "force-dynamic";
 
@@ -126,7 +127,7 @@ async function getInvitation(inviteCode: string) {
 
 export default async function InviteCodePage({ params }: { params: Promise<{ inviteCode: string }> }) {
   const { inviteCode } = await params;
-  const data = await getInvitation(inviteCode);
+  const [data, config] = await Promise.all([getInvitation(inviteCode), getWeddingConfig()]);
 
   if (!data) {
     notFound();
@@ -137,6 +138,7 @@ export default async function InviteCodePage({ params }: { params: Promise<{ inv
       inviteCode={inviteCode}
       invitacion={data.invitacion}
       personas={data.personas}
+      rsvpConfig={config.rsvp}
     />
   );
 }
