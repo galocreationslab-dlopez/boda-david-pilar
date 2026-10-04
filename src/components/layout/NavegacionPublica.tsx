@@ -86,13 +86,6 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  useEffect(() => {
-    document.body.style.overflow = menuAbierto ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [menuAbierto]);
-
   // En modo "visible_en_scroll" la barra queda oculta mientras se ve la portada
   // y aparece al bajar hacia las siguientes secciones (salvo con el menú abierto).
   const barraOculta = comportamiento === "visible_en_scroll" && !scrolled && !menuAbierto;
@@ -104,7 +97,7 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
     id === "menu" ? (
         <button
           onClick={toggleMenu}
-          className="p-2"
+          className="p-2 md:absolute md:left-[24px] md:p-0"
           aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
           aria-expanded={menuAbierto}
         >
@@ -163,7 +156,7 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
         ) : (
           <Link
             href={buildHomeHref()}
-            className={`font-display tracking-widest transition-colors ${
+            className={`font-display tracking-widest no-underline transition-colors ${
               banner?.textoTamanoPx ? "" : "text-xs sm:text-sm"
             } ${banner?.textoColor ? "" : "text-brown-dark"}`}
             style={{
@@ -179,8 +172,6 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
     <header
       style={{ backgroundColor: banner?.fondoColor || "var(--role-fondo-principal)" }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? "shadow-sm" : ""
-      } ${
         barraOculta ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
       }`}
     >
@@ -198,14 +189,14 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
 
       {/* Menú desplegable */}
       {menuAbierto && (
-        <div className="border-t border-cream-dark bg-white animate-fade-in">
-          <ul className="container-wedding flex flex-col gap-2 py-5">
+        <div className="absolute top-full left-4 md:left-[24px] w-max max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-5rem)] overflow-y-auto bg-white animate-fade-in">
+          <ul className="flex flex-col items-start gap-2 p-3">
             {secciones.map((item) => (
               <li key={item.anchorId}>
                 <a
                   href={item.enPantallaPrincipal ? buildAnchorHref(item.anchorId) : buildSeccionHref(item.anchorId)}
                   onClick={item.enPantallaPrincipal ? handleAnchorClick(item.anchorId) : () => setMenuAbierto(false)}
-                  className="block rounded-xl px-2 py-3 smallcaps text-sm tracking-widest text-brown-mid transition-colors hover:bg-stone-50 hover:text-bronze"
+                  className="block w-fit max-w-full break-words rounded-xl px-2 py-3 smallcaps text-sm tracking-widest text-brown-mid transition-colors hover:bg-stone-50 hover:text-bronze"
                 >
                   {item.titulo}
                 </a>
