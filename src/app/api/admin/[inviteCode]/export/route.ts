@@ -85,6 +85,7 @@ export async function GET(
     "Adolescentes est.": inv.adolescentes_estimados,
     "Niños estimados":   inv.ninos_estimados,
     "Bebés estimados":   inv.bebes_estimados,
+    "Asistentes confirmados": (inv.asistentes ?? []).filter((a) => a.estado_asistencia === "si").length,
     "Fecha creación":    inv.created_at ? new Date(inv.created_at).toLocaleDateString("es-ES") : "",
   }));
 

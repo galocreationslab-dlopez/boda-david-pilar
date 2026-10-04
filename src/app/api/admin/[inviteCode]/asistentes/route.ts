@@ -7,6 +7,9 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { validateAdminCode } from "@/lib/admin-auth";
 import { computeInvitacionEstado } from "@/lib/rsvp-status";
+import { countRsvpPeople, exceedsRsvpLimits, getRsvpLimits, RSVP_PERSONA_TYPES } from "@/lib/rsvp-limits";
+import type { PersonaTipo } from "@/types/rsvp";
+import { getWeddingConfig } from "@/lib/wedding-config-server";
 
 async function syncInvitacionEstado(supabase: ReturnType<typeof createServerClient>, invitationId: string) {
   const { data: asistentes } = await supabase
@@ -25,6 +28,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ inviteC
   if (!body.invitation_id || !body.nombre) return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
 
   const supabase = createServerClient();
+  const { data: invitacion } = await supabase
+    .from("invitaciones")
+    .select("adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
+    .eq("id", body.invitation_id)
+    .maybeSingle();
+  if (!invitacion) return NextResponse.json({ error: "Invitación no encontrada" }, { status: 404 });
+  if (!RSVP_PERSONA_TYPES.includes(body.tipo_persona as PersonaTipo)) return NextResponse.json({ error: "Tipo de persona no válido" }, { status: 400 });
+  if ((await getWeddingConfig()).rsvp?.cuposLimitantes !== false) {
+    const { data: existentes } = await supabase.from("asistentes").select("tipo_persona").eq("invitation_id", body.invitation_id);
+    const limiteExcedido = exceedsRsvpLimits(countRsvpPeople([...(existentes ?? []), { tipo_persona: body.tipo_persona }]), getRsvpLimits(invitacion));
+    if (limiteExcedido) return NextResponse.json({ error: `El cupo de ${limiteExcedido} está completo` }, { status: 400 });
+  }
   const { data, error } = await supabase.from("asistentes").insert({
     invitation_id: body.invitation_id,
     nombre: body.nombre,

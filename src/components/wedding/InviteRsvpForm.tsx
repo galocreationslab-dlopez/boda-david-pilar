@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { InviteExtras } from "./InviteExtras";
 import { DEFAULT_RSVP_TEXTOS_FORMULARIO, mergeRsvpTextos, type RsvpConfig } from "@/config/wedding.config";
+import { getRsvpLimits } from "@/lib/rsvp-limits";
 
 type PersonaProps = {
   id?: string;
@@ -73,7 +74,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
   const asistencia: "si" | "no" | "puede" = defaultAsistencia;
 
   const getTipoPersona = (tipo?: string): PersonaForm["tipo_persona"] => {
-    if (tipo === "adulto" || tipo === "nino" || tipo === "bebe") return tipo;
+    if (tipo === "adulto" || tipo === "adolescente" || tipo === "nino" || tipo === "bebe") return tipo;
     return "adulto";
   };
 
@@ -259,6 +260,12 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
     ]);
   };
 
+  const limits = getRsvpLimits(invitacion);
+  const countByType = (type: string) => personasState.filter((persona) => persona.tipo_persona === type).length;
+  const mostrarCupos = rsvpConfig?.mostrarCupos !== false;
+  const cuposLimitantes = rsvpConfig?.cuposLimitantes !== false;
+  const canAdd = (type: "adulto" | "nino") => !cuposLimitantes || countByType(type) < limits[type];
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSending(true);
@@ -393,8 +400,14 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
             ))}
           </div>
 
-          <div className="flex gap-3">
-            <button type="button" onClick={() => { if (invitacion.tipo_invitacion === "soltero") { addAcompanante({ alojamiento: personasState[0]?.alojamiento, transporte_g_to_b: personasState[0]?.transporte_g_to_b, transporte_b_to_t: personasState[0]?.transporte_b_to_t, transporte_t_to_g: personasState[0]?.transporte_t_to_g }); } else { addNino(); } }} className="rounded-full bg-slate-100 px-4 py-2 text-sm">{invitacion.tipo_invitacion === "soltero" ? t.addAcompananteLabel : t.addNinoLabel}</button>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" disabled={!canAdd("adulto")} onClick={() => addAcompanante({ alojamiento: personasState[0]?.alojamiento, transporte_g_to_b: personasState[0]?.transporte_g_to_b, transporte_b_to_t: personasState[0]?.transporte_b_to_t, transporte_t_to_g: personasState[0]?.transporte_t_to_g })} className="rounded-full bg-slate-100 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50">
+              {invitacion.tipo_invitacion === "soltero" ? t.addAcompananteLabel : t.addAdultoLabel}{mostrarCupos && ` (${countByType("adulto")}/${limits.adulto})`}
+            </button>
+            <button type="button" disabled={!canAdd("nino")} onClick={addNino} className="rounded-full bg-slate-100 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50">
+              {t.addNinoLabel}{mostrarCupos && ` (${countByType("nino")}/${limits.nino})`}
+            </button>
+            {mostrarCupos && cuposLimitantes && (!canAdd("adulto") || !canAdd("nino")) && <span className="self-center text-xs text-stone-500">{t.limiteAlcanzadoLabel}</span>}
           </div>
 
           <div>

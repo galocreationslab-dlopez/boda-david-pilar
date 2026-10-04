@@ -7,6 +7,8 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { validateAdminCode } from "@/lib/admin-auth";
+import { countRsvpPeople, exceedsRsvpLimits, getRsvpLimits } from "@/lib/rsvp-limits";
+import { getWeddingConfig } from "@/lib/wedding-config-server";
 
 type Ctx = { params: Promise<{ inviteCode: string; invitacionId: string }> };
 
@@ -29,6 +31,25 @@ export async function PATCH(req: Request, { params }: Ctx) {
   }
 
   const supabase = createServerClient();
+  const { data: invitacion } = await supabase
+    .from("invitaciones")
+    .select("adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
+    .eq("id", invitacionId)
+    .maybeSingle();
+  if (!invitacion) return NextResponse.json({ error: "Invitación no encontrada" }, { status: 404 });
+
+  for (const key of ["adultos_estimados", "adolescentes_estimados", "ninos_estimados", "bebes_estimados"]) {
+    if (key in patch && (!Number.isInteger(patch[key]) || Number(patch[key]) < 0)) {
+      return NextResponse.json({ error: "Los cupos deben ser enteros no negativos" }, { status: 400 });
+    }
+  }
+  if ((await getWeddingConfig()).rsvp?.cuposLimitantes !== false) {
+    const { data: asistentes } = await supabase.from("asistentes").select("tipo_persona").eq("invitation_id", invitacionId);
+    const limits = getRsvpLimits({ ...invitacion, ...patch });
+    const limiteExcedido = exceedsRsvpLimits(countRsvpPeople(asistentes ?? []), limits);
+    if (limiteExcedido) return NextResponse.json({ error: `El cupo de ${limiteExcedido} no puede ser inferior a sus asistentes actuales` }, { status: 400 });
+  }
+
   const { error } = await supabase.from("invitaciones").update(patch).eq("id", invitacionId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });

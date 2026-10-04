@@ -546,8 +546,10 @@ export type RsvpTextosFormulario = {
   comeConPadresLabel?: string;
   menuAdultoLabel?: string;
   necesitaTronaLabel?: string;
+  addAdultoLabel?: string;
   addAcompananteLabel?: string;
   addNinoLabel?: string;
+  limiteAlcanzadoLabel?: string;
   comentariosLabel?: string;
   comentariosPlaceholder?: string;
   submitLabel?: string;
@@ -572,10 +574,12 @@ export type RsvpTextosChat = {
   feedbackErrorFallback?: string;
 };
 
-// Ajuste de presentación del RSVP (no afecta permisos ni validaciones de la API).
+// Ajustes de presentación y comportamiento del RSVP.
 export type RsvpConfig = {
   // Sin valor (configuraciones antiguas) se interpreta como true: el chat se mantiene visible.
   mostrarChat?: boolean;
+  mostrarCupos?: boolean;
+  cuposLimitantes?: boolean;
   textos?: RsvpTextosFormulario;
   chatTextos?: RsvpTextosChat;
 };
@@ -599,8 +603,10 @@ export const DEFAULT_RSVP_TEXTOS_FORMULARIO: Required<RsvpTextosFormulario> = {
   comeConPadresLabel: "Come con los padres",
   menuAdultoLabel: "Menú adulto (mayores de 12)",
   necesitaTronaLabel: "Necesita trona (menores de 6)",
+  addAdultoLabel: "Añadir adulto",
   addAcompananteLabel: "Añadir acompañante",
-  addNinoLabel: "Añadir hijo",
+  addNinoLabel: "Añadir niño",
+  limiteAlcanzadoLabel: "Cupo completo",
   comentariosLabel: "Comentarios adicionales",
   comentariosPlaceholder: "Cualquier detalle que quieras compartir",
   submitLabel: "Guardar respuesta",
@@ -1014,5 +1020,7 @@ export const weddingConfig: WeddingConfig = {
 
   rsvp: {
     mostrarChat: true,
+    mostrarCupos: true,
+    cuposLimitantes: true,
   },
 };

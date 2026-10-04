@@ -46,8 +46,10 @@ const RSVP_FORM_FIELDS: Array<{ key: keyof RsvpTextosFormulario; label: string; 
   { key: "comeConPadresLabel", label: "Etiqueta: come con los padres" },
   { key: "menuAdultoLabel", label: "Etiqueta: menú adulto" },
   { key: "necesitaTronaLabel", label: "Etiqueta: necesita trona" },
+  { key: "addAdultoLabel", label: "Botón: añadir adulto" },
   { key: "addAcompananteLabel", label: "Botón: añadir acompañante" },
-  { key: "addNinoLabel", label: "Botón: añadir hijo" },
+  { key: "addNinoLabel", label: "Botón: añadir niño" },
+  { key: "limiteAlcanzadoLabel", label: "Aviso: cupo completo" },
   { key: "comentariosLabel", label: "Etiqueta: comentarios" },
   { key: "comentariosPlaceholder", label: "Placeholder: comentarios" },
   { key: "submitLabel", label: "Botón: guardar respuesta" },
@@ -122,6 +124,8 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
   const [fechaFormateada, setFechaFormateada] = useState(config.fechaFormateada ?? "");
   const [drive, setDrive] = useState(config.drive);
   const [mostrarChat, setMostrarChat] = useState(config.rsvp?.mostrarChat !== false);
+  const [mostrarCupos, setMostrarCupos] = useState(config.rsvp?.mostrarCupos !== false);
+  const [cuposLimitantes, setCuposLimitantes] = useState(config.rsvp?.cuposLimitantes !== false);
   const [rsvpTextos, setRsvpTextos] = useState<RsvpTextosFormulario>(config.rsvp?.textos ?? {});
   const [chatTextos, setChatTextos] = useState<RsvpTextosChat>(config.rsvp?.chatTextos ?? {});
 
@@ -201,6 +205,8 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
         drive,
         rsvp: {
           mostrarChat,
+          mostrarCupos,
+          cuposLimitantes,
           textos: rsvpTextos,
           chatTextos,
         },
@@ -484,15 +490,25 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
 
       <section className="rounded-2xl border border-stone-200 bg-white p-6 space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-stone-700">RSVP — chat &quot;Pregunta a los novios&quot;</h2>
+          <h2 className="text-base font-semibold text-stone-700">RSVP — presentación y cupos</h2>
           <p className="mt-1 text-sm text-stone-500">
-            Ocultarlo es solo una opción de presentación: los mensajes existentes no se borran y las consultas no se disparan mientras está oculto.
+            Configura la visibilidad del chat y el comportamiento de los cupos para las respuestas de invitados.
           </p>
         </div>
 
         <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
           <input type="checkbox" checked={mostrarChat} onChange={(e) => setMostrarChat(e.target.checked)} />
           Mostrar el chat &quot;Pregunta a los novios&quot; en la página de confirmación
+        </label>
+
+        <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
+          <input type="checkbox" checked={mostrarCupos} onChange={(e) => setMostrarCupos(e.target.checked)} />
+          Mostrar los cupos de asistentes en el formulario RSVP
+        </label>
+
+        <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
+          <input type="checkbox" checked={cuposLimitantes} onChange={(e) => setCuposLimitantes(e.target.checked)} />
+          Hacer que los cupos sean limitantes
         </label>
 
         <div className="grid gap-4 md:grid-cols-2">

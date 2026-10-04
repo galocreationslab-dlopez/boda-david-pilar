@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { computeInvitacionEstado } from "@/lib/rsvp-status";
+import { countRsvpPeople, exceedsRsvpLimits, getRsvpLimits, RSVP_PERSONA_TYPES } from "@/lib/rsvp-limits";
+import type { PersonaTipo } from "@/types/rsvp";
+import { getWeddingConfig } from "@/lib/wedding-config-server";
 
 type RSVPUpdateBody = {
   asistencia_estimada?: "si" | "no" | "pendiente";
@@ -95,7 +98,7 @@ export async function POST(
 
     const { data: invitacion, error: invitacionError } = await supabase
       .from("invitaciones")
-      .select("id")
+      .select("id, adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
       .eq("invite_code", inviteCode)
       .maybeSingle();
 
@@ -104,20 +107,49 @@ export async function POST(
     }
 
     const personas = Array.isArray(body.personas) ? body.personas : [];
+    const rsvpConfig = (await getWeddingConfig()).rsvp;
 
-    const estadoInvitacion = computeInvitacionEstado(
-      personas.map((persona) => (persona.asistira === "si" ? "si" : persona.asistira === "no" ? "no" : "pendiente")),
+    const { data: existentes, error: existentesError } = await supabase
+      .from("asistentes")
+      .select("id, tipo_persona, estado_asistencia")
+      .eq("invitation_id", invitacion.id);
+
+    if (existentesError) {
+      return NextResponse.json({ error: existentesError.message }, { status: 500 });
+    }
+
+    const idsRecibidos = personas.map((persona) => persona.id).filter((id): id is string => Boolean(id));
+    if (new Set(idsRecibidos).size !== idsRecibidos.length) {
+      return NextResponse.json({ error: "No se puede guardar una persona repetida" }, { status: 400 });
+    }
+
+    const idsExistentes = new Set((existentes ?? []).map((persona) => persona.id));
+    if (idsRecibidos.some((id) => !idsExistentes.has(id))) {
+      return NextResponse.json({ error: "Una persona no pertenece a esta invitación" }, { status: 400 });
+    }
+
+    for (const persona of personas) {
+      if (!RSVP_PERSONA_TYPES.includes(persona.tipo_persona as PersonaTipo)) {
+        return NextResponse.json({ error: "Tipo de persona no válido" }, { status: 400 });
+      }
+    }
+
+    const tiposRecibidos = new Map(
+      personas
+        .filter((persona): persona is RSVPPersona & { id: string } => Boolean(persona.id))
+        .map((persona) => [persona.id, persona.tipo_persona]),
     );
-
-    const { error: updateError } = await supabase
-      .from("invitaciones")
-      .update({
-        estado: estadoInvitacion,
-      })
-      .eq("id", invitacion.id);
-
-    if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    const personasFinales = (existentes ?? []).map((persona) => ({
+      tipo_persona: tiposRecibidos.get(persona.id) ?? persona.tipo_persona,
+    })).concat(personas.filter((persona) => !persona.id).map((persona) => ({ tipo_persona: persona.tipo_persona })));
+    if (rsvpConfig?.cuposLimitantes !== false) {
+      const personasExistentes = countRsvpPeople(existentes ?? []);
+      const limites = getRsvpLimits(invitacion);
+      for (const tipo of RSVP_PERSONA_TYPES) limites[tipo] = Math.max(limites[tipo], personasExistentes[tipo]);
+      const limiteExcedido = exceedsRsvpLimits(countRsvpPeople(personasFinales), limites);
+      if (limiteExcedido) {
+        return NextResponse.json({ error: `El cupo de ${limiteExcedido} está completo` }, { status: 400 });
+      }
     }
 
     for (const persona of personas as RSVPPersona[]) {
@@ -140,7 +172,7 @@ export async function POST(
           necesita_trona: persona.necesita_trona ?? null,
           necesita_ayuda: persona.necesita_ayuda ?? null,
         },
-          comentarios: body.comentarios || null,
+        comentarios: body.comentarios || null,
       };
 
       if (persona.id) {
@@ -161,6 +193,18 @@ export async function POST(
         }
       }
     }
+
+    const { data: asistentesActualizados, error: estadoError } = await supabase
+      .from("asistentes")
+      .select("estado_asistencia")
+      .eq("invitation_id", invitacion.id);
+    if (estadoError) return NextResponse.json({ error: estadoError.message }, { status: 500 });
+
+    const { error: updateError } = await supabase
+      .from("invitaciones")
+      .update({ estado: computeInvitacionEstado((asistentesActualizados ?? []).map((persona) => persona.estado_asistencia)) })
+      .eq("id", invitacion.id);
+    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

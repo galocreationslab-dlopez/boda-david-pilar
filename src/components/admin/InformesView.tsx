@@ -135,7 +135,9 @@ export default function InformesView({
               <th className="px-5 py-3 text-left">Tipo</th>
               <th className="px-5 py-3 text-left">Estado</th>
               <th className="px-5 py-3 text-center">Adultos est.</th>
+              <th className="px-5 py-3 text-center">Adolescentes est.</th>
               <th className="px-5 py-3 text-center">Niños est.</th>
+              <th className="px-5 py-3 text-center">Bebés est.</th>
               <th className="px-5 py-3 text-left">Asistentes confirmados</th>
             </tr>
           </thead>
@@ -155,7 +157,9 @@ export default function InformesView({
                     </span>
                   </td>
                   <td className="px-5 py-4 text-center">{inv.adultos_estimados}</td>
+                  <td className="px-5 py-4 text-center">{inv.adolescentes_estimados}</td>
                   <td className="px-5 py-4 text-center">{inv.ninos_estimados}</td>
+                  <td className="px-5 py-4 text-center">{inv.bebes_estimados}</td>
                   <td className="px-5 py-4">
                     {confirmados.length === 0 ? (
                       <span className="text-stone-400">—</span>
