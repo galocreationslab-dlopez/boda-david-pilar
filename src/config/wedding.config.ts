@@ -241,6 +241,7 @@ export type IntroEnvelopeAspectoModo = "automatico" | "fijo";
 export type IntroEnvelopeAjusteAspecto = "ancho" | "alto";
 
 export type IntroEnvelopeConfig = {
+  acabadoPaleta?: "textura" | "color" | "personalizado";
   modoFondo?: IntroEnvelopeModoFondo;
   imagenUrl?: string; // textura o sobre completo, según modoFondo
   colorBase?: string; // color del frontal (la cara exterior/visible del sobre)
