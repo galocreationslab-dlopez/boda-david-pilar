@@ -1418,6 +1418,8 @@ export default function ConfiguracionView({
       icono: (item.icono as EventoTimeline["icono"]) || "rings",
       enlaceMaps: item.enlaceMaps || "",
       imagen: item.imagen || undefined,
+      logoTamano: item.logoTamano,
+      logoAlineacion: item.logoAlineacion,
     }));
   };
 
@@ -1564,6 +1566,7 @@ export default function ConfiguracionView({
                 selectedComponentKey={designMode ? activeSelectedDesignComponentKey as TimelineComponentKey | null : null}
                 onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                 componentStyles={componentStyles}
+                legacyLogoSize={section.componentSizes?.["timeline.icono"]}
                 headerDivider={renderSectionHeaderSeparatorPreview(section, sectionRoleColors)}
               />
             </SeccionColapsable>
@@ -2768,6 +2771,7 @@ export default function ConfiguracionView({
                               selectedComponentKey={designMode ? activeSelectedDesignComponentKey as TimelineComponentKey | null : null}
                               onSelectComponent={(key) => setSelectedDesignComponentKey(key)}
                               componentStyles={componentStyles}
+                              legacyLogoSize={sec.componentSizes?.["timeline.icono"]}
                               headerDivider={renderSectionHeaderSeparatorPreview(sec, sectionRoleColors)}
                             />
                           </SeccionColapsable>

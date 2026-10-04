@@ -473,6 +473,8 @@ export default async function PaginaPrincipal({
       icono: (item.icono as (typeof config.timeline)[number]["icono"]) || "rings",
       enlaceMaps: item.enlaceMaps || "",
       imagen: item.imagen || undefined,
+      logoTamano: item.logoTamano,
+      logoAlineacion: item.logoAlineacion,
     }));
   };
 
@@ -616,6 +618,7 @@ export default async function PaginaPrincipal({
                   <SeccionTimeline
                     localizaciones={config.localizaciones}
                     timeline={getTimelineForSection(section.source)}
+                    legacyLogoSize={section.source?.componentSizes?.["timeline.icono"]}
                     componentStyles={componentStyles}
                     headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
                   />

@@ -8,9 +8,10 @@
  */
 
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
-import type { Localizacion } from "@/config/wedding.config";
+import type { AlineacionLogoTimeline, Localizacion, TamanoLogoTimeline } from "@/config/wedding.config";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
-import type { CSSProperties, ReactNode } from "react";
+import { resolveTimelineLogoAlign, resolveTimelineLogoSize, type TimelineLogoDevice } from "@/lib/timeline-logo-size";
+import { useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 
 export type TimelineComponentKey =
   | "timeline.fecha"
@@ -23,7 +24,9 @@ export type TimelineComponentKey =
 
 type Props = {
   localizaciones: Localizacion[];
-  timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; imagen?: string; enlaceMaps?: string }>;
+  timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; imagen?: string; enlaceMaps?: string; logoTamano?: TamanoLogoTimeline; logoAlineacion?: AlineacionLogoTimeline }>;
+  // Valor del antiguo slider global de "timeline.icono"; solo se usa si el evento no tiene tamano propio.
+  legacyLogoSize?: number;
   viewport?: "desktop" | "movil";
   editable?: boolean;
   designMode?: boolean;
@@ -42,6 +45,8 @@ type PuntoTimeline = {
   subtitulo: string;
   icono: string;
   iconoUrl?: string;
+  logoTamano?: TamanoLogoTimeline;
+  logoAlineacion?: AlineacionLogoTimeline;
   mapaSrc: string | null;
   mapaLink: string | null;
   mapaTexto: string;
@@ -80,31 +85,31 @@ const PUNTOS_FALLBACK: PuntoTimeline[] = [
   },
 ];
 
-function IconoBus() {
+function IconoBus({ size }: { size: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="5" width="20" height="13" rx="2"/>
       <path d="M2 10 L22 10"/><path d="M7 18 L7 20"/><path d="M17 18 L17 20"/>
       <circle cx="7" cy="14" r="1" fill="currentColor"/><circle cx="17" cy="14" r="1" fill="currentColor"/>
     </svg>
   );
 }
-function IconoRings() {
+function IconoRings({ size }: { size: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
       <circle cx="8" cy="12" r="5"/><circle cx="16" cy="12" r="5"/>
     </svg>
   );
 }
-function IconoFinca() {
+function IconoFinca({ size }: { size: number }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 22 L3 8 L12 3 L21 8 L21 22"/><rect x="8" y="14" width="8" height="8"/><rect x="10" y="10" width="4" height="4"/>
     </svg>
   );
 }
-const ICONOS: Record<string, React.ReactNode> = {
-  bus: <IconoBus />, rings: <IconoRings />, finca: <IconoFinca />,
+const ICONOS: Record<string, (props: { size: number }) => ReactNode> = {
+  bus: IconoBus, rings: IconoRings, finca: IconoFinca,
 };
 
 function normalizeIcon(icono: string): string {
@@ -115,29 +120,111 @@ function normalizeIcon(icono: string): string {
   return "finca";
 }
 
-function renderIcono(punto: PuntoTimeline): ReactNode {
-  if (punto.iconoUrl) {
-    const src = `url("${resolveDriveMediaSrc(punto.iconoUrl)}")`;
-    // Máscara: el color del icono (currentColor) tiñe la imagen.
-    return (
-      <span
-        aria-hidden="true"
-        className="block h-11 w-11"
-        style={{
-          backgroundColor: "currentColor",
-          WebkitMaskImage: src,
-          maskImage: src,
-          WebkitMaskRepeat: "no-repeat",
-          maskRepeat: "no-repeat",
-          WebkitMaskPosition: "center",
-          maskPosition: "center",
-          WebkitMaskSize: "contain",
-          maskSize: "contain",
-        }}
-      />
-    );
+// Relación ancho/alto real de la imagen; 1 (cuadrado) hasta que carga o si no tiene dimensiones intrínsecas.
+function useImageRatio(src: string): number {
+  const [loaded, setLoaded] = useState<{ src: string; ratio: number } | null>(null);
+  useEffect(() => {
+    if (!src) return;
+    let cancelled = false;
+    const img = new window.Image();
+    img.onload = () => {
+      if (cancelled || img.naturalWidth <= 0 || img.naturalHeight <= 0) return;
+      setLoaded({ src, ratio: img.naturalWidth / img.naturalHeight });
+    };
+    img.src = src;
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+  return loaded?.src === src ? loaded.ratio : 1;
+}
+
+// Hueco historico (44px) que se mantiene mientras el evento no tenga tamano propio.
+const TIMELINE_LOGO_DEFAULT_SLOT_PX = 44;
+
+// Logo ajustado a `size` px por su lado mayor, sin deformar ni recortar, dentro de un hueco que lo envuelve.
+function LogoTimeline({
+  punto,
+  device,
+  legacyLogoSize,
+  style,
+  className,
+  onClick,
+}: {
+  punto: PuntoTimeline;
+  device: TimelineLogoDevice;
+  legacyLogoSize?: number;
+  style: CSSProperties;
+  className?: string;
+  onClick: (event: MouseEvent<HTMLDivElement>) => void;
+}) {
+  const src = punto.iconoUrl ? resolveDriveMediaSrc(punto.iconoUrl) : "";
+  const ratio = useImageRatio(src);
+  const { size, configured } = resolveTimelineLogoSize(punto.logoTamano, device, Boolean(src), legacyLogoSize);
+  const boxWidth = ratio >= 1 ? size : size * ratio;
+  const boxHeight = ratio >= 1 ? size / ratio : size;
+  const minSlot = configured ? 0 : TIMELINE_LOGO_DEFAULT_SLOT_PX;
+  const Builtin = ICONOS[punto.icono];
+  // Los iconos integrados son cuadrados.
+  const slotWidth = Math.max(src ? boxWidth : size, minSlot);
+  const slotHeight = Math.max(src ? boxHeight : size, minSlot);
+
+  return (
+    <div
+      className={`flex flex-shrink-0 items-center justify-center ${className ?? ""}`}
+      style={{ ...style, width: `${slotWidth}px`, height: `${slotHeight}px` }}
+      onClick={onClick}
+    >
+      {src ? (
+        // Máscara: el color del icono (currentColor) tiñe la imagen.
+        <span
+          aria-hidden="true"
+          className="block flex-shrink-0"
+          style={{
+            width: `${boxWidth}px`,
+            height: `${boxHeight}px`,
+            backgroundColor: "currentColor",
+            WebkitMaskImage: `url("${src}")`,
+            maskImage: `url("${src}")`,
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+          }}
+        />
+      ) : Builtin ? (
+        <Builtin size={size} />
+      ) : null}
+    </div>
+  );
+}
+
+// Alineacion del logo dentro de su celda segun el dispositivo.
+function logoSelfClasses(alineacion: AlineacionLogoTimeline | undefined, device: TimelineLogoDevice): string {
+  const { vertical, horizontal } = resolveTimelineLogoAlign(alineacion, device);
+  const v = { arriba: "self-start", centro: "self-center", abajo: "self-end" }[vertical];
+  if (device === "movil") return v;
+  return `${v} ${{ izquierda: "justify-self-start", centro: "justify-self-center", derecha: "justify-self-end" }[horizontal]}`;
+}
+
+// En movil la horizontal decide el lado del texto; "centro" apila el logo sobre el texto, y vertical "abajo" lo pasa debajo.
+function mobileRowDirection(alineacion: AlineacionLogoTimeline | undefined): { stacked: boolean; className: string } {
+  const { vertical, horizontal } = resolveTimelineLogoAlign(alineacion, "movil");
+  if (horizontal === "derecha") return { stacked: false, className: "flex-row-reverse items-center" };
+  if (horizontal === "centro") {
+    return { stacked: true, className: vertical === "abajo" ? "flex-col-reverse items-center" : "flex-col items-center" };
   }
-  return ICONOS[punto.icono];
+  return { stacked: false, className: "items-center" };
+}
+
+// Lado del hueco de logo en escritorio: la fila del grid usa el mayor de todos los eventos.
+function desktopLogoRowHeight(puntos: PuntoTimeline[], legacyLogoSize?: number): number {
+  return puntos.reduce((max, punto) => {
+    const { size, configured } = resolveTimelineLogoSize(punto.logoTamano, "pc", Boolean(punto.iconoUrl), legacyLogoSize);
+    return Math.max(max, configured ? size : Math.max(size, TIMELINE_LOGO_DEFAULT_SLOT_PX));
+  }, 0);
 }
 
 function inferMapLink(
@@ -196,6 +283,8 @@ function buildTimelinePoints(
     subtitulo: item.descripcion,
     icono,
     iconoUrl: item.imagen?.trim() || undefined,
+    logoTamano: item.logoTamano,
+    logoAlineacion: item.logoAlineacion,
     mapaSrc: toMapEmbedUrl(mapaLink, fallbackQuery),
     mapaLink,
     mapaTexto: icono === "bus" ? "Ver punto de recogida" : "Cómo llegar",
@@ -206,6 +295,7 @@ function buildTimelinePoints(
 export function SeccionTimeline({
   localizaciones,
   timeline,
+  legacyLogoSize,
   viewport,
   editable = false,
   designMode = false,
@@ -219,7 +309,7 @@ export function SeccionTimeline({
   const puntos = buildTimelinePoints(timeline, localizaciones);
   const showStraightLine = puntos.length > 1 && puntos.length !== 3;
   const forceMobile = viewport === "movil";
-
+  const logoRowHeight = desktopLogoRowHeight(puntos, legacyLogoSize);
   const styleFor = (key: TimelineComponentKey, base: CSSProperties = {}): CSSProperties => ({
     ...base,
     ...(componentStyles?.[key] ?? {}),
@@ -251,7 +341,9 @@ export function SeccionTimeline({
 
         {/* ── Timeline móvil (vertical) ── */}
         <div className={forceMobile ? "space-y-6" : "space-y-6 md:hidden"}>
-          {puntos.map((punto) => (
+          {puntos.map((punto) => {
+            const rowLayout = mobileRowDirection(punto.logoAlineacion);
+            return (
             <article key={punto.id}>
               <div
                 className="tex-white space-y-3 border px-4 pb-4 pt-3"
@@ -261,16 +353,17 @@ export function SeccionTimeline({
                 })}
                 onClick={() => select("timeline.card")}
               >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-11 w-11 flex-shrink-0 items-center justify-center"
+                <div className={`flex gap-3 ${rowLayout.className}`}>
+                  <LogoTimeline
+                    punto={punto}
+                    device="movil"
+                    legacyLogoSize={legacyLogoSize}
+                    className={rowLayout.stacked ? "" : logoSelfClasses(punto.logoAlineacion, "movil")}
                     style={styleFor("timeline.icono", { color: "var(--brown-dark)" })}
                     onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
-                  >
-                    {renderIcono(punto)}
-                  </div>
+                  />
 
-                  <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0 min-w-0">
+                  <p className={`flex flex-wrap items-baseline gap-x-2 gap-y-0 min-w-0 ${rowLayout.stacked ? "justify-center text-center" : "flex-1"}`}>
                     <span
                       className="font-display text-xl font-light tracking-wide"
                       style={styleFor("timeline.hora", { color: "var(--bronze)" })}
@@ -352,7 +445,8 @@ export function SeccionTimeline({
                 )}
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
 
         {/* ── Timeline escritorio (horizontal) ── */}
@@ -361,8 +455,9 @@ export function SeccionTimeline({
 
             {showStraightLine && (
               <div
-                className="absolute left-[8%] right-[8%] top-[92px] h-px"
+                className="absolute left-[8%] right-[8%] h-px"
                 style={{
+                  top: `${logoRowHeight + 48}px`,
                   borderTop: "2px dashed var(--bronze-pale)",
                   zIndex: 0,
                 }}
@@ -374,20 +469,21 @@ export function SeccionTimeline({
               className="relative z-10 grid gap-4"
               style={{
                 gridTemplateColumns: `repeat(${Math.max(puntos.length, 1)}, minmax(0, 1fr))`,
-                gridTemplateRows: "auto auto 1fr",
+                gridTemplateRows: `${logoRowHeight}px auto 1fr`,
               }}
             >
               {puntos.map((punto) => (
                 <div key={punto.id} className="grid row-span-3 grid-rows-subgrid justify-items-center gap-4 min-w-0">
 
                   {/* Icono, sin fondo circular */}
-                  <div
-                    className="flex h-11 w-11 items-center justify-center self-center"
+                  <LogoTimeline
+                    punto={punto}
+                    device="pc"
+                    legacyLogoSize={legacyLogoSize}
+                    className={logoSelfClasses(punto.logoAlineacion, "pc")}
                     style={styleFor("timeline.icono", { color: "var(--brown-dark)" })}
                     onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
-                  >
-                    {renderIcono(punto)}
-                  </div>
+                  />
                     <span
                       className="font-display text-xl font-light min-h-[1em]"
                       style={styleFor("timeline.hora", { color: "var(--bronze)", lineHeight: 1 })}

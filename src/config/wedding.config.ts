@@ -40,6 +40,23 @@ export type Localizacion = {
   enlaceMaps?: string;
 };
 
+// Tamano (px) del logo de un evento del timeline; sin valor se usa el tamano historico.
+export type TamanoLogoTimeline = {
+  movil?: number;
+  pc?: number;
+};
+
+// Alineacion del logo de un evento por dispositivo; sin valor se usan los defaults de timeline-logo-size.
+export type AlineacionLogoDispositivo = {
+  vertical?: "arriba" | "centro" | "abajo";
+  horizontal?: "izquierda" | "centro" | "derecha";
+};
+
+export type AlineacionLogoTimeline = {
+  movil?: AlineacionLogoDispositivo;
+  pc?: AlineacionLogoDispositivo;
+};
+
 export type EventoTimeline = {
   id: string;
   hora: string;
@@ -47,6 +64,8 @@ export type EventoTimeline = {
   descripcion: string;
   icono: "rings" | "cocktail" | "fork" | "cake" | "music" | "car" | "iglesia" | "finca";
   imagen?: string;
+  logoTamano?: TamanoLogoTimeline;
+  logoAlineacion?: AlineacionLogoTimeline;
 };
 
 export type TrayectoTransporte = {
@@ -336,6 +355,8 @@ export type ItemSeccionDiseno = {
   imagen?: string;
   lineAlive?: LineAliveAnimationAsset;
   icono?: string;
+  logoTamano?: TamanoLogoTimeline;
+  logoAlineacion?: AlineacionLogoTimeline;
   enlaceMaps?: string;
   filtrosImagen?: Array<"sepia" | "grayscale" | "blur">;
   botonLabel?: string;

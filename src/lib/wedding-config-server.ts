@@ -10,6 +10,7 @@ import { weddingConfig, normalizeIntroConfig, type IntroDeviceConfig, type Weddi
 import { buildTextureCssVars, resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { buildFontCssVars, buildFontFaceCss } from "@/lib/theme-fonts";
+import { normalizeAlineacionLogoTimeline, normalizeTamanoLogoTimeline } from "@/lib/timeline-logo-size";
 import { unstable_noStore as noStore } from "next/cache";
 
 type SectionRow = {
@@ -165,6 +166,8 @@ function asTimelineItem(item: SectionItemRow): WeddingConfig["timeline"][number]
     descripcion: asString(payload.descripcion),
     icono: asString(payload.icono, "rings") as WeddingConfig["timeline"][number]["icono"],
     imagen: asString(payload.imagen) || undefined,
+    logoTamano: normalizeTamanoLogoTimeline(payload.logoTamano),
+    logoAlineacion: normalizeAlineacionLogoTimeline(payload.logoAlineacion),
   };
 }
 

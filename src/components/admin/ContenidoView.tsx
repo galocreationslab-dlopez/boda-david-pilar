@@ -7,6 +7,15 @@ import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, ELEMENTOS_BARRA_POR_DEFECTO, normalizeIntroConfig } from "@/config/wedding.config";
 import { buildDefaultLayout, buildDefaultPortadaLibre, normalizePortadaLibre } from "@/lib/portada-libre";
+import {
+  TIMELINE_LOGO_HORIZONTAL,
+  TIMELINE_LOGO_RANGE,
+  TIMELINE_LOGO_VERTICAL,
+  clampTimelineLogoSize,
+  resolveTimelineLogoAlign,
+  resolveTimelineLogoSize,
+  type TimelineLogoDevice,
+} from "@/lib/timeline-logo-size";
 import { parseNativeSvgAnimations, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
 import type {
   ComportamientoBarraNavegacion,
@@ -402,6 +411,8 @@ function mapTimelineToItems(timeline: EventoTimeline[]) {
     hora: item.hora,
     icono: item.icono,
     imagen: item.imagen,
+    logoTamano: item.logoTamano,
+    logoAlineacion: item.logoAlineacion,
     enlaceMaps: "",
   }));
 }
@@ -535,6 +546,8 @@ function mapTimelineItemsToConfig(items: SeccionDiseno["items"]): EventoTimeline
     descripcion: item.descripcion || "",
     icono: (item.icono as EventoTimeline["icono"]) || "rings",
     imagen: item.imagen || undefined,
+    logoTamano: item.logoTamano,
+    logoAlineacion: item.logoAlineacion,
   }));
 }
 
@@ -837,6 +850,35 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
 
   const updateTimelineItem = (itemId: string, field: "hora" | "titulo" | "descripcion" | "icono" | "enlaceMaps" | "imagen", value: string) => {
     patchSelectedItems((items) => items.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)));
+  };
+
+  // value undefined restablece el tamano de ese dispositivo al valor por defecto.
+  const updateTimelineLogoSize = (itemId: string, device: TimelineLogoDevice, value: number | undefined) => {
+    patchSelectedItems((items) =>
+      items.map((item) => {
+        if (item.id !== itemId) return item;
+        const next = { ...(item.logoTamano ?? {}) };
+        if (value === undefined || !Number.isFinite(value)) delete next[device];
+        else next[device] = clampTimelineLogoSize(value, device);
+        return { ...item, logoTamano: Object.keys(next).length > 0 ? next : undefined };
+      }),
+    );
+  };
+
+  const updateTimelineLogoAlign = (
+    itemId: string,
+    device: TimelineLogoDevice,
+    axis: "vertical" | "horizontal",
+    value: string,
+  ) => {
+    patchSelectedItems((items) =>
+      items.map((item) => {
+        if (item.id !== itemId) return item;
+        const current = resolveTimelineLogoAlign(item.logoAlineacion, device);
+        const nextDevice = { ...current, [axis]: value };
+        return { ...item, logoAlineacion: { ...(item.logoAlineacion ?? {}), [device]: nextDevice } };
+      }),
+    );
   };
 
   const moveSelectedItem = (itemId: string, direction: "up" | "down") => {
@@ -2522,6 +2564,85 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                             placeholder="URL de Drive o imagen"
                             accept="image/*"
                           />
+                        </div>
+                        <div className="sm:col-span-2 rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-2">
+                          <p className="text-xs font-semibold text-stone-600">Tamano del logo (px, mantiene proporciones)</p>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {(["movil", "pc"] as const).map((device) => {
+                              const range = TIMELINE_LOGO_RANGE[device];
+                              const { size, configured } = resolveTimelineLogoSize(
+                                item.logoTamano,
+                                device,
+                                Boolean(item.imagen),
+                                selectedSection.componentSizes?.["timeline.icono"],
+                              );
+                              return (
+                                <div key={device}>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <label className="label-field">{device === "movil" ? "Movil" : "PC"}</label>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="number"
+                                        className="input-field !w-20 !py-1"
+                                        min={range.min}
+                                        max={range.max}
+                                        step={range.step}
+                                        value={size}
+                                        onChange={(e) => {
+                                          const n = Number(e.target.value);
+                                          if (e.target.value !== "" && Number.isFinite(n)) updateTimelineLogoSize(item.id, device, n);
+                                        }}
+                                      />
+                                      <button
+                                        type="button"
+                                        disabled={!configured}
+                                        onClick={() => updateTimelineLogoSize(item.id, device, undefined)}
+                                        className="text-[11px] text-stone-500 underline disabled:opacity-40 disabled:no-underline"
+                                      >
+                                        Restablecer
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    className="w-full"
+                                    min={range.min}
+                                    max={range.max}
+                                    step={range.step}
+                                    value={size}
+                                    onChange={(e) => updateTimelineLogoSize(item.id, device, Number(e.target.value))}
+                                  />
+                                  <div className="mt-2 grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="label-field">Alineacion vertical</label>
+                                      <select
+                                        className="input-field"
+                                        value={resolveTimelineLogoAlign(item.logoAlineacion, device).vertical}
+                                        onChange={(e) => updateTimelineLogoAlign(item.id, device, "vertical", e.target.value)}
+                                      >
+                                        {TIMELINE_LOGO_VERTICAL.map((v) => (
+                                          <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="label-field">Alineacion horizontal</label>
+                                      <select
+                                        className="input-field"
+                                        value={resolveTimelineLogoAlign(item.logoAlineacion, device).horizontal}
+                                        onChange={(e) => updateTimelineLogoAlign(item.id, device, "horizontal", e.target.value)}
+                                      >
+                                        {TIMELINE_LOGO_HORIZONTAL.map((h) => (
+                                          <option key={h} value={h}>{h.charAt(0).toUpperCase() + h.slice(1)}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[11px] text-stone-500">En movil, horizontal izquierda/derecha situa el logo a un lado del texto y centro lo coloca sobre el texto (vertical abajo lo pasa debajo).</p>
                         </div>
                         <div className="sm:col-span-2">
                           <label className="label-field">Enlace Google Maps</label>
