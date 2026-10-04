@@ -11,6 +11,7 @@
 import { useState, useEffect, Fragment } from "react";
 import Link from "next/link";
 import { SelloNupcial } from "@/components/ui/SelloNupcial";
+import AspectRatioImage from "@/components/layout/AspectRatioImage";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import {
   ELEMENTOS_BARRA_POR_DEFECTO,
@@ -33,7 +34,7 @@ export type SeccionMenuItem = {
 type NavegacionPublicaProps = {
   config: Pick<WeddingConfig, "iniciales" | "novia" | "novio">;
   comportamiento?: ComportamientoBarraNavegacion;
-  banner?: Pick<NavegacionDiseno, "texto" | "logoUrl" | "elementos" | "logoAnchoPx" | "logoAltoPx" | "logoColor" | "fondoColor" | "textoTamanoPx" | "textoColor">;
+  banner?: Pick<NavegacionDiseno, "texto" | "logoUrl" | "elementos" | "logoAnchoPx" | "logoAltoPx" | "logoColor" | "fondoColor" | "textoTamanoPx" | "textoColor" | "logoMantenerAspecto" | "logoAspectoFijar" | "logoAspectoAlineacion" | "logoAnchoManualPx" | "logoAltoManualPx">;
   secciones?: SeccionMenuItem[];
   // Query string actual (sin el "?"), ej. "inviteCode=GALO-2603" — se preserva en todos los enlaces internos.
   queryString?: string;
@@ -133,17 +134,15 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
                     </filter>
                   </svg>
                 )}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <AspectRatioImage
                   src={resolveDriveMediaSrc(banner.logoUrl)}
                   alt=""
-                  className="block object-contain"
-                  style={{
-                    width: banner.logoAnchoPx || "auto",
-                    height: banner.logoAltoPx || (banner.logoAnchoPx ? "auto" : 40),
-                    maxWidth: banner.logoAnchoPx ? undefined : "14rem",
-                    filter: banner.logoColor ? "url(#banner-logo-tint)" : undefined,
-                  }}
+                  width={banner.logoAnchoPx ?? 0}
+                  height={banner.logoAltoPx ?? 0}
+                  mantenerAspecto={banner.logoMantenerAspecto}
+                  fijar={banner.logoAspectoFijar}
+                  alineacion={banner.logoAspectoAlineacion}
+                  filter={banner.logoColor ? "url(#banner-logo-tint)" : undefined}
                 />
               </>
             ) : (

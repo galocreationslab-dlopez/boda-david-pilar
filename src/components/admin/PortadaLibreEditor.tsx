@@ -20,6 +20,7 @@ import {
   normalizePortadaLibre,
   type PortadaDispositivo,
 } from "@/lib/portada-libre";
+import { getPortadaAspectCanvasRatio, getPortadaAspectLayout, type PortadaAspectRatio } from "@/lib/portada-aspect-ratio";
 
 type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 type DragMode = Handle | "move";
@@ -40,6 +41,7 @@ const MIN_SIZE_PCT = 2;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 type RoleOption = { key: string; label: string };
+type LoadedImageRatio = PortadaAspectRatio & { src: string };
 
 type Props = {
   config: PortadaLibreConfig | undefined;
@@ -53,7 +55,7 @@ type Props = {
   onChangeImageTreatment: (key: string, patch: Partial<TratamientoImagen>) => void;
 };
 
-function NumberField({ label, value, onChange, step = 1, min, max }: { label: string; value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number }) {
+function NumberField({ label, value, onChange, step = 1, min, max, disabled = false }: { label: string; value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; disabled?: boolean }) {
   return (
     <label className="block text-[11px] text-stone-600">
       {label}
@@ -64,6 +66,7 @@ function NumberField({ label, value, onChange, step = 1, min, max }: { label: st
         step={step}
         min={min}
         max={max}
+        disabled={disabled}
         onChange={(e) => {
           const parsed = Number(e.target.value);
           if (Number.isFinite(parsed)) onChange(parsed);
@@ -141,6 +144,7 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
   const [anchoPx, setAnchoPx] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const [imageRatios, setImageRatios] = useState<Record<string, LoadedImageRatio>>({});
 
   const normalizadoRef = useRef(normalizado);
   normalizadoRef.current = normalizado;
@@ -156,8 +160,30 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const pending = normalizado.elementos
+      .filter((elemento) => elemento.tipo === "imagen" && elemento.url)
+      .map((elemento) => {
+        const image = new Image();
+        const src = resolveSrc(elemento.url);
+        image.onload = () => {
+          if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+            setImageRatios((current) => ({ ...current, [elemento.id]: { src, width: image.naturalWidth, height: image.naturalHeight } }));
+          }
+        };
+        if (src) image.src = src;
+        return image;
+      });
+    return () => pending.forEach((image) => {
+      image.onload = null;
+      image.onerror = null;
+    });
+  }, [config, dispositivo, resolveSrc]);
+
   const unitPx = porPantallas ? anchoPx / PANTALLA_ASPECTO[dispositivo] : anchoPx / aspecto;
   const alturaPx = unitPx * pantallas;
+  // En modo pantallas, h se expresa por pantalla (svh), no sobre la altura total del lienzo.
+  const canvasRatio = porPantallas ? PANTALLA_ASPECTO[dispositivo] : getPortadaAspectCanvasRatio(anchoPx, alturaPx);
   const maxY = !porPantallas ? 100 : (disp.pantallas ?? 1) > 0 ? pantallas * 100 : 2000;
 
   const patchDisp = useCallback((patch: Partial<PortadaDispositivoConfig>) => {
@@ -195,6 +221,17 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
       if (drag.mode === "move") {
         x = s.x + dx;
         y = s.y + dy;
+      } else if (s.mantenerAspecto) {
+        if (s.aspectoFijar === "alto" && (drag.mode.includes("n") || drag.mode.includes("s"))) {
+          h = Math.max(MIN_SIZE_PCT, s.h + (drag.mode.includes("s") ? dy : -dy));
+          y = drag.mode.includes("n") ? s.y + (s.h - h) : s.y;
+          patchLayout(drag.id, { y: round1(y), h: round1(h), aspectoHManual: round1(h) }, maxYRef.current);
+        } else if (s.aspectoFijar !== "alto" && (drag.mode.includes("e") || drag.mode.includes("w"))) {
+          w = Math.max(MIN_SIZE_PCT, s.w + (drag.mode.includes("e") ? dx : -dx));
+          x = drag.mode.includes("w") ? s.x + (s.w - w) : s.x;
+          patchLayout(drag.id, { x: round1(x), w: round1(w), aspectoWManual: round1(w) }, maxYRef.current);
+        }
+        return;
       } else {
         if (drag.mode.includes("e")) w = Math.max(MIN_SIZE_PCT, s.w + dx);
         if (drag.mode.includes("w")) {
@@ -229,7 +266,38 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
 
   const selectedIndex = normalizado.elementos.findIndex((el) => el.id === selectedId);
   const selected = selectedIndex >= 0 ? normalizado.elementos[selectedIndex] : null;
-  const selectedLayout = selected ? getElementoLayout(normalizado, dispositivo, selected, selectedIndex) : null;
+  const selectedRawLayout = selected ? getElementoLayout(normalizado, dispositivo, selected, selectedIndex) : null;
+  const getLoadedRatio = (elemento: typeof selected) => {
+    if (!elemento?.url || elemento.tipo !== "imagen") return undefined;
+    const loaded = imageRatios[elemento.id];
+    return loaded?.src === resolveSrc(elemento.url) ? loaded : undefined;
+  };
+  const selectedLayout = selectedRawLayout && selected
+    ? getPortadaAspectLayout(selectedRawLayout, getLoadedRatio(selected), canvasRatio)
+    : null;
+  const aspectoActivo = selected?.tipo === "imagen" && Boolean(selectedRawLayout?.mantenerAspecto);
+  const ejeFijo = selectedRawLayout?.aspectoFijar === "alto" ? "alto" : "ancho";
+
+  const setMantenerAspecto = (enabled: boolean) => {
+    if (!selected || !selectedRawLayout) return;
+    if (!enabled) {
+      patchLayout(selected.id, {
+        mantenerAspecto: false,
+        w: selectedRawLayout.aspectoWManual ?? selectedRawLayout.w,
+        h: selectedRawLayout.aspectoHManual ?? selectedRawLayout.h,
+        aspectoWManual: undefined,
+        aspectoHManual: undefined,
+      }, maxY);
+      return;
+    }
+    patchLayout(selected.id, {
+      mantenerAspecto: true,
+      aspectoFijar: selectedRawLayout.aspectoFijar ?? "ancho",
+      aspectoAlineacion: selectedRawLayout.aspectoAlineacion ?? "arriba",
+      aspectoWManual: selectedRawLayout.aspectoWManual ?? selectedRawLayout.w,
+      aspectoHManual: selectedRawLayout.aspectoHManual ?? selectedRawLayout.h,
+    }, maxY);
+  };
 
   const copyFromOther = () => {
     const other: PortadaDispositivo = dispositivo === "pc" ? "movil" : "pc";
@@ -347,7 +415,8 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
           {normalizado.elementos.map((el, index) => {
             const layout = getElementoLayout(normalizado, dispositivo, el, index);
             const isSelected = selectedId === el.id;
-            const box = getPortadaBoxStyle(layout, disp.alturaModo, unitPx);
+            const effectiveLayout = getPortadaAspectLayout(layout, getLoadedRatio(el), canvasRatio);
+            const box = getPortadaBoxStyle(effectiveLayout, disp.alturaModo, unitPx);
             return (
               <div
                 key={el.id}
@@ -400,10 +469,73 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <NumberField label="X (%)" value={selectedLayout.x} step={0.5} onChange={(v) => patchLayout(selected.id, { x: v }, maxY)} />
             <NumberField label="Y (%)" value={selectedLayout.y} step={0.5} onChange={(v) => patchLayout(selected.id, { y: v }, maxY)} />
-            <NumberField label="Ancho (%)" value={selectedLayout.w} step={0.5} min={MIN_SIZE_PCT} onChange={(v) => patchLayout(selected.id, { w: v }, maxY)} />
-            <NumberField label="Alto (%)" value={selectedLayout.h} step={0.5} min={MIN_SIZE_PCT} onChange={(v) => patchLayout(selected.id, { h: v }, maxY)} />
+            <NumberField
+              label="Ancho (%)"
+              value={selectedLayout.w}
+              step={0.5}
+              min={MIN_SIZE_PCT}
+              disabled={aspectoActivo && ejeFijo === "alto"}
+              onChange={(v) => patchLayout(selected.id, aspectoActivo && ejeFijo === "ancho" ? { w: v, aspectoWManual: v } : { w: v }, maxY)}
+            />
+            <NumberField
+              label="Alto (%)"
+              value={selectedLayout.h}
+              step={0.5}
+              min={MIN_SIZE_PCT}
+              disabled={aspectoActivo && ejeFijo === "ancho"}
+              onChange={(v) => patchLayout(selected.id, aspectoActivo && ejeFijo === "alto" ? { h: v, aspectoHManual: v } : { h: v }, maxY)}
+            />
             <NumberField label="Opacidad (%)" value={selectedLayout.opacidad ?? 100} min={0} max={100} onChange={(v) => patchLayout(selected.id, { opacidad: Math.min(100, Math.max(0, v)) }, maxY)} />
           </div>
+
+          {selected.tipo === "imagen" && selectedRawLayout && (
+            <div className="grid gap-2 sm:grid-cols-3">
+              <label className="inline-flex items-center gap-2 text-[11px] text-stone-600">
+                <input type="checkbox" checked={Boolean(selectedRawLayout.mantenerAspecto)} onChange={(event) => setMantenerAspecto(event.target.checked)} />
+                Mantener relación de aspecto
+              </label>
+              {aspectoActivo && (
+                <>
+                  <label className="block text-[11px] text-stone-600">
+                    Establecer ancho / Establecer alto
+                    <select
+                      className="input-field h-8 text-xs"
+                      value={ejeFijo}
+                      onChange={(event) => {
+                        const next = event.target.value as "ancho" | "alto";
+                        patchLayout(selected.id, { aspectoFijar: next, aspectoAlineacion: next === "ancho" ? "arriba" : "izquierda" }, maxY);
+                      }}
+                    >
+                      <option value="ancho">Establecer ancho</option>
+                      <option value="alto">Establecer alto</option>
+                    </select>
+                  </label>
+                  <label className="block text-[11px] text-stone-600">
+                    Alinear dimensión libre
+                    <select
+                      className="input-field h-8 text-xs"
+                      value={selectedRawLayout.aspectoAlineacion ?? (ejeFijo === "ancho" ? "arriba" : "izquierda")}
+                      onChange={(event) => patchLayout(selected.id, { aspectoAlineacion: event.target.value as PortadaElementoLayout["aspectoAlineacion"] }, maxY)}
+                    >
+                      {ejeFijo === "ancho" ? (
+                        <>
+                          <option value="arriba">Arriba</option>
+                          <option value="centroVertical">Centrar verticalmente</option>
+                          <option value="abajo">Abajo</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="izquierda">Izquierda</option>
+                          <option value="centroHorizontal">Centrar horizontalmente</option>
+                          <option value="derecha">Derecha</option>
+                        </>
+                      )}
+                    </select>
+                  </label>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-stone-600">
             <label className="inline-flex items-center gap-1">

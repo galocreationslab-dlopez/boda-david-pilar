@@ -563,6 +563,11 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [bannerLogoUrl, setBannerLogoUrl] = useState(config.diseno?.navegacion?.logoUrl ?? "");
   const [bannerLogoAncho, setBannerLogoAncho] = useState(config.diseno?.navegacion?.logoAnchoPx ?? 0);
   const [bannerLogoAlto, setBannerLogoAlto] = useState(config.diseno?.navegacion?.logoAltoPx ?? 0);
+  const [bannerLogoMantenerAspecto, setBannerLogoMantenerAspecto] = useState(config.diseno?.navegacion?.logoMantenerAspecto ?? false);
+  const [bannerLogoAspectoFijar, setBannerLogoAspectoFijar] = useState<"ancho" | "alto">(config.diseno?.navegacion?.logoAspectoFijar ?? "ancho");
+  const [bannerLogoAspectoAlineacion, setBannerLogoAspectoAlineacion] = useState(config.diseno?.navegacion?.logoAspectoAlineacion ?? "centroVertical");
+  const [bannerLogoAnchoManual, setBannerLogoAnchoManual] = useState(config.diseno?.navegacion?.logoAnchoManualPx ?? config.diseno?.navegacion?.logoAnchoPx ?? 0);
+  const [bannerLogoAltoManual, setBannerLogoAltoManual] = useState(config.diseno?.navegacion?.logoAltoManualPx ?? config.diseno?.navegacion?.logoAltoPx ?? 0);
   const [bannerLogoColor, setBannerLogoColor] = useState(config.diseno?.navegacion?.logoColor ?? "");
   const [bannerFondoColor, setBannerFondoColor] = useState(config.diseno?.navegacion?.fondoColor ?? "");
   const [bannerTextoTamano, setBannerTextoTamano] = useState(config.diseno?.navegacion?.textoTamanoPx ?? 0);
@@ -1045,6 +1050,11 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
               logoUrl: bannerLogoUrl.trim(),
               logoAnchoPx: bannerLogoAncho,
               logoAltoPx: bannerLogoAlto,
+              logoMantenerAspecto: bannerLogoMantenerAspecto,
+              logoAspectoFijar: bannerLogoAspectoFijar,
+              logoAspectoAlineacion: bannerLogoAspectoAlineacion,
+              logoAnchoManualPx: bannerLogoAnchoManual,
+              logoAltoManualPx: bannerLogoAltoManual,
               logoColor: bannerLogoColor,
               fondoColor: bannerFondoColor,
               textoTamanoPx: bannerTextoTamano,
@@ -2105,12 +2115,53 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                       <div>
                         <label className="label-field">Ancho del logo (px, 0 = automatico)</label>
                         <input type="number" min={0} max={600} className="input-field" value={bannerLogoAncho}
-                          onChange={(e) => setBannerLogoAncho(Math.max(0, Number(e.target.value) || 0))} />
+                          disabled={bannerLogoMantenerAspecto && bannerLogoAspectoFijar === "alto"}
+                          onChange={(e) => { const value = Math.max(0, Number(e.target.value) || 0); setBannerLogoAncho(value); if (bannerLogoMantenerAspecto && bannerLogoAspectoFijar === "ancho") setBannerLogoAnchoManual(value); }} />
                       </div>
                       <div>
                         <label className="label-field">Alto del logo (px, 0 = automatico)</label>
                         <input type="number" min={0} max={200} className="input-field" value={bannerLogoAlto}
-                          onChange={(e) => setBannerLogoAlto(Math.max(0, Number(e.target.value) || 0))} />
+                          disabled={bannerLogoMantenerAspecto && bannerLogoAspectoFijar === "ancho"}
+                          onChange={(e) => { const value = Math.max(0, Number(e.target.value) || 0); setBannerLogoAlto(value); if (bannerLogoMantenerAspecto && bannerLogoAspectoFijar === "alto") setBannerLogoAltoManual(value); }} />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="inline-flex items-center gap-2 label-field">
+                          <input type="checkbox" checked={bannerLogoMantenerAspecto} onChange={(e) => {
+                            const enabled = e.target.checked;
+                            if (enabled) {
+                              setBannerLogoAnchoManual(bannerLogoAncho);
+                              setBannerLogoAltoManual(bannerLogoAlto);
+                            } else {
+                              setBannerLogoAncho(bannerLogoAnchoManual);
+                              setBannerLogoAlto(bannerLogoAltoManual);
+                            }
+                            setBannerLogoMantenerAspecto(enabled);
+                          }} />
+                          Mantener relación de aspecto
+                        </label>
+                        {bannerLogoMantenerAspecto && (
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <label className="label-field">Establecer ancho / Establecer alto
+                              <select className="input-field" value={bannerLogoAspectoFijar} onChange={(e) => {
+                                const next = e.target.value as "ancho" | "alto";
+                                setBannerLogoAspectoFijar(next);
+                                setBannerLogoAspectoAlineacion(next === "ancho" ? "centroVertical" : "centroHorizontal");
+                              }}>
+                                <option value="ancho">Establecer ancho</option>
+                                <option value="alto">Establecer alto</option>
+                              </select>
+                            </label>
+                            <label className="label-field">Alinear dimensión libre
+                              <select className="input-field" value={bannerLogoAspectoAlineacion} onChange={(e) => setBannerLogoAspectoAlineacion(e.target.value as typeof bannerLogoAspectoAlineacion)}>
+                                {bannerLogoAspectoFijar === "ancho" ? <>
+                                  <option value="arriba">Arriba</option><option value="centroVertical">Centrar verticalmente</option><option value="abajo">Abajo</option>
+                                </> : <>
+                                  <option value="izquierda">Izquierda</option><option value="centroHorizontal">Centrar horizontalmente</option><option value="derecha">Derecha</option>
+                                </>}
+                              </select>
+                            </label>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <label className="label-field">Tamano de fuente del texto (px, 0 = automatico)</label>

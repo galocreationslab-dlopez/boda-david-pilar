@@ -12,6 +12,7 @@ import type {
   TratamientoImagen,
 } from "@/config/wedding.config";
 import ImageTreatmentFrame from "@/components/media/ImageTreatmentFrame";
+import PortadaAspectRatioBox from "@/components/wedding/PortadaAspectRatioBox";
 import {
   PANTALLA_ASPECTO,
   TEXTO_ANCHO_REFERENCIA,
@@ -216,8 +217,15 @@ function PortadaLienzo({
       {config.elementos.map((elemento, index) => {
         const layout = getElementoLayout(config, dispositivo, elemento, index);
         if (layout.oculto) return null;
+        const imageSrc = elemento.tipo === "imagen" && resolveSrc ? resolveSrc(elemento.url) : undefined;
         return (
-          <div key={elemento.id} style={getPortadaBoxStyle(layout, disp.alturaModo)}>
+          <PortadaAspectRatioBox
+            key={elemento.id}
+            layout={layout}
+            imageSrc={imageSrc}
+            modo={disp.alturaModo}
+            referenceRatio={porPantallas ? PANTALLA_ASPECTO[dispositivo] : aspecto}
+          >
             <PortadaElementoContenido
               elemento={elemento}
               layout={layout}
@@ -226,7 +234,7 @@ function PortadaLienzo({
               resolveSrc={resolveSrc}
               imageTreatment={imageTreatments?.[`portada:${elemento.id}`]}
             />
-          </div>
+          </PortadaAspectRatioBox>
         );
       })}
     </div>

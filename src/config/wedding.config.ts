@@ -381,6 +381,12 @@ export type PortadaElementoLayout = {
   y: number;
   w: number;
   h: number;
+  mantenerAspecto?: boolean;
+  aspectoFijar?: "ancho" | "alto";
+  aspectoAlineacion?: "arriba" | "centroVertical" | "abajo" | "izquierda" | "centroHorizontal" | "derecha";
+  // Dimensiones manuales conservadas mientras se calcula la dimensión libre.
+  aspectoWManual?: number;
+  aspectoHManual?: number;
   z?: number;
   oculto?: boolean;
   opacidad?: number; // 0-100
@@ -502,6 +508,11 @@ export type NavegacionDiseno = {
   // Tamaños en px; vacío = automático. Colores en hex; vacío = color por defecto del tema.
   logoAnchoPx?: number;
   logoAltoPx?: number;
+  logoMantenerAspecto?: boolean;
+  logoAspectoFijar?: "ancho" | "alto";
+  logoAspectoAlineacion?: "arriba" | "centroVertical" | "abajo" | "izquierda" | "centroHorizontal" | "derecha";
+  logoAnchoManualPx?: number;
+  logoAltoManualPx?: number;
   logoColor?: string;
   fondoColor?: string;
   textoTamanoPx?: number;
