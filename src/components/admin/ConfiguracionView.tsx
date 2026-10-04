@@ -47,6 +47,7 @@ import type {
   TemaColorRole,
   TemaPaleta,
   SeparadorDiseno,
+  DistanciaSiguienteSeccion,
   SeccionDiseno,
   TipoSeccionDiseno,
   TratamientoImagen,
@@ -364,6 +365,14 @@ function buildInitialInternalSeparator(existing?: SeparadorDiseno): SeparadorDis
   };
 }
 
+function normalizeSectionSpacing(existing?: DistanciaSiguienteSeccion): DistanciaSiguienteSeccion | undefined {
+  if (!existing) return undefined;
+  const normalize = (value: number | undefined) => typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : undefined;
+  const movil = normalize(existing.movil);
+  const pc = normalize(existing.pc);
+  return movil === undefined && pc === undefined ? undefined : { movil, pc };
+}
+
 function defaultSection(paletaId: string, tipo: TipoSeccionDiseno = "invitacion"): SeccionDiseno {
   return {
     id: `sec-${uid()}`,
@@ -403,6 +412,7 @@ function buildInitialSecciones(config: WeddingConfig, paletaId: string): Seccion
             imagenColorRole: normalizeLegacyRole(sec.separadorInterno.imagenColorRole ?? "nexosTransicionesBordes"),
           }
         : buildInitialInternalSeparator(),
+      distanciaSiguiente: normalizeSectionSpacing(sec.distanciaSiguiente),
       perfiles: sec.perfiles?.length ? sec.perfiles : ["publico"],
       items:
         isInvitationType(sec.tipo)
@@ -1613,6 +1623,18 @@ export default function ConfiguracionView({
     );
   };
 
+  const renderSectionSpacing = (section: SeccionDiseno) => {
+    const mobile = Math.max(0, section.distanciaSiguiente?.movil ?? 0);
+    const pc = Math.max(0, section.distanciaSiguiente?.pc ?? 0);
+    if (mobile === 0 && pc === 0) return null;
+    return (
+      <>
+        <div className="sm:hidden" style={{ height: `${mobile}px` }} aria-hidden="true" />
+        <div className="hidden sm:block" style={{ height: `${pc}px` }} aria-hidden="true" />
+      </>
+    );
+  };
+
   return (
     <div className="space-y-6 max-w-[1400px]">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -2259,6 +2281,45 @@ export default function ConfiguracionView({
                       </span>
                     </div>
 
+                    <div className="rounded border border-stone-200 bg-white p-2">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-600">Distancia con la siguiente sección</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="text-[11px] text-stone-600">
+                          Móvil (px)
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={editingSectionDraft.distanciaSiguiente?.movil ?? 0}
+                            className="input-field mt-1 h-8 w-full text-xs"
+                            onChange={(event) => patchEditingSectionDraft({
+                              distanciaSiguiente: {
+                                ...(editingSectionDraft.distanciaSiguiente ?? {}),
+                                movil: Math.max(0, Number(event.target.value) || 0),
+                              },
+                            })}
+                          />
+                        </label>
+                        <label className="text-[11px] text-stone-600">
+                          PC (px)
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={editingSectionDraft.distanciaSiguiente?.pc ?? 0}
+                            className="input-field mt-1 h-8 w-full text-xs"
+                            onChange={(event) => patchEditingSectionDraft({
+                              distanciaSiguiente: {
+                                ...(editingSectionDraft.distanciaSiguiente ?? {}),
+                                pc: Math.max(0, Number(event.target.value) || 0),
+                              },
+                            })}
+                          />
+                        </label>
+                      </div>
+                      <p className="mt-1 text-[11px] text-stone-500">Se añade después de esta sección y no se muestra si está cerrada o es la última visible.</p>
+                    </div>
+
                     <div className="rounded border border-stone-200 bg-stone-50 p-2">
                       <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-600">Componentes gráficos</p>
                       <div className="flex flex-wrap gap-1">
@@ -2622,6 +2683,7 @@ export default function ConfiguracionView({
                     const componentStyles = getSectionComponentStyles(sec);
                     const sectionPalette = getPaletteBySection(sec);
                     const sectionRoleColors = sectionPalette ? resolvePaletteRoleColors(sectionPalette) : null;
+                    const sectionSpacing = !isLast ? renderSectionSpacing(sec) : null;
                     return (
                       <div
                         key={sec.id}
@@ -2632,7 +2694,7 @@ export default function ConfiguracionView({
                         className={`relative ${!hasAnySectionInEditMode && selectedSectionId === sec.id ? "ring-1 ring-amber-300" : ""}`}
                       >
                         {isInvitationType(sec.tipo) && (
-                          <SeccionColapsable id={`preview-${sec.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
+                          <SeccionColapsable id={`preview-${sec.id}`} abiertaPorDefecto={true} ocultarCabecera={true} afterContent={sectionSpacing}>
                             <MainWithInvite
                               config={getPortadaConfig(sec)}
                               viewport={editorViewport}
@@ -2668,6 +2730,7 @@ export default function ConfiguracionView({
                               ocultarCabecera={sec.portadaLibre?.colapsable === false}
                               bgColor="var(--cream)"
                               titleStyle={{ color: sectionRoleColors?.tituloSeccion }}
+                              afterContent={sectionSpacing}
                             >
                               <PortadaLibre
                                 config={sec.portadaLibre}
@@ -2690,6 +2753,7 @@ export default function ConfiguracionView({
                             sectionStyle={componentStyles["historia.fondoSeccion"]}
                             sectionSelected={designMode && activeSelectedDesignComponentKey === "historia.fondoSeccion"}
                             titleStyle={componentStyles["historia.tituloSeccion"]}
+                            afterContent={sectionSpacing}
                             titleSelected={designMode && activeSelectedDesignComponentKey === "historia.tituloSeccion"}
                             onSelectSectionBackground={() => setSelectedDesignComponentKey("historia.fondoSeccion")}
                             onSelectTitleDesign={() => setSelectedDesignComponentKey("historia.tituloSeccion")}
@@ -2713,6 +2777,7 @@ export default function ConfiguracionView({
                         {sec.tipo === "carrusel" && (
                           <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "Fotos"} abiertaPorDefecto={sectionIsBeingEdited} bgColor="var(--cream)" designMode={designMode}
                             sectionStyle={componentStyles["carrusel.fondoSeccion"]} titleStyle={componentStyles["carrusel.tituloSeccion"]}
+                            afterContent={sectionSpacing}
                             sectionSelected={designMode && activeSelectedDesignComponentKey === "carrusel.fondoSeccion"}
                             titleSelected={designMode && activeSelectedDesignComponentKey === "carrusel.tituloSeccion"}
                             onSelectSectionBackground={() => setSelectedDesignComponentKey("carrusel.fondoSeccion")}
@@ -2730,6 +2795,7 @@ export default function ConfiguracionView({
                             sectionStyle={componentStyles["galeria.fondoSeccion"]}
                             sectionSelected={designMode && activeSelectedDesignComponentKey === "galeria.fondoSeccion"}
                             titleStyle={componentStyles["galeria.tituloSeccion"]}
+                            afterContent={sectionSpacing}
                             titleSelected={designMode && activeSelectedDesignComponentKey === "galeria.tituloSeccion"}
                             onSelectSectionBackground={() => setSelectedDesignComponentKey("galeria.fondoSeccion")}
                             onSelectTitleDesign={() => setSelectedDesignComponentKey("galeria.tituloSeccion")}
@@ -2758,6 +2824,7 @@ export default function ConfiguracionView({
                             sectionStyle={componentStyles["timeline.fondoSeccion"]}
                             sectionSelected={designMode && activeSelectedDesignComponentKey === "timeline.fondoSeccion"}
                             titleStyle={componentStyles["timeline.tituloSeccion"]}
+                            afterContent={sectionSpacing}
                             titleSelected={designMode && activeSelectedDesignComponentKey === "timeline.tituloSeccion"}
                             onSelectSectionBackground={() => setSelectedDesignComponentKey("timeline.fondoSeccion")}
                             onSelectTitleDesign={() => setSelectedDesignComponentKey("timeline.tituloSeccion")}

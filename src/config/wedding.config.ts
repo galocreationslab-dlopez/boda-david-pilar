@@ -418,6 +418,11 @@ export type PortadaLibreConfig = {
   movil: PortadaDispositivoConfig;
 };
 
+export type DistanciaSiguienteSeccion = {
+  movil?: number;
+  pc?: number;
+};
+
 export type SeccionDiseno = {
   id: string;
   nombre: string;
@@ -440,6 +445,7 @@ export type SeccionDiseno = {
   // Rol de fuente por componente de texto (clave de componente -> FuenteRol).
   componentFonts?: Partial<Record<string, FuenteRol>>;
   separadorInterno?: SeparadorDiseno;
+  distanciaSiguiente?: DistanciaSiguienteSeccion;
   visible: boolean;
   // Si es true, la sección aparece como acceso directo en el menú de hamburguesa.
   menuDirecto?: boolean;

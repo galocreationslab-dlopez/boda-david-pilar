@@ -66,6 +66,15 @@ function normalizeSectionTipo(tipo: unknown): "intro" | "portada" | "portadaLibr
   return "portada";
 }
 
+function normalizeSectionSpacing(value: unknown): { movil?: number; pc?: number } | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const spacing = value as Record<string, unknown>;
+  const normalize = (candidate: unknown) => typeof candidate === "number" && Number.isFinite(candidate) ? Math.max(0, candidate) : undefined;
+  const movil = normalize(spacing.movil);
+  const pc = normalize(spacing.pc);
+  return movil === undefined && pc === undefined ? undefined : { movil, pc };
+}
+
 function normalizeIntroDeviceUrls(device: IntroDeviceConfig | undefined): IntroDeviceConfig | undefined {
   if (!device) return device;
   return {
@@ -110,6 +119,7 @@ function normalizeSecciones(config: WeddingConfig): WeddingConfig {
       secciones: secciones.map((section) => ({
         ...section,
         tipo: normalizeSectionTipo(section.tipo),
+        distanciaSiguiente: normalizeSectionSpacing(section.distanciaSiguiente),
         portadaLibre: section.portadaLibre
           ? {
               ...section.portadaLibre,

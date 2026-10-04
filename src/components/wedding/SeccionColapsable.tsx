@@ -24,6 +24,7 @@ type Props = {
   onSelectTitle?: () => void;
   onSelectTitleDesign?: () => void;
   onSelectSectionBackground?: () => void;
+  afterContent?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -43,6 +44,7 @@ export function SeccionColapsable({
   onSelectTitle,
   onSelectTitleDesign,
   onSelectSectionBackground,
+  afterContent,
   children,
 }: Props) {
   const [abierta, setAbierta] = useState(abiertaPorDefecto);
@@ -179,6 +181,7 @@ export function SeccionColapsable({
         }}
       >
         {children}
+        {afterContent}
       </div>
     </section>
   );

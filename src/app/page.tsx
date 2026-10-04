@@ -437,6 +437,19 @@ export default async function PaginaPrincipal({
       ? []
       : fallbackSections;
 
+  const renderSectionSpacing = (section?: SeccionDiseno) => {
+    const mobile = Math.max(0, section?.distanciaSiguiente?.movil ?? 0);
+    const pc = Math.max(0, section?.distanciaSiguiente?.pc ?? 0);
+    if (mobile === 0 && pc === 0) return null;
+
+    return (
+      <>
+        <div className="sm:hidden" style={{ height: `${mobile}px` }} aria-hidden="true" />
+        <div className="hidden sm:block" style={{ height: `${pc}px` }} aria-hidden="true" />
+      </>
+    );
+  };
+
   const getInvitacionConfigForSection = (section?: SeccionDiseno) => {
     const welcome = section?.items?.[0]?.descripcion?.trim() || DEFAULT_TEXTO_INVITACION;
     return {
@@ -526,10 +539,11 @@ export default async function PaginaPrincipal({
             grafico: "ornamento",
             imagenColorRole: "nexosTransicionesBordes",
           };
+          const sectionSpacing = !isLast ? renderSectionSpacing(section.source) : null;
           return (
             <div key={section.id} style={getSectionThemeVars(section.source)}>
               {section.tipo === "invitacion" && (
-                <SeccionColapsable id={anchorId} abiertaPorDefecto={true} ocultarCabecera={true}>
+                <SeccionColapsable id={anchorId} abiertaPorDefecto={true} ocultarCabecera={true} afterContent={sectionSpacing}>
                   <MainWithInvite
                     config={getInvitacionConfigForSection(section.source)}
                     componentStyles={componentStyles}
@@ -546,6 +560,7 @@ export default async function PaginaPrincipal({
                   ocultarCabecera={section.source?.portadaLibre?.colapsable === false}
                   bgColor="var(--cream)"
                   titleStyle={{ color: sectionRoleColors?.tituloSeccion }}
+                  afterContent={sectionSpacing}
                 >
                   <PortadaLibre
                     config={section.source?.portadaLibre}
@@ -564,6 +579,7 @@ export default async function PaginaPrincipal({
                   bgColor="var(--cream)"
                   sectionStyle={componentStyles["historia.fondoSeccion"]}
                   titleStyle={componentStyles["historia.tituloSeccion"]}
+                  afterContent={sectionSpacing}
                 >
                   <SeccionHistoria
                     eventos={getHistoriaForSection(section.source)}
@@ -583,6 +599,7 @@ export default async function PaginaPrincipal({
                   bgColor="var(--cream)"
                   sectionStyle={componentStyles["carrusel.fondoSeccion"]}
                   titleStyle={componentStyles["carrusel.tituloSeccion"]}
+                  afterContent={sectionSpacing}
                 >
                   <SeccionCarrusel items={section.source?.items ?? []} navigationStyle={componentStyles["carrusel.navegacion"]} imageTreatments={tratamientosImagenes} />
                 </SeccionColapsable>
@@ -596,6 +613,7 @@ export default async function PaginaPrincipal({
                   bgColor="var(--cream)"
                   sectionStyle={componentStyles["galeria.fondoSeccion"]}
                   titleStyle={componentStyles["galeria.tituloSeccion"]}
+                  afterContent={sectionSpacing}
                 >
                   <SeccionGaleria
                     media={getGalleryMediaForSection(section.source)}
@@ -614,6 +632,7 @@ export default async function PaginaPrincipal({
                   bgColor="var(--cream-dark)"
                   sectionStyle={componentStyles["timeline.fondoSeccion"]}
                   titleStyle={componentStyles["timeline.tituloSeccion"]}
+                  afterContent={sectionSpacing}
                 >
                   <SeccionTimeline
                     localizaciones={config.localizaciones}
