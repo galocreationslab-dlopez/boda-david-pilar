@@ -6,7 +6,7 @@
  */
 
 import { createServerClient } from "@/lib/supabase/server";
-import { weddingConfig, normalizeIntroConfig, type IntroDeviceConfig, type WeddingConfig } from "@/config/wedding.config";
+import { weddingConfig, normalizeIntroConfig, type IntroDeviceConfig, type RsvpTextosChat, type RsvpTextosFormulario, type WeddingConfig } from "@/config/wedding.config";
 import { buildTextureCssVars, resolvePaletteRoleColors, resolvePaletteToThemeColors } from "@/lib/theme-roles";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { buildFontCssVars, buildFontFaceCss } from "@/lib/theme-fonts";
@@ -257,6 +257,80 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function normalizeOptionalText(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+// A diferencia de normalizeOptionalText, conserva "" (string vacio) como valor explicito:
+// se usa en campos donde el admin puede elegir "vacio" a proposito (p. ej. sin prefijo de saludo).
+function normalizeTextAllowEmpty(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function normalizeRsvpFormTextos(value: unknown): RsvpTextosFormulario {
+  const source = isRecord(value) ? value : {};
+  return {
+    eyebrow: normalizeOptionalText(source.eyebrow),
+    saludoPrefijo: normalizeTextAllowEmpty(source.saludoPrefijo),
+    fraseInicial: normalizeOptionalText(source.fraseInicial),
+    volverLabel: normalizeOptionalText(source.volverLabel),
+    nombreLabel: normalizeOptionalText(source.nombreLabel),
+    apellidosLabel: normalizeOptionalText(source.apellidosLabel),
+    asistiraSiLabel: normalizeOptionalText(source.asistiraSiLabel),
+    asistiraNoLabel: normalizeOptionalText(source.asistiraNoLabel),
+    asistiraPendienteLabel: normalizeOptionalText(source.asistiraPendienteLabel),
+    alojamientoLabel: normalizeOptionalText(source.alojamientoLabel),
+    alojamientoPlaceholder: normalizeOptionalText(source.alojamientoPlaceholder),
+    alergiasLabel: normalizeOptionalText(source.alergiasLabel),
+    alergiasPlaceholder: normalizeOptionalText(source.alergiasPlaceholder),
+    transporteLabel: normalizeOptionalText(source.transporteLabel),
+    edadLabel: normalizeOptionalText(source.edadLabel),
+    comeConPadresLabel: normalizeOptionalText(source.comeConPadresLabel),
+    menuAdultoLabel: normalizeOptionalText(source.menuAdultoLabel),
+    necesitaTronaLabel: normalizeOptionalText(source.necesitaTronaLabel),
+    addAcompananteLabel: normalizeOptionalText(source.addAcompananteLabel),
+    addNinoLabel: normalizeOptionalText(source.addNinoLabel),
+    comentariosLabel: normalizeOptionalText(source.comentariosLabel),
+    comentariosPlaceholder: normalizeOptionalText(source.comentariosPlaceholder),
+    submitLabel: normalizeOptionalText(source.submitLabel),
+    submitLabelSending: normalizeOptionalText(source.submitLabelSending),
+    successMessage: normalizeOptionalText(source.successMessage),
+    errorFallback: normalizeOptionalText(source.errorFallback),
+  };
+}
+
+function normalizeRsvpChatTextos(value: unknown): RsvpTextosChat {
+  const source = isRecord(value) ? value : {};
+  return {
+    eyebrow: normalizeOptionalText(source.eyebrow),
+    titulo: normalizeOptionalText(source.titulo),
+    subtitulo: normalizeOptionalText(source.subtitulo),
+    cargandoMensaje: normalizeOptionalText(source.cargandoMensaje),
+    sinMensajes: normalizeOptionalText(source.sinMensajes),
+    respuestaNoviosLabel: normalizeOptionalText(source.respuestaNoviosLabel),
+    campoLabel: normalizeOptionalText(source.campoLabel),
+    placeholder: normalizeOptionalText(source.placeholder),
+    botonEnviar: normalizeOptionalText(source.botonEnviar),
+    botonEnviando: normalizeOptionalText(source.botonEnviando),
+    feedbackExito: normalizeOptionalText(source.feedbackExito),
+    feedbackErrorFallback: normalizeOptionalText(source.feedbackErrorFallback),
+  };
+}
+
+// Configuraciones antiguas no tienen `rsvp` o no tienen `mostrarChat`: en ambos casos el
+// chat "Pregunta a los novios" debe seguir visible (solo se oculta con `false` explicito).
+function normalizeRsvpConfig(config: WeddingConfig): WeddingConfig {
+  const rsvp = isRecord(config.rsvp) ? config.rsvp : {};
+  return {
+    ...config,
+    rsvp: {
+      mostrarChat: rsvp.mostrarChat !== false,
+      textos: normalizeRsvpFormTextos(rsvp.textos),
+      chatTextos: normalizeRsvpChatTextos(rsvp.chatTextos),
+    },
+  };
+}
+
 /** Merge profundo: arrays se reemplazan por completo, objetos se fusionan. */
 function deepMerge(
   target: Record<string, unknown>,
@@ -293,10 +367,12 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
       .maybeSingle();
 
     const override = data?.config_json;
-    const merged = normalizeSecciones(
-      isRecord(override) && Object.keys(override).length > 0
-        ? (deepMerge(weddingConfig as unknown as Record<string, unknown>, override) as WeddingConfig)
-        : weddingConfig,
+    const merged = normalizeRsvpConfig(
+      normalizeSecciones(
+        isRecord(override) && Object.keys(override).length > 0
+          ? (deepMerge(weddingConfig as unknown as Record<string, unknown>, override) as WeddingConfig)
+          : weddingConfig,
+      ),
     );
 
     const bodaId = asString(data?.id);
@@ -309,7 +385,7 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
       return merged;
     }
   } catch {
-    return weddingConfig;
+    return normalizeRsvpConfig(weddingConfig);
   }
 }
 

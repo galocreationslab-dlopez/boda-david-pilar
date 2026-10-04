@@ -525,6 +525,121 @@ export type NavegacionDiseno = {
   elementos?: ElementoBarra[];
 };
 
+// Textos editables del formulario de RSVP (InviteRsvpForm). Todos opcionales: un campo
+// vacío/ausente usa el texto por defecto (ver DEFAULT_RSVP_TEXTOS_FORMULARIO).
+export type RsvpTextosFormulario = {
+  eyebrow?: string;
+  saludoPrefijo?: string;
+  fraseInicial?: string;
+  volverLabel?: string;
+  nombreLabel?: string;
+  apellidosLabel?: string;
+  asistiraSiLabel?: string;
+  asistiraNoLabel?: string;
+  asistiraPendienteLabel?: string;
+  alojamientoLabel?: string;
+  alojamientoPlaceholder?: string;
+  alergiasLabel?: string;
+  alergiasPlaceholder?: string;
+  transporteLabel?: string;
+  edadLabel?: string;
+  comeConPadresLabel?: string;
+  menuAdultoLabel?: string;
+  necesitaTronaLabel?: string;
+  addAcompananteLabel?: string;
+  addNinoLabel?: string;
+  comentariosLabel?: string;
+  comentariosPlaceholder?: string;
+  submitLabel?: string;
+  submitLabelSending?: string;
+  successMessage?: string;
+  errorFallback?: string;
+};
+
+// Textos editables del chat privado "Pregunta a los novios" (InviteExtras).
+export type RsvpTextosChat = {
+  eyebrow?: string;
+  titulo?: string;
+  subtitulo?: string;
+  cargandoMensaje?: string;
+  sinMensajes?: string;
+  respuestaNoviosLabel?: string;
+  campoLabel?: string;
+  placeholder?: string;
+  botonEnviar?: string;
+  botonEnviando?: string;
+  feedbackExito?: string;
+  feedbackErrorFallback?: string;
+};
+
+// Ajuste de presentación del RSVP (no afecta permisos ni validaciones de la API).
+export type RsvpConfig = {
+  // Sin valor (configuraciones antiguas) se interpreta como true: el chat se mantiene visible.
+  mostrarChat?: boolean;
+  textos?: RsvpTextosFormulario;
+  chatTextos?: RsvpTextosChat;
+};
+
+export const DEFAULT_RSVP_TEXTOS_FORMULARIO: Required<RsvpTextosFormulario> = {
+  eyebrow: "Confirmación de asistencia",
+  saludoPrefijo: "Hola, ",
+  fraseInicial: "Esta respuesta está ligada a tu invitación única y nos ayudará a preparar mejor el día.",
+  volverLabel: "← Volver a la web",
+  nombreLabel: "Nombre",
+  apellidosLabel: "Apellidos",
+  asistiraSiLabel: "Asistirá",
+  asistiraNoLabel: "No asistirá",
+  asistiraPendienteLabel: "Pendiente",
+  alojamientoLabel: "Alojamiento",
+  alojamientoPlaceholder: "Dónde os alojaréis",
+  alergiasLabel: "Alergias / preferencias",
+  alergiasPlaceholder: "Alérgenos, vegetarianismo, embarazo, etc.",
+  transporteLabel: "Transporte",
+  edadLabel: "Edad",
+  comeConPadresLabel: "Come con los padres",
+  menuAdultoLabel: "Menú adulto (mayores de 12)",
+  necesitaTronaLabel: "Necesita trona (menores de 6)",
+  addAcompananteLabel: "Añadir acompañante",
+  addNinoLabel: "Añadir hijo",
+  comentariosLabel: "Comentarios adicionales",
+  comentariosPlaceholder: "Cualquier detalle que quieras compartir",
+  submitLabel: "Guardar respuesta",
+  submitLabelSending: "Guardando...",
+  successMessage: "Gracias. Hemos guardado la respuesta de esta invitación.",
+  errorFallback: "Ha ocurrido un error",
+};
+
+export const DEFAULT_RSVP_TEXTOS_CHAT: Required<RsvpTextosChat> = {
+  eyebrow: "Area privada",
+  titulo: "Pregunta a los novios",
+  subtitulo: "Solo tu invitacion puede ver este contenido privado.",
+  cargandoMensaje: "Cargando contenido privado...",
+  sinMensajes: "Todavia no hay mensajes en esta conversacion.",
+  respuestaNoviosLabel: "Respuesta de los novios",
+  campoLabel: "Escribe aqui tu pregunta o dedicatoria",
+  placeholder: "Preguntas, dudas, frases bonitas...",
+  botonEnviar: "Enviar mensaje",
+  botonEnviando: "Enviando...",
+  feedbackExito: "Mensaje enviado. Os responderemos desde la administracion.",
+  feedbackErrorFallback: "Error al enviar el mensaje",
+};
+
+// Fusiona textos personalizados con los valores por defecto: cualquier string explicito
+// (incluido "" para campos que admiten quedar vacios, como saludoPrefijo) sustituye el
+// fallback; undefined (no personalizado) conserva el valor por defecto. Sin HTML arbitrario.
+export function mergeRsvpTextos<T extends Record<string, string>>(
+  defaults: T,
+  overrides?: Partial<Record<keyof T, string | undefined>>,
+): T {
+  if (!overrides) return defaults;
+  const result = { ...defaults };
+  for (const key of Object.keys(defaults) as (keyof T)[]) {
+    const value = overrides[key];
+    if (typeof value === "string") result[key] = value as T[keyof T];
+  }
+  return result;
+}
+
 export type WeddingConfig = {
   weddingId: string;
   slug: string;
@@ -570,6 +685,7 @@ export type WeddingConfig = {
   timeline: EventoTimeline[];
   transporte: TrayectoTransporte[];
   drive: DriveConfig;
+  rsvp?: RsvpConfig;
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -894,5 +1010,9 @@ export const weddingConfig: WeddingConfig = {
       folderPath: "Subidas de invitados",
       access: "shared",
     },
+  },
+
+  rsvp: {
+    mostrarChat: true,
   },
 };

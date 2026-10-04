@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import type { Localizacion, WeddingConfig } from "@/config/wedding.config";
+import {
+  DEFAULT_RSVP_TEXTOS_CHAT,
+  DEFAULT_RSVP_TEXTOS_FORMULARIO,
+  type Localizacion,
+  type RsvpTextosChat,
+  type RsvpTextosFormulario,
+  type WeddingConfig,
+} from "@/config/wedding.config";
 
 type DriveStatus = {
   configured: boolean;
@@ -19,6 +26,50 @@ type Props = {
 function uid() {
   return Math.random().toString(36).slice(2);
 }
+
+const RSVP_FORM_FIELDS: Array<{ key: keyof RsvpTextosFormulario; label: string; multiline?: boolean; hint?: string }> = [
+  { key: "eyebrow", label: "Texto superior (eyebrow)" },
+  { key: "saludoPrefijo", label: "Prefijo de saludo (antes del nombre)", hint: "Déjalo vacío para no mostrar ningún prefijo antes del nombre." },
+  { key: "fraseInicial", label: "Frase inicial", multiline: true },
+  { key: "volverLabel", label: "Enlace: volver a la web" },
+  { key: "nombreLabel", label: "Etiqueta: nombre" },
+  { key: "apellidosLabel", label: "Etiqueta: apellidos" },
+  { key: "asistiraSiLabel", label: "Opción: asistirá" },
+  { key: "asistiraNoLabel", label: "Opción: no asistirá" },
+  { key: "asistiraPendienteLabel", label: "Opción: pendiente" },
+  { key: "alojamientoLabel", label: "Etiqueta: alojamiento" },
+  { key: "alojamientoPlaceholder", label: "Placeholder: alojamiento" },
+  { key: "alergiasLabel", label: "Etiqueta: intolerancias / alergias" },
+  { key: "alergiasPlaceholder", label: "Placeholder: intolerancias / alergias" },
+  { key: "transporteLabel", label: "Etiqueta: transporte" },
+  { key: "edadLabel", label: "Etiqueta: edad" },
+  { key: "comeConPadresLabel", label: "Etiqueta: come con los padres" },
+  { key: "menuAdultoLabel", label: "Etiqueta: menú adulto" },
+  { key: "necesitaTronaLabel", label: "Etiqueta: necesita trona" },
+  { key: "addAcompananteLabel", label: "Botón: añadir acompañante" },
+  { key: "addNinoLabel", label: "Botón: añadir hijo" },
+  { key: "comentariosLabel", label: "Etiqueta: comentarios" },
+  { key: "comentariosPlaceholder", label: "Placeholder: comentarios" },
+  { key: "submitLabel", label: "Botón: guardar respuesta" },
+  { key: "submitLabelSending", label: "Botón: guardando (enviando)" },
+  { key: "successMessage", label: "Mensaje de éxito", multiline: true },
+  { key: "errorFallback", label: "Mensaje de error genérico" },
+];
+
+const RSVP_CHAT_FIELDS: Array<{ key: keyof RsvpTextosChat; label: string; multiline?: boolean }> = [
+  { key: "eyebrow", label: "Texto superior (eyebrow)" },
+  { key: "titulo", label: "Título" },
+  { key: "subtitulo", label: "Subtítulo" },
+  { key: "cargandoMensaje", label: "Mensaje mientras carga" },
+  { key: "sinMensajes", label: "Mensaje sin mensajes" },
+  { key: "respuestaNoviosLabel", label: "Etiqueta de respuesta de los novios" },
+  { key: "campoLabel", label: "Etiqueta del campo de mensaje" },
+  { key: "placeholder", label: "Placeholder del campo de mensaje" },
+  { key: "botonEnviar", label: "Botón: enviar" },
+  { key: "botonEnviando", label: "Botón: enviando" },
+  { key: "feedbackExito", label: "Mensaje de éxito al enviar" },
+  { key: "feedbackErrorFallback", label: "Mensaje de error al enviar" },
+];
 
 function toFechaHora(loc: Localizacion): string {
   const fecha = loc.fecha?.trim() ?? "";
@@ -70,6 +121,9 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
   const [inicialesConjuntas, setInicialesConjuntas] = useState(config.inicialesConjuntas ?? `${config.iniciales.novia}&${config.iniciales.novio}`);
   const [fechaFormateada, setFechaFormateada] = useState(config.fechaFormateada ?? "");
   const [drive, setDrive] = useState(config.drive);
+  const [mostrarChat, setMostrarChat] = useState(config.rsvp?.mostrarChat !== false);
+  const [rsvpTextos, setRsvpTextos] = useState<RsvpTextosFormulario>(config.rsvp?.textos ?? {});
+  const [chatTextos, setChatTextos] = useState<RsvpTextosChat>(config.rsvp?.chatTextos ?? {});
 
   const [ubicaciones, setUbicaciones] = useState<Array<Localizacion & { fechaHoraTexto?: string }>>(
     (config.localizaciones ?? []).map((loc) => ({
@@ -85,6 +139,14 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
 
   const updateUbicacion = (id: string, patch: Partial<Localizacion & { fechaHoraTexto?: string }>) => {
     setUbicaciones((prev) => prev.map((loc) => (loc.id === id ? { ...loc, ...patch } : loc)));
+  };
+
+  const updateRsvpTexto = (key: keyof RsvpTextosFormulario, value: string) => {
+    setRsvpTextos((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateChatTexto = (key: keyof RsvpTextosChat, value: string) => {
+    setChatTextos((prev) => ({ ...prev, [key]: value }));
   };
 
   const addUbicacion = () => {
@@ -137,6 +199,11 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
         fechaFormateada,
         localizaciones,
         drive,
+        rsvp: {
+          mostrarChat,
+          textos: rsvpTextos,
+          chatTextos,
+        },
       };
 
       const res = await fetch(`/api/admin/${inviteCode}/config`, {
@@ -379,6 +446,76 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
               placeholder="Opcional"
             />
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-stone-700">RSVP — formulario de confirmación</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            Personaliza los textos del formulario de confirmación. Deja un campo vacío para usar el texto por defecto.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {RSVP_FORM_FIELDS.map((field) => (
+            <div key={field.key} className={field.multiline ? "md:col-span-2" : undefined}>
+              <label className="label-field">{field.label}</label>
+              {field.multiline ? (
+                <textarea
+                  className="input-field min-h-[80px]"
+                  value={rsvpTextos[field.key] ?? ""}
+                  onChange={(e) => updateRsvpTexto(field.key, e.target.value)}
+                  placeholder={DEFAULT_RSVP_TEXTOS_FORMULARIO[field.key]}
+                />
+              ) : (
+                <input
+                  className="input-field"
+                  value={rsvpTextos[field.key] ?? ""}
+                  onChange={(e) => updateRsvpTexto(field.key, e.target.value)}
+                  placeholder={DEFAULT_RSVP_TEXTOS_FORMULARIO[field.key]}
+                />
+              )}
+              {field.hint && <p className="mt-1 text-xs text-stone-500">{field.hint}</p>}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-stone-700">RSVP — chat &quot;Pregunta a los novios&quot;</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            Ocultarlo es solo una opción de presentación: los mensajes existentes no se borran y las consultas no se disparan mientras está oculto.
+          </p>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
+          <input type="checkbox" checked={mostrarChat} onChange={(e) => setMostrarChat(e.target.checked)} />
+          Mostrar el chat &quot;Pregunta a los novios&quot; en la página de confirmación
+        </label>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {RSVP_CHAT_FIELDS.map((field) => (
+            <div key={field.key} className={field.multiline ? "md:col-span-2" : undefined}>
+              <label className="label-field">{field.label}</label>
+              {field.multiline ? (
+                <textarea
+                  className="input-field min-h-[80px]"
+                  value={chatTextos[field.key] ?? ""}
+                  onChange={(e) => updateChatTexto(field.key, e.target.value)}
+                  placeholder={DEFAULT_RSVP_TEXTOS_CHAT[field.key]}
+                />
+              ) : (
+                <input
+                  className="input-field"
+                  value={chatTextos[field.key] ?? ""}
+                  onChange={(e) => updateChatTexto(field.key, e.target.value)}
+                  placeholder={DEFAULT_RSVP_TEXTOS_CHAT[field.key]}
+                />
+              )}
+            </div>
+          ))}
         </div>
       </section>
 
