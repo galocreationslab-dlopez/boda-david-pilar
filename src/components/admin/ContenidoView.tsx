@@ -1681,6 +1681,18 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                             {deviceConfig.tipo === "envelope" && (
                               <div className="space-y-3">
                                 <div>
+                                  <label className="label-field">Acabado de la paleta</label>
+                                  <select
+                                    className="input-field"
+                                    value={deviceConfig.envelope?.acabadoPaleta ?? "textura"}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { acabadoPaleta: e.target.value })}
+                                  >
+                                    <option value="textura">Textura de la paleta</option>
+                                    <option value="color">Solo color base de la textura</option>
+                                    <option value="personalizado">Acabado personalizado</option>
+                                  </select>
+                                </div>
+                                <div>
                                   <label className="label-field">Acabado del sobre</label>
                                   <select
                                     className="input-field"

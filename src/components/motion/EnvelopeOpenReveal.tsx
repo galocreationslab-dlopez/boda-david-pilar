@@ -94,11 +94,13 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   const viewport = useViewportSize();
 
   const modoFondo = config.modoFondo ?? "colores";
-  const tex = texture?.url ? texture : undefined;
-  const colorBase = tex?.color || config.colorBase || "#e8ddc7";
+  const acabadoPaleta = config.acabadoPaleta ?? "textura";
+  const paletteTexture = acabadoPaleta !== "personalizado" && texture?.url ? texture : undefined;
+  const tex = acabadoPaleta === "textura" ? paletteTexture : undefined;
+  const colorBase = paletteTexture?.color || config.colorBase || "#e8ddc7";
   // Color de la trasera y la cara exterior de la solapa: son la misma pieza de papel,
   // por eso comparten color, independiente del color del frontal.
-  const colorTrasera = tex?.color || config.colorTrasera || colorBase;
+  const colorTrasera = paletteTexture?.color || config.colorTrasera || colorBase;
   const colorBorde = config.colorBorde || "#a9895f";
   const grosorBorde = Math.max(0, config.grosorBordePorcentaje ?? 0.6);
   const radioEsquinas = Math.max(0, config.radioEsquinasPorcentaje ?? 2);
@@ -108,7 +110,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   const sombraDesenfoque = Math.max(0, config.sombraDesenfoquePorcentaje ?? 3);
   const flapPct = Math.min(70, Math.max(20, config.alturaSolapaPorcentaje ?? 42));
   const radioPico = Math.min(50, Math.max(0, config.radioPicoSolapaPorcentaje ?? 10)) / 100;
-  const usaImagen = !tex && modoFondo !== "colores" && Boolean(config.imagenUrl);
+  const usaImagen = !paletteTexture && modoFondo !== "colores" && Boolean(config.imagenUrl);
   const imagenSobreSrc = usaImagen ? resolveDriveMediaSrc(config.imagenUrl) : "";
   const colorSombraApertura = config.colorSombraApertura || "rgba(0,0,0,0.55)";
   const intensidadSombraApertura = Math.min(100, Math.max(0, config.intensidadSombraAperturaPorcentaje ?? 45)) / 100;
@@ -149,7 +151,9 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
       ? ajusteAspecto === "alto"
         ? { position: "fixed", left: "50%", top: "50%", height: envelopeFixedSizeExpr, width: "auto", aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
         : { position: "fixed", left: "50%", top: "50%", width: envelopeFixedSizeExpr, height: "auto", aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
-      : { position: "fixed", inset: 0, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})` };
+      : tex
+        ? { position: "fixed", inset: `${margenPantalla}vh ${margenPantalla}vw` }
+        : { position: "fixed", inset: 0, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})` };
 
   // La portada se ajusta SIEMPRE al ancho disponible (sobre menos su margen), centrada
   // horizontalmente, con su borde superior pegado al borde superior del hueco (no se
