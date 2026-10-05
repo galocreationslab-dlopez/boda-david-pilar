@@ -440,6 +440,7 @@ export type SeccionDiseno = {
   // Config del pie de pagina personalizado (solo aplica cuando tipo === "pie"); reutiliza el modelo de PortadaLibreConfig.
   pie?: PortadaLibreConfig;
   subtituloInterno?: string;
+  selloUrl?: string;
   fondos?: {
     seccion?: string;
     subseccion?: string;

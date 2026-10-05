@@ -543,6 +543,7 @@ export default async function PaginaPrincipal({
                 <SeccionColapsable id={anchorId} anchorAliases={anchorAliases} abiertaPorDefecto={true} ocultarCabecera={true} afterContent={sectionSpacing}>
                   <MainWithInvite
                     config={getInvitacionConfigForSection(section.source)}
+                    selloUrl={section.source?.selloUrl}
                     componentStyles={componentStyles}
                     headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}
                   />

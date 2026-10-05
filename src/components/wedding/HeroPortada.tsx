@@ -8,6 +8,7 @@
 import { SelloNupcial } from "@/components/ui/SelloNupcial";
 import { CuentaAtras } from "@/components/ui/CuentaAtras";
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
+import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import type { WeddingConfig } from "@/config/wedding.config";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -27,6 +28,7 @@ export type HeroComponentKey =
 type Props = {
   config: Pick<WeddingConfig, "novia" | "novio" | "nombreConjunto" | "iniciales" | "fecha" | "fechaFormateada" | "textos">;
   viewport?: "desktop" | "movil";
+  selloUrl?: string;
   mostrarBotonConfirmar?: boolean;
   labelBotonConfirmar?: string;
   isAdminButton?: boolean;
@@ -44,6 +46,7 @@ type Props = {
 export function HeroPortada({
   config,
   viewport = "desktop",
+  selloUrl,
   mostrarBotonConfirmar = false,
   labelBotonConfirmar,
   isAdminButton = false,
@@ -58,6 +61,8 @@ export function HeroPortada({
   onEditBienvenida,
 }: Props) {
   const forceMobile = viewport === "movil";
+  const selloSrc = resolveDriveMediaSrc(selloUrl);
+  const selloSize = forceMobile ? 100 : 128;
   const selloColor = (componentStyles?.["portada.logo"]?.color as string) || "#C4964A";
   const separadorColor =
     (componentStyles?.["portada.separador"]?.color as string)
@@ -97,7 +102,12 @@ export function HeroPortada({
         <div className="animate-fade-up" onClick={(event) => { event.stopPropagation(); select("portada.logo"); }}>
           {/* El wrapper de animacion define su propio "transform" (translateY); el tamano se aplica en un hijo para no pisarlo */}
           <div style={styleFor("portada.logo")}>
-            <SelloNupcial size={forceMobile ? 100 : 128} color={selloColor} />
+            {selloSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={selloSrc} alt="Sello de boda" width={selloSize} height={selloSize} style={{ width: selloSize, height: selloSize, objectFit: "contain" }} />
+            ) : (
+              <SelloNupcial size={selloSize} color={selloColor} />
+            )}
           </div>
         </div>
 

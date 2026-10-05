@@ -63,6 +63,21 @@ supabase/
 
 ## Principios arquitectónicos
 
+### Imagen del sello de Invitación
+
+En el panel de administración, abre **Contenido**, selecciona la sección
+**Invitación** y configura **Imagen del sello**. Puedes subir una imagen a la
+subcarpeta `invitacion` de los recursos de Drive, seleccionar una imagen de esa
+subcarpeta o pegar una URL (también se admiten rutas locales como
+`/images/sello.svg`). Después pulsa **Guardar**.
+
+La imagen se guarda por sección en `diseno.secciones[].selloUrl` y se muestra
+tanto en la web como en las vistas previas del editor de diseño. Si el campo
+está vacío se conserva el sello SVG actual. Las imágenes personalizadas
+mantienen sus colores y proporciones; el control de tamaño del logo sigue
+aplicándose. Este campo no cambia el logo de la barra superior ni el lacre de
+la Intro.
+
 ### 1. Configuración centralizada
 **Todo** dato de la boda vive en `src/config/wedding.config.ts`.
 Los componentes reciben datos como **props**, nunca leen la config directamente.
@@ -285,4 +300,3 @@ print(payload.get("ok"), payload.get("message"))
 html = payload.get("demo_html", "")
 if html:
         Path("linealive_demo.html").write_text(html, encoding="utf-8")
-

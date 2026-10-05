@@ -120,6 +120,7 @@ function normalizeSecciones(config: WeddingConfig): WeddingConfig {
       secciones: normalizeSectionChains(secciones.map((section) => ({
         ...section,
         tipo: normalizeSectionTipo(section.tipo),
+        selloUrl: normalizeImageUrl(section.selloUrl),
         distanciaSiguiente: normalizeSectionSpacing(section.distanciaSiguiente),
         portadaLibre: section.portadaLibre
           ? {

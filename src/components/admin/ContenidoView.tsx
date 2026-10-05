@@ -641,7 +641,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     if (!sectionName) return [];
     return resources.filter((item) => (item.carpeta ?? "").trim().toLowerCase() === sectionName);
   }, [resources, selectedSection?.tipo]);
-  const resourcesForHistoria = resourcesForSelectedSection.filter(
+  const imageResourcesForSelectedSection = resourcesForSelectedSection.filter(
     (item) => item.mime_type?.startsWith("image/") || item.mime_type === null,
   );
   const resourcesForIntro = resourcesForSelectedSection;
@@ -2097,6 +2097,21 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
               {isInvitationType(selectedSection.tipo) && (
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold text-stone-700">Contenido de invitacion</h3>
+                  <IntroAssetField
+                    label="Imagen del sello (si se deja vacio, se usa el sello actual)"
+                    value={selectedSection.selloUrl ?? ""}
+                    onChangeValue={(url) => patchSection(selectedSection.id, { selloUrl: url })}
+                    uploading={uploadingAssetKey === "invitacionSello"}
+                    onUpload={(file) => void uploadGenericAsset("invitacionSello", file, (url) => patchSection(selectedSection.id, { selloUrl: url }))}
+                    disabled={!recursosDriveConfigured}
+                    resources={imageResourcesForSelectedSection}
+                    placeholder="/images/sello.svg o https://..."
+                    accept="image/*"
+                  />
+                  <p className="text-xs text-stone-500">
+                    Puedes subir una imagen, elegir un recurso de la subcarpeta invitacion o pegar una URL. Este sello es independiente del logo de la barra superior y del lacre de la Intro.
+                  </p>
+                  {loadingResources && <p className="text-xs text-stone-400">Cargando recursos de Drive...</p>}
                   <div>
                     <label className="label-field">Texto de invitacion (si se deja vacio, se usa el texto generico)</label>
                     <textarea
@@ -2473,7 +2488,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                               className="input-field"
                               value={findResourceByImageUrl(item.imagen)?.id ?? ""}
                               onChange={(e) => {
-                                const resource = resourcesForHistoria.find((entry) => entry.id === e.target.value) ?? null;
+                                const resource = imageResourcesForSelectedSection.find((entry) => entry.id === e.target.value) ?? null;
                                 patchHistoriaItem(item.id, (current) => ({
                                   ...current,
                                   imagen: resource?.url_publica ?? "",
@@ -2482,7 +2497,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                               }}
                             >
                               <option value="">Sin imagen</option>
-                              {resourcesForHistoria.map((resource) => (
+                              {imageResourcesForSelectedSection.map((resource) => (
                                 <option key={resource.id} value={resource.id}>
                                   {resource.nombre}
                                 </option>

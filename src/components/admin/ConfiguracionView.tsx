@@ -1506,6 +1506,7 @@ export default function ConfiguracionView({
             <SeccionColapsable id={`canvas-${section.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
               <MainWithInvite
                 config={getPortadaConfig(section)}
+                selloUrl={section.selloUrl}
                 viewport={editorViewport}
                 editable={false}
                 designMode={designMode}
@@ -2752,6 +2753,7 @@ export default function ConfiguracionView({
                           <SeccionColapsable id={`preview-${sec.id}`} abiertaPorDefecto={true} ocultarCabecera={true} afterContent={sectionSpacing}>
                             <MainWithInvite
                               config={getPortadaConfig(sec)}
+                              selloUrl={sec.selloUrl}
                               viewport={editorViewport}
                               editable={false}
                               designMode={designMode}

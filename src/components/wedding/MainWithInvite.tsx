@@ -53,6 +53,7 @@ function parseSpanishDate(input?: string): Date | null {
 type Props = {
   config: WeddingConfig;
   viewport?: "desktop" | "movil";
+  selloUrl?: string;
   editable?: boolean;
   designMode?: boolean;
   selectedComponentKey?: HeroComponentKey | null;
@@ -66,6 +67,7 @@ type Props = {
 export default function MainWithInvite({
   config,
   viewport = "desktop",
+  selloUrl,
   editable = false,
   designMode = false,
   selectedComponentKey,
@@ -164,6 +166,7 @@ export default function MainWithInvite({
     <div>
       <HeroPortada
         config={heroConfig}
+        selloUrl={selloUrl}
         viewport={viewport}
         mostrarBotonConfirmar={mostrarBoton}
         labelBotonConfirmar={esAdmin ? "Panel de administración" : undefined}
