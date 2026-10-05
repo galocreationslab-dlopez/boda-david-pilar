@@ -101,6 +101,22 @@ export function parseNativeSvgAnimations(markup: string): NativeSvgAnimationOpti
   }
 }
 
+const CLICK_EVENT_NAMES = "click|dblclick|mousedown|mouseup|pointerdown|pointerup|touchstart|touchend";
+const SMIL_CLICK_BEGIN_PATTERN = new RegExp(`\\bbegin\\s*=\\s*["'][^"']*\\b(?:${CLICK_EVENT_NAMES}|activate|DOMActivate)\\b`, "i");
+const CLICK_LISTENER_PATTERN = new RegExp(`addEventListener\\s*\\(\\s*["'\`](?:${CLICK_EVENT_NAMES})["'\`]`, "i");
+const CLICK_HANDLER_PROP_PATTERN = new RegExp(`\\bon(?:${CLICK_EVENT_NAMES})\\s*=`, "i");
+
+/**
+ * Indica si el SVG reacciona por sí mismo a clics/toques (SMIL con begin="click",
+ * listeners en <script> o atributos onclick...). Si no, quien lo muestre debe
+ * capturar el clic desde fuera, ya que dentro del iframe nadie lo escucharía.
+ */
+export function svgMarkupHandlesClick(markup: string): boolean {
+  return SMIL_CLICK_BEGIN_PATTERN.test(markup)
+    || CLICK_LISTENER_PATTERN.test(markup)
+    || CLICK_HANDLER_PROP_PATTERN.test(markup);
+}
+
 function detectSvgAspectRatioFromMarkup(markup: string): { width: number; height: number } | null {
   if (typeof DOMParser !== "undefined") {
     try {

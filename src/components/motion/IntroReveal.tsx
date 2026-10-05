@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore, useState, type CSSProperties, type ReactNode } from "react";
 import { IntroProvider } from "@/contexts/IntroContext";
-import AutoDrawSVG, { parseNativeSvgAnimations, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
+import AutoDrawSVG, { parseNativeSvgAnimations, svgMarkupHandlesClick, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
 import IntroAnimationStage from "@/components/motion/IntroAnimationStage";
 import EnvelopeOpenReveal, { type EnvelopeTexture } from "@/components/motion/EnvelopeOpenReveal";
 import { useDeviceViewport } from "@/components/motion/useDeviceViewport";
@@ -13,47 +13,57 @@ const DEFAULT_LACRE = "/images/Sello.svg";
 const DEFAULT_DEVICE_CONFIG: IntroDeviceConfig = { tipo: "revealBook" };
 
 /**
- * Detecta una sola vez si el SVG del lacre tiene animación nativa (SMIL/script).
- * Solo detecta cuando el SVG se carga la primera vez; cambios posteriores en la URL
- * no afectan a este hook (se asume que la URL del lacre no cambia durante la sesión).
+ * - "staticSvg": SVG sin animación propia; se dibuja/borra con AutoDrawSVG al hacer clic.
+ * - "interactiveSvg": SVG animado que escucha el clic por sí mismo (dentro de su iframe).
+ * - "animatedSvg": SVG animado que NO escucha clics; el clic se captura desde fuera.
+ * - "image": cualquier otra imagen (PNG, JPG, WebP...); el clic se captura desde fuera.
  */
-function useLacreNativeAnimationDetection(lacreUrl: string): { hasNativeAnimation: boolean; nativeAnimationOptions: NativeSvgAnimationOption[]; } {
-  const [state, setState] = useState({ hasNativeAnimation: false, nativeAnimationOptions: [] as NativeSvgAnimationOption[] });
+type LacreKind = "loading" | "staticSvg" | "interactiveSvg" | "animatedSvg" | "image";
+type LacreDetection = { kind: LacreKind; nativeAnimationOptions: NativeSvgAnimationOption[] };
+
+const LACRE_LOADING: LacreDetection = { kind: "loading", nativeAnimationOptions: [] };
+const LACRE_IMAGE: LacreDetection = { kind: "image", nativeAnimationOptions: [] };
+
+function classifySvgMarkup(markup: string): LacreDetection {
+  const options = parseNativeSvgAnimations(markup);
+  const hasNativeAnimation = options.length > 0 || /<(?:script|animate|animateTransform|set)\b/i.test(markup);
+  if (!hasNativeAnimation) return { kind: "staticSvg", nativeAnimationOptions: [] };
+  return { kind: svgMarkupHandlesClick(markup) ? "interactiveSvg" : "animatedSvg", nativeAnimationOptions: options };
+}
+
+async function detectLacreKind(lacreUrl: string): Promise<LacreDetection> {
+  const trimmed = lacreUrl.trim();
+  if (trimmed.startsWith("<svg") || trimmed.startsWith("<?xml")) return classifySvgMarkup(trimmed);
+
+  try {
+    const res = await fetch(lacreUrl);
+    if (!res.ok) return LACRE_IMAGE;
+    const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+    // Evita descargar como texto imágenes binarias cuando el servidor ya dice qué son.
+    if (contentType.startsWith("image/") && !contentType.includes("svg")) return LACRE_IMAGE;
+    const text = await res.text();
+    return /<svg[\s>]/i.test(text) ? classifySvgMarkup(text) : LACRE_IMAGE;
+  } catch {
+    // Si no se puede leer (p. ej. CORS), se muestra como <img>, que no necesita leer el contenido.
+    return LACRE_IMAGE;
+  }
+}
+
+/** Detecta qué tipo de lacre se ha configurado para decidir cómo capturar el clic que inicia la intro. */
+function useLacreDetection(lacreUrl: string): LacreDetection {
+  const [state, setState] = useState<{ src: string; detection: LacreDetection } | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-
-    const detectAnimation = async () => {
-      try {
-        const res = await fetch(lacreUrl);
-        if (!isMounted || !res.ok) {
-          if (isMounted) setState({ hasNativeAnimation: false, nativeAnimationOptions: [] });
-          return;
-        }
-
-        const text = await res.text();
-        if (!isMounted) return;
-
-        const options = parseNativeSvgAnimations(text);
-        setState({
-          hasNativeAnimation: options.length > 0 || /<(?:script|animate|animateTransform|set)\b/i.test(text),
-          nativeAnimationOptions: options,
-        });
-      } catch {
-        if (isMounted) {
-          setState({ hasNativeAnimation: false, nativeAnimationOptions: [] });
-        }
-      }
-    };
-
-    void detectAnimation();
-
+    void detectLacreKind(lacreUrl).then((detection) => {
+      if (isMounted) setState({ src: lacreUrl, detection });
+    });
     return () => {
       isMounted = false;
     };
   }, [lacreUrl]);
 
-  return state;
+  return state && state.src === lacreUrl ? state.detection : LACRE_LOADING;
 }
 
 type Props = {
@@ -80,7 +90,11 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   );
 
   const lacreSrc = resolveDriveMediaSrc(config.lacreUrl) || DEFAULT_LACRE;
-  const { hasNativeAnimation: lacreHasNativeAnimation, nativeAnimationOptions } = useLacreNativeAnimationDetection(lacreSrc);
+  const { kind: lacreKind, nativeAnimationOptions } = useLacreDetection(lacreSrc);
+  // Imágenes y SVG animados que no escuchan el clic: la web captura el clic sobre
+  // el lacre, lo desvanece y usa ese clic como disparador de la intro.
+  const lacreUsesExternalClick = lacreKind === "image" || lacreKind === "animatedSvg";
+  const lacreDurationMs = Math.max(300, config.duracionLacreMs ?? 900);
   const configuredNativeAnimationId = config.lacreTriggerAnimationId;
   const selectedNativeAnimationId = configuredNativeAnimationId && nativeAnimationOptions.some((animation) => animation.id === configuredNativeAnimationId)
     ? configuredNativeAnimationId
@@ -160,6 +174,12 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
     }
   }, [config.pausaTrasTriggerMs]);
 
+  useEffect(() => {
+    if (!closingLacre || !lacreUsesExternalClick) return;
+    const t = window.setTimeout(finishLacreWithDelay, lacreDurationMs);
+    return () => window.clearTimeout(t);
+  }, [closingLacre, lacreUsesExternalClick, lacreDurationMs, finishLacreWithDelay]);
+
   if (!config.activo || unlocked || visitRecorded) {
     return <>{children}</>;
   }
@@ -168,46 +188,97 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   const introIsCurrentlyActive = config.activo && !unlocked && !visitRecorded;
   const isEnvelopeMode = deviceConfig.tipo === "envelope";
 
-  const renderSealVisual = (sizeClassName: string, sealBackground?: string) =>
-    !lacreGone ? (
-      lacreHasNativeAnimation ? (
-        // El lacre tiene animación nativa: se reproduce automáticamente,
-        // y su finalización dispara automáticamente la siguiente etapa.
+  const sealColor = themeValue("--bronze-light") || "#C4964A";
+
+  const renderSealVisual = (sizeClassName: string, sealBackground?: string) => {
+    if (lacreGone) return null;
+
+    if (lacreKind === "loading") {
+      return <span className={`block ${sizeClassName}`} aria-hidden="true" />;
+    }
+
+    if (lacreKind === "interactiveSvg") {
+      // El lacre tiene animación nativa que escucha el clic por sí misma,
+      // y su finalización dispara automáticamente la siguiente etapa.
+      return (
         <span
           className={`block ${sizeClassName}`}
-          style={{ color: themeValue("--bronze-light") || "#C4964A", backgroundColor: sealBackground }}
+          style={{ color: sealColor, backgroundColor: sealBackground }}
           aria-label="Abriendo invitación"
         >
           <AutoDrawSVG
             svgSource={lacreSrc}
             animate
             strokeColorOverride={themeValue("--bronze-light")}
-            durationMs={Math.max(300, config.duracionLacreMs ?? 900)}
+            durationMs={lacreDurationMs}
             sequential={false}
             nativeAnimationId={selectedNativeAnimationId}
             onComplete={hasSelectedNativeTrigger ? finishAutoLacre : undefined}
             className="h-full w-full"
           />
         </span>
-      ) : (
-        // El lacre es un SVG estático: espera clic para dibujarse y luego otro
-        // clic (u onComplete) para abrir la siguiente etapa.
-        <button type="button" className="group mx-auto block focus:outline-none" onClick={startIntro} aria-label="Abrir invitación">
-          <span className={`block ${sizeClassName}`} style={{ color: themeValue("--bronze-light") || "#C4964A", backgroundColor: sealBackground }}>
-            <AutoDrawSVG
-              svgSource={lacreSrc}
-              direction={closingLacre ? "reverse" : "forward"}
-              animate={closingLacre}
-              strokeColorOverride={themeValue("--bronze-light")}
-              durationMs={Math.max(300, config.duracionLacreMs ?? 900)}
-              sequential={false}
-              onComplete={finishLacreWithDelay}
-              className="h-full w-full"
-            />
+      );
+    }
+
+    if (lacreUsesExternalClick) {
+      // Imagen (PNG, JPG...) o SVG animado que no escucha clics: una capa
+      // transparente por encima captura el clic (también el que caería dentro
+      // del iframe del SVG), el lacre se desvanece y arranca la intro.
+      return (
+        <button
+          type="button"
+          className={`relative mx-auto block cursor-pointer focus:outline-none ${sizeClassName}`}
+          onClick={startIntro}
+          aria-label="Abrir invitación"
+        >
+          <span
+            className="block h-full w-full"
+            style={{
+              color: sealColor,
+              backgroundColor: sealBackground,
+              opacity: closingLacre ? 0 : 1,
+              transform: closingLacre ? "scale(0.85)" : "scale(1)",
+              transition: `opacity ${lacreDurationMs}ms ease, transform ${lacreDurationMs}ms ease`,
+            }}
+          >
+            {lacreKind === "image" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={lacreSrc} alt="" draggable={false} className="h-full w-full object-contain" />
+            ) : (
+              <AutoDrawSVG
+                svgSource={lacreSrc}
+                animate
+                strokeColorOverride={themeValue("--bronze-light")}
+                durationMs={lacreDurationMs}
+                sequential={false}
+                nativeAnimationId={selectedNativeAnimationId}
+                className="h-full w-full"
+              />
+            )}
           </span>
+          <span className="absolute inset-0" aria-hidden="true" />
         </button>
-      )
-    ) : null;
+      );
+    }
+
+    // El lacre es un SVG estático: espera clic para borrarse y luego abre la siguiente etapa.
+    return (
+      <button type="button" className="group mx-auto block focus:outline-none" onClick={startIntro} aria-label="Abrir invitación">
+        <span className={`block ${sizeClassName}`} style={{ color: sealColor, backgroundColor: sealBackground }}>
+          <AutoDrawSVG
+            svgSource={lacreSrc}
+            direction={closingLacre ? "reverse" : "forward"}
+            animate={closingLacre}
+            strokeColorOverride={themeValue("--bronze-light")}
+            durationMs={lacreDurationMs}
+            sequential={false}
+            onComplete={finishLacreWithDelay}
+            className="h-full w-full"
+          />
+        </span>
+      </button>
+    );
+  };
 
   if (isEnvelopeMode) {
     return (
