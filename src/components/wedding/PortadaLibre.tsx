@@ -45,7 +45,7 @@ export function getPortadaBoxStyle(
 ): CSSProperties {
   const vertical = (value: number): string => {
     if (unitPx !== undefined) return `${(value * unitPx) / 100}px`;
-    return modo === "pantallas" ? `${value}svh` : `${value}%`;
+    return modo === "pantallas" ? `calc(${value} * var(--wedding-svh, 1svh))` : `${value}%`;
   };
   return {
     position: "absolute",
@@ -209,7 +209,7 @@ function PortadaLienzo({
     overflow: "hidden",
     containerType: "inline-size",
     backgroundColor: fondo,
-    ...(porPantallas ? { height: `${getPantallas(config, dispositivo) * 100}svh` } : { aspectRatio: String(aspecto) }),
+    ...(porPantallas ? { height: `calc(${getPantallas(config, dispositivo) * 100} * var(--wedding-svh, 1svh))` } : { aspectRatio: String(aspecto) }),
   };
 
   return (

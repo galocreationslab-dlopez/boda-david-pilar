@@ -7,6 +7,8 @@ import { SeccionColapsable, SectionChain, SectionChainDecoration } from "@/compo
 import { buildSectionGroups, canLeadSectionChain, getPieSectionForProfile, getSectionGroupsForProfile, normalizeSectionChains } from "@/lib/section-chains";
 import PortadaLibre from "@/components/wedding/PortadaLibre";
 import PortadaLibreEditor from "@/components/admin/PortadaLibreEditor";
+import WeddingViewport from "@/components/layout/WeddingViewport";
+import { normalizePageMargins } from "@/lib/wedding-viewport";
 import { PieDePagina } from "@/components/layout/PieDePagina";
 import { SeccionHistoria, type HistoriaComponentKey } from "@/components/wedding/SeccionHistoria";
 import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding/SeccionTimeline";
@@ -633,6 +635,11 @@ export default function ConfiguracionView({
   );
 
   const [separador, setSeparador] = useState<SeparadorDiseno>(buildInitialSeparador(ic));
+  const [margenesPc, setMargenesPc] = useState(() => normalizePageMargins(ic.diseno?.margenesPc));
+  const [fondoPaginaColor, setFondoPaginaColor] = useState(ic.diseno?.fondoPaginaColor ?? "");
+  const [fondoPaginaImagen, setFondoPaginaImagen] = useState(ic.diseno?.fondoPaginaImagen ?? "");
+  const [fondoPaginaTexturaTamanoPx, setFondoPaginaTexturaTamanoPx] = useState(ic.diseno?.fondoPaginaTexturaTamanoPx ?? 0);
+  const [uploadingPageTexture, setUploadingPageTexture] = useState(false);
   const [tratamientosImagenes, setTratamientosImagenes] = useState<Record<string, TratamientoImagen>>(
     ic.diseno?.tratamientosImagenes ?? {},
   );
@@ -1333,6 +1340,10 @@ export default function ConfiguracionView({
           paletaActivaId,
         },
         diseno: {
+          margenesPc,
+          fondoPaginaColor,
+          fondoPaginaImagen,
+          fondoPaginaTexturaTamanoPx,
           separador,
           tratamientosImagenes,
           secciones: seccionesConPendientes,
@@ -1363,7 +1374,7 @@ export default function ConfiguracionView({
     } finally {
       setSaving(false);
     }
-  }, [fuentes, ic.textos, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador, tratamientosImagenes]);
+  }, [fuentes, ic.textos, margenesPc, fondoPaginaColor, fondoPaginaImagen, fondoPaginaTexturaTamanoPx, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador, tratamientosImagenes]);
 
   const handleReset = async () => {
     if (!confirm("Restaurar todos los valores al diseno original? Esta accion no se puede deshacer.")) return;
@@ -1502,6 +1513,11 @@ export default function ConfiguracionView({
           style={{ ...themeVars, transform: `scale(${scale})`, transformOrigin: "top left", width }}
           className={`${editable ? "pointer-events-auto" : "pointer-events-none"} ${compact ? "absolute inset-0" : ""}`}
         >
+          <WeddingViewport
+            design={{ ...ic.diseno, margenesPc, fondoPaginaColor, fondoPaginaImagen, fondoPaginaTexturaTamanoPx }}
+            device={editorViewport === "movil" ? "movil" : "pc"}
+            resolveSrc={resolveAdminPreviewSrc}
+          >
           {isInvitationType(section.tipo) && (
             <SeccionColapsable id={`canvas-${section.id}`} abiertaPorDefecto={true} ocultarCabecera={true}>
               <MainWithInvite
@@ -1641,6 +1657,7 @@ export default function ConfiguracionView({
               />
             </SeccionColapsable>
           )}
+          </WeddingViewport>
         </div>
       </div>
     );
@@ -1688,8 +1705,57 @@ export default function ConfiguracionView({
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
           <aside className="space-y-4 self-start lg:sticky lg:top-4">
+            <section className="rounded-xl border border-stone-200 bg-white p-3 space-y-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-700">Marco y fondo general</h2>
+              <p className="text-xs text-stone-500">Ancho útil = pantalla menos ambos márgenes. Solo PC; móvil conserva todo su ancho.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(["izquierdo", "derecho"] as const).map((lado) => (
+                  <label key={lado} className="block text-xs text-stone-600">
+                    Margen {lado} (px)
+                    <input type="number" min={0} step={1} className="input-field" value={margenesPc[lado]} onChange={(e) => {
+                      const value = Number(e.target.value);
+                      if (Number.isFinite(value)) setMargenesPc((prev) => ({ ...prev, [lado]: Math.max(0, value) }));
+                    }} />
+                  </label>
+                ))}
+              </div>
+              <p className="text-[11px] text-stone-500">Si no caben al reducir la ventana, los márgenes se reducen proporcionalmente para no desbordar.</p>
+              <label className="block text-xs text-stone-600">
+                Color de fondo (respaldo de la textura)
+                <input type="color" className="mt-1 h-8 w-full" value={fondoPaginaColor || (/^#[0-9a-f]{6}$/i.test(paletaActivaResolvedColors.cream) ? paletaActivaResolvedColors.cream : "#F7F3EC")} onChange={(e) => setFondoPaginaColor(e.target.value)} />
+              </label>
+              <button type="button" className="text-[11px] text-stone-500 underline" onClick={() => { setFondoPaginaColor(""); setFondoPaginaImagen(""); setFondoPaginaTexturaTamanoPx(0); }}>Usar fondo de la paleta</button>
+              <label className="block text-xs text-stone-600">
+                Textura opcional (URL o ruta local)
+                <input className="input-field" value={fondoPaginaImagen} onChange={(e) => setFondoPaginaImagen(e.target.value)} placeholder="/images/textura.png" />
+              </label>
+              <label className="block text-xs text-stone-600">
+                Tamaño del mosaico (px; 0 = natural)
+                <input type="number" min={0} step={1} className="input-field" value={fondoPaginaTexturaTamanoPx} onChange={(e) => {
+                  const value = Number(e.target.value);
+                  if (Number.isFinite(value)) setFondoPaginaTexturaTamanoPx(Math.max(0, value));
+                }} />
+              </label>
+              <label className="block text-xs text-stone-600">
+                {uploadingPageTexture ? "Subiendo textura..." : "Subir textura"}
+                <input type="file" accept="image/*" disabled={uploadingPageTexture} className="mt-1 w-full text-xs" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  setUploadingPageTexture(true);
+                  try {
+                    setFondoPaginaImagen(await uploadDesignImage(file));
+                    showMsg("ok", "Textura general subida y asignada.");
+                  } catch (error) {
+                    showMsg("error", error instanceof Error ? error.message : "Error subiendo textura");
+                  } finally {
+                    setUploadingPageTexture(false);
+                  }
+                }} />
+              </label>
+            </section>
             <section className="rounded-xl border border-stone-200 bg-white p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <button
@@ -2723,7 +2789,13 @@ export default function ConfiguracionView({
                 }}
               >
                 <style dangerouslySetInnerHTML={{ __html: buildFontFaceCss(fuentes, true) }} />
-                <main className={editorViewport === "movil" ? "mx-auto max-w-[430px]" : ""}>
+                <div className={editorViewport === "movil" ? "mx-auto max-w-[430px]" : ""}>
+                <WeddingViewport
+                  design={{ ...ic.diseno, margenesPc, fondoPaginaColor, fondoPaginaImagen, fondoPaginaTexturaTamanoPx }}
+                  device={editorViewport === "movil" ? "movil" : "pc"}
+                  resolveSrc={resolveAdminPreviewSrc}
+                >
+                <main>
                   {previewGroupsToRender.map((group, groupIndex) => (
                     <SectionChain
                       key={group.head.id}
@@ -2942,6 +3014,7 @@ export default function ConfiguracionView({
                   return (
                     <PieDePagina
                       config={ic}
+                      forzarDispositivo={editorViewport === "movil" ? "movil" : "pc"}
                       seccionPie={pieSectionForPreview}
                       roleColors={pieRoleColors}
                       resolveSrc={resolveAdminPreviewSrc}
@@ -2950,6 +3023,8 @@ export default function ConfiguracionView({
                     />
                   );
                 })()}
+                </WeddingViewport>
+                </div>
               </div>
             </div>
           </section>

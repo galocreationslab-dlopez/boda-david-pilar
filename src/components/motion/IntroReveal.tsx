@@ -285,9 +285,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
       <IntroProvider introActive={introIsCurrentlyActive}>
         <>
           {children}
-          <div className="fixed inset-0 z-[100] overflow-hidden" style={{ ...themeStyle, ...introStyle }}>
-            {/* EnvelopeOpenReveal siempre ocupa la ventana real (fixed inset-0 propio), por eso
-                el texto de la intro se superpone encima en vez de envolverlo en un layout con padding. */}
+          <div className="wedding-fixed fixed inset-y-0 z-[100] overflow-hidden" style={{ ...themeStyle, ...introStyle }}>
             <EnvelopeOpenReveal
               config={deviceConfig.envelope ?? {}}
               texture={envelopeTexture}
@@ -329,7 +327,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
         {children}
 
       {isLacreStep ? (
-        <div className="fixed inset-0 z-[100] flex min-h-[100svh] w-full items-center justify-center overflow-hidden bg-[var(--brown-dark)] px-4 py-8" style={{ ...themeStyle, ...introStyle }}>
+        <div className="wedding-fixed fixed inset-y-0 z-[100] flex min-h-[100svh] items-center justify-center overflow-hidden bg-[var(--brown-dark)] px-4 py-8" style={{ ...themeStyle, ...introStyle }}>
           <div className="w-full max-w-5xl text-center" style={introFrameStyle}>
             {showIntroTitle ? (
               <p className="font-display text-2xl text-[var(--cream)] sm:text-3xl">{introTitle}</p>
@@ -337,7 +335,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
             {showIntroSubtitle ? (
               <p className="mt-2 text-xs uppercase tracking-[0.24em] text-[var(--cream)] opacity-70">{introSubtitle}</p>
             ) : null}
-            <div className="mx-auto mt-8 aspect-square" style={{ width: `${lacreSizePercent}vmin` }}>
+            <div className="mx-auto mt-8 aspect-square" style={{ width: `calc(${lacreSizePercent} * var(--wedding-vmin, 1vmin))` }}>
               {renderSealVisual("h-full w-full", introBackground)}
             </div>
             {showIntroSkip ? (
@@ -348,7 +346,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
           </div>
         </div>
       ) : (
-        <div className="fixed inset-0 z-[100] h-[100svh] w-full bg-transparent" style={themeStyle}>
+        <div className="wedding-fixed fixed inset-y-0 z-[100] h-[100svh] bg-transparent" style={themeStyle}>
           <div className="relative h-full w-full px-0 py-0 sm:px-0 sm:py-0" style={introFrameStyle}>
             <IntroAnimationStage
               deviceConfig={deviceConfig}
@@ -357,7 +355,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
               fondoPanel={introBackground}
               onComplete={completeIntro}
             >
-              {children}
+              <div style={{ transform: "translateZ(0)", ["--wedding-left" as string]: "0px", ["--wedding-right" as string]: "0px" }}>{children}</div>
             </IntroAnimationStage>
           </div>
         </div>

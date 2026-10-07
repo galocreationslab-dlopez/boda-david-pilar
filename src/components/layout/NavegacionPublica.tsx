@@ -170,11 +170,11 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
   return (
     <header
       style={{ backgroundColor: banner?.fondoColor || "var(--role-fondo-principal)" }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`wedding-fixed fixed top-0 z-50 transition-[transform,opacity,background-color,box-shadow] duration-300 ${
         barraOculta ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
       }`}
     >
-      <nav className="container-wedding grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-2 sm:h-20">
+      <nav className="container-wedding grid h-16 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 overflow-hidden sm:h-20">
         {ZONAS.map(({ posicion, clases }) => (
           <div key={posicion} className={`flex items-center gap-3 ${clases}`}>
             {elementos
@@ -188,7 +188,7 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
 
       {/* Menú desplegable */}
       {menuAbierto && (
-        <div className="absolute top-full left-4 md:left-[24px] w-max max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-5rem)] overflow-y-auto bg-white animate-fade-in">
+        <div className="absolute top-full left-4 md:left-[24px] w-max max-h-[calc(100dvh-5rem)] overflow-y-auto bg-white animate-fade-in" style={{ maxWidth: "max(0px, calc(var(--wedding-width, 100vw) - 2rem))" }}>
           <ul className="flex flex-col items-start gap-2 p-3">
             {secciones.map((item) => (
               <li key={item.anchorId}>

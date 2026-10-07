@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import type { IntroEnvelopeConfig } from "@/config/wedding.config";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 
@@ -41,7 +41,7 @@ function roundedApex(apexX: number, apexY: number, cornerY: number, f: number) {
 }
 
 /**
- * Ancho/alto reales de la ventana. Solo se necesita en modo de relación de
+ * Ancho/alto del marco util. Solo se necesita en modo de relación de
  * aspecto "fijo": el propio recuadro del sobre puede dimensionarse con CSS
  * puro (`min()`/`aspect-ratio`), pero la portada se escala con `transform:
  * scale()` sobre un elemento a tamaño de ventana, y ese factor de escala debe
@@ -54,14 +54,17 @@ function roundedApex(apexX: number, apexY: number, cornerY: number, f: number) {
  */
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-function useViewportSize() {
+function useViewportSize(ref: RefObject<HTMLDivElement | null>) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   useIsoLayoutEffect(() => {
-    const update = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    const frame = ref.current;
+    if (!frame) return;
+    const update = () => setSize({ width: frame.clientWidth, height: frame.clientHeight });
+    const observer = new ResizeObserver(update);
+    observer.observe(frame);
     update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
+    return () => observer.disconnect();
+  }, [ref]);
   return size;
 }
 
@@ -91,7 +94,8 @@ function useViewportSize() {
 export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken, sealSlot, sealSizePercent = 24, onComplete, children }: EnvelopeOpenRevealProps) {
   const [phase, setPhase] = useState<Phase>("closed");
   const patternId = useId();
-  const viewport = useViewportSize();
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const viewport = useViewportSize(viewportRef);
 
   const modoFondo = config.modoFondo ?? "colores";
   const acabadoPaleta = config.acabadoPaleta ?? "textura";
@@ -144,16 +148,16 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   // nunca dejaba que el sobre se saliera; ahora el eje elegido manda siempre.
   const margenDisponiblePct = 100 - margenPantalla * 2;
   const envelopeFixedSizeExpr =
-    ajusteAspecto === "alto" ? `calc(${margenDisponiblePct} * 1vh)` : `calc(${margenDisponiblePct} * 1vw)`;
+    ajusteAspecto === "alto" ? `calc(${margenDisponiblePct} * var(--wedding-vh, 1vh))` : `calc(${margenDisponiblePct} * var(--wedding-vw, 1vw))`;
 
   const envelopeBoxStyle: CSSProperties =
     modoAspecto === "fijo"
       ? ajusteAspecto === "alto"
-        ? { position: "fixed", left: "50%", top: "50%", height: envelopeFixedSizeExpr, width: "auto", aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
-        : { position: "fixed", left: "50%", top: "50%", width: envelopeFixedSizeExpr, height: "auto", aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
+        ? { position: "absolute", left: "50%", top: "50%", height: envelopeFixedSizeExpr, width: "auto", aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
+        : { position: "absolute", left: "50%", top: "50%", width: envelopeFixedSizeExpr, height: "auto", aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
       : tex
-        ? { position: "fixed", inset: `${margenPantalla}vh ${margenPantalla}vw` }
-        : { position: "fixed", inset: 0, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})` };
+        ? { position: "absolute", top: `${margenPantalla}%`, bottom: `${margenPantalla}%`, left: `${margenPantalla}%`, right: `${margenPantalla}%` }
+        : { position: "absolute", inset: 0, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})` };
 
   // La portada se ajusta SIEMPRE al ancho disponible (sobre menos su margen), centrada
   // horizontalmente, con su borde superior pegado al borde superior del hueco (no se
@@ -303,7 +307,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   // hueco, y por separado se escala desde su propio centro; hacerlo en dos elementos
   // anidados evita que ambas transformaciones se compongan de forma no lineal.
   const contentOuterStyle: CSSProperties = {
-    position: "fixed",
+    position: "absolute",
     inset: 0,
     opacity: contentVisible ? 1 : 0,
     transform: `translateY(${isFinalSize ? 0 : contentOffsetY}px)`,
@@ -311,6 +315,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   };
 
   const contentWrapperStyle: CSSProperties = {
+    ...{ "--wedding-left": "0px", "--wedding-right": "0px" },
     position: "absolute",
     inset: 0,
     // Salvaguarda general por si el sitio real es más alto que un viewport; el exceso
@@ -322,9 +327,9 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
     // "Papel apilado": dos sombras planas y desplazadas simulan hojas debajo de la
     // portada, más una sombra difusa para separación del fondo; dan sensación de grosor.
     boxShadow: [
-      "1.4vmin 1.6vmin 0 0 rgba(255,252,244,0.85)",
-      "2.8vmin 3.2vmin 0 0 rgba(232,221,199,0.7)",
-      `0 ${sombraDesenfoque / 2}vmin ${sombraDesenfoque}vmin rgba(0,0,0,0.4)`,
+      "calc(1.4 * var(--wedding-vmin, 1vmin)) calc(1.6 * var(--wedding-vmin, 1vmin)) 0 0 rgba(255,252,244,0.85)",
+      "calc(2.8 * var(--wedding-vmin, 1vmin)) calc(3.2 * var(--wedding-vmin, 1vmin)) 0 0 rgba(232,221,199,0.7)",
+      `0 calc(${sombraDesenfoque / 2} * var(--wedding-vmin, 1vmin)) calc(${sombraDesenfoque} * var(--wedding-vmin, 1vmin)) rgba(0,0,0,0.4)`,
     ].join(", "),
     pointerEvents: phase === "done" ? "auto" : "none",
   };
@@ -347,7 +352,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   // Sombra sutil en el contorno recortado del papel (frontal/solapa), para dar
   // sensación de grosor; se aplica como filtro CSS (no SVG) para que no se distorsione
   // con el `preserveAspectRatio="none"` de los `<svg>` internos.
-  const paperEdgeFilter = `drop-shadow(0 ${0.15 + intensidadGrosorPapel * 0.5}vmin ${0.2 + intensidadGrosorPapel * 0.6}vmin ${colorGrosorPapel})`;
+  const paperEdgeFilter = `drop-shadow(0 calc(${0.15 + intensidadGrosorPapel * 0.5} * var(--wedding-vmin, 1vmin)) calc(${0.2 + intensidadGrosorPapel * 0.6} * var(--wedding-vmin, 1vmin)) ${colorGrosorPapel})`;
 
   // La sombra de apertura ya está a su valor máximo mientras el sobre está cerrado
   // (oculta, tapada por la propia solapa cerrada) y se desvanece a la vez que la
@@ -359,11 +364,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   };
 
   return (
-    // `fixed inset-0` (en vez de heredar el tamaño del contenedor padre) garantiza que
-    // el sobre y la portada usen siempre el mismo marco de referencia (la ventana real);
-    // si el padre las dimensiona de forma distinta (p. ej. por padding o flex), la portada
-    // queda visible fuera del área del sobre.
-    <div className="fixed inset-0 overflow-hidden" style={fondoExteriorStyle}>
+    <div ref={viewportRef} className="wedding-fixed fixed inset-y-0 overflow-hidden" style={fondoExteriorStyle}>
       {/* Trasera del sobre: rectángulo liso del mismo color, siempre detrás de la
           portada; desciende en sincronía con el frontal para que el sobre se retire
           como un conjunto único. */}
@@ -377,7 +378,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
               transition: `transform ${duracionDescenso}ms ease-in, opacity ${duracionDescenso}ms ease-in`,
             }}
           >
-            <div className="absolute inset-0" style={{ ...bodyFill, borderRadius: `${radioEsquinas}vmin` }} />
+            <div className="absolute inset-0" style={{ ...bodyFill, borderRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))` }} />
           </div>
         </div>
       ) : null}
@@ -434,13 +435,13 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
               transition: `transform ${duracionDescenso}ms ease-in, opacity ${duracionDescenso}ms ease-in`,
             }}
           >
-            <div className="relative h-full w-full" style={{ perspective: "180vmin" }}>
+            <div className="relative h-full w-full" style={{ perspective: "calc(180 * var(--wedding-vmin, 1vmin))" }}>
               <div
                 className="absolute left-0 top-0 w-full origin-top"
                 style={{
                   height: `${flapPct}%`,
-                  borderTopLeftRadius: `${radioEsquinas}vmin`,
-                  borderTopRightRadius: `${radioEsquinas}vmin`,
+                  borderTopLeftRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))`,
+                  borderTopRightRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))`,
                   // Solo se recorta con el sobre cerrado (para redondear las esquinas
                   // superiores a juego con el sobre); si se recorta también al abrirse,
                   // la solapa no puede extenderse hacia arriba y parece desaparecer.
@@ -483,7 +484,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
                     <path
                       d={flapPath}
                       fill="none"
-                      style={{ stroke: colorCostura, strokeWidth: "0.35vmin", vectorEffect: "non-scaling-stroke" } as CSSProperties}
+                      style={{ stroke: colorCostura, strokeWidth: "calc(0.35 * var(--wedding-vmin, 1vmin))", vectorEffect: "non-scaling-stroke" } as CSSProperties}
                     />
                   </svg>
                   {tex ? (
@@ -496,7 +497,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
                         <path
                           d={flapPath}
                           fill="none"
-                          style={{ stroke: colorCostura, strokeWidth: "0.35vmin", vectorEffect: "non-scaling-stroke" } as CSSProperties}
+                          style={{ stroke: colorCostura, strokeWidth: "calc(0.35 * var(--wedding-vmin, 1vmin))", vectorEffect: "non-scaling-stroke" } as CSSProperties}
                         />
                       </svg>
                     </>
@@ -538,15 +539,15 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
             <div
               className="absolute inset-0 overflow-hidden"
               style={{
-                borderRadius: `${radioEsquinas}vmin`,
+                borderRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))`,
                 // El borde y la sombra solo existen con el sobre cerrado: el frontal es
                 // una sola pieza y, al desplazarse, arrastraría ambos por encima del
                 // contenido si siguieran pintándose mientras desciende.
                 boxShadow:
                   phase === "closed"
                     ? [
-                        grosorBorde > 0 ? `inset 0 0 0 ${grosorBorde}vmin ${colorBorde}` : null,
-                        `0 ${sombraDesenfoque / 2}vmin ${sombraDesenfoque}vmin ${sombraColor}`,
+                        grosorBorde > 0 ? `inset 0 0 0 calc(${grosorBorde} * var(--wedding-vmin, 1vmin)) ${colorBorde}` : null,
+                        `0 calc(${sombraDesenfoque / 2} * var(--wedding-vmin, 1vmin)) calc(${sombraDesenfoque} * var(--wedding-vmin, 1vmin)) ${sombraColor}`,
                       ]
                         .filter(Boolean)
                         .join(", ")
@@ -588,7 +589,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
           <div
             className="absolute aspect-square"
             style={{
-              width: `${sealSize}vmin`,
+              width: `calc(${sealSize} * var(--wedding-vmin, 1vmin))`,
               left: "50%",
               top: `${flapPct}%`,
               transform: "translate(-50%, -50%)",

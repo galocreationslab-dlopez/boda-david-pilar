@@ -63,6 +63,29 @@ supabase/
 
 ## Principios arquitectónicos
 
+### Márgenes de PC y fondo general
+
+En **Diseño de la web → Marco y fondo general** se configuran independientemente
+los márgenes izquierdo y derecho en px, el color de fondo y una textura opcional
+(URL, ruta local o subida), con tamaño de mosaico opcional. Pulsa **Guardar cambios**
+para persistirlos en `diseno.margenesPc`, `fondoPaginaColor`, `fondoPaginaImagen`
+y `fondoPaginaTexturaTamanoPx` de `config_json`. El color permanece debajo de la
+textura y se muestra si esta no carga. Los fondos de sección conservan su prioridad.
+
+Desde 768 px, el ancho útil es el ancho disponible de la ventana menos ambos
+márgenes; por debajo se ignoran los márgenes. Si no caben, se reducen
+proporcionalmente dejando un ancho útil positivo. Los valores antiguos sin
+márgenes equivalen a cero, y sin fondo personalizado conservan el de la paleta.
+El campo antiguo `fondoPaginaImagen` también se admite como textura.
+
+`WeddingViewport` centraliza el marco y las variables `--wedding-vw`,
+`--wedding-width` y `--wedding-vmin`, usadas por navegación, contenedores,
+portadas, pie e intro. Las previsualizaciones y miniaturas usan el mismo marco;
+las posiciones y dimensiones porcentuales de Portada libre siguen siendo
+relativas a su lienzo, no al viewport. En modo pantallas el alto no se reduce
+al aplicar márgenes. El editor simula una pantalla 16:9 en PC y 9:16 en móvil.
+`sizes` de imágenes sigue siendo una pista de descarga, no una dimensión de layout.
+
 ### Imagen del sello de Invitación
 
 En el panel de administración, abre **Contenido**, selecciona la sección

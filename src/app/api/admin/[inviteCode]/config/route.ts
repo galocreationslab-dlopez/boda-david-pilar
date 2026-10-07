@@ -125,6 +125,32 @@ export async function POST(
   }
 
   const body: unknown = await req.json();
+  if (isRecord(body) && isRecord(body.diseno)) {
+    const design = body.diseno;
+    const margins = design.margenesPc;
+    if (margins !== undefined && (
+      !isRecord(margins) ||
+      ["izquierdo", "derecho"].some((key) => {
+        const value = margins[key];
+        return typeof value !== "number" || !Number.isFinite(value) || value < 0;
+      })
+    )) {
+      return NextResponse.json({ error: "Los margenes de PC deben ser numeros finitos en px, mayores o iguales a cero." }, { status: 400 });
+    }
+    if (design.fondoPaginaColor !== undefined && (
+      typeof design.fondoPaginaColor !== "string" || (design.fondoPaginaColor !== "" && !/^#[0-9a-f]{6}$/i.test(design.fondoPaginaColor))
+    )) {
+      return NextResponse.json({ error: "El color de fondo debe estar vacio o tener formato #RRGGBB." }, { status: 400 });
+    }
+    if (design.fondoPaginaImagen !== undefined && typeof design.fondoPaginaImagen !== "string") {
+      return NextResponse.json({ error: "La textura de fondo debe ser una URL o ruta de imagen." }, { status: 400 });
+    }
+    if (design.fondoPaginaTexturaTamanoPx !== undefined && (
+      typeof design.fondoPaginaTexturaTamanoPx !== "number" || !Number.isFinite(design.fondoPaginaTexturaTamanoPx) || design.fondoPaginaTexturaTamanoPx < 0
+    )) {
+      return NextResponse.json({ error: "El tamano de textura debe ser un numero finito en px, mayor o igual a cero." }, { status: 400 });
+    }
+  }
   const supabase = createServerClient();
 
   // Obtener config_json existente

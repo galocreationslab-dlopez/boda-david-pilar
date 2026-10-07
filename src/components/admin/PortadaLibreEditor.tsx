@@ -21,6 +21,7 @@ import {
   type PortadaDispositivo,
 } from "@/lib/portada-libre";
 import { getPortadaAspectCanvasRatio, getPortadaAspectLayout, type PortadaAspectRatio } from "@/lib/portada-aspect-ratio";
+import { useWeddingViewport } from "@/components/layout/WeddingViewport";
 
 type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 type DragMode = Handle | "move";
@@ -134,6 +135,7 @@ function ColorControl({
 }
 
 export default function PortadaLibreEditor({ config, dispositivo, roles, roleColors, resolveSrc, onChange, imageTreatments, overlayTextureAvailable, onChangeImageTreatment }: Props) {
+  const viewport = useWeddingViewport();
   const normalizado = normalizePortadaLibre(config);
   const disp = normalizado[dispositivo];
   const porPantallas = disp.alturaModo === "pantallas";
@@ -180,10 +182,10 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
     });
   }, [config, dispositivo, resolveSrc]);
 
-  const unitPx = porPantallas ? anchoPx / PANTALLA_ASPECTO[dispositivo] : anchoPx / aspecto;
+  const unitPx = porPantallas ? viewport.height ?? anchoPx / PANTALLA_ASPECTO[dispositivo] : anchoPx / aspecto;
   const alturaPx = unitPx * pantallas;
   // En modo pantallas, h se expresa por pantalla (svh), no sobre la altura total del lienzo.
-  const canvasRatio = porPantallas ? PANTALLA_ASPECTO[dispositivo] : getPortadaAspectCanvasRatio(anchoPx, alturaPx);
+  const canvasRatio = porPantallas && !viewport.inset ? PANTALLA_ASPECTO[dispositivo] : getPortadaAspectCanvasRatio(anchoPx, unitPx);
   const maxY = !porPantallas ? 100 : (disp.pantallas ?? 1) > 0 ? pantallas * 100 : 2000;
 
   const patchDisp = useCallback((patch: Partial<PortadaDispositivoConfig>) => {
@@ -309,7 +311,7 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
   const maxZ = normalizado.elementos.reduce((m, el, i) => Math.max(m, getElementoLayout(normalizado, dispositivo, el, i).z ?? 1), 1);
 
   return (
-    <div className="space-y-3 p-3" style={{ fontFamily: "system-ui, sans-serif", color: "#292524" }}>
+    <div className="space-y-3" style={{ fontFamily: "system-ui, sans-serif", color: "#292524" }}>
       <div className="grid gap-2 rounded-lg border border-stone-200 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block text-[11px] text-stone-600">
           Altura del lienzo ({dispositivo === "pc" ? "PC" : "móvil"})
@@ -371,7 +373,7 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 px-3">
         {normalizado.elementos.length === 0 && (
           <p className="text-xs text-stone-500">Añade imágenes o textos en la pestaña Contenido para colocarlos aquí.</p>
         )}
@@ -390,10 +392,10 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
         </button>
       </div>
 
-      <div className="mx-auto" style={{ maxWidth: dispositivo === "movil" ? 430 : undefined }}>
+      <div className="mx-auto" style={{ maxWidth: !viewport.height && dispositivo === "movil" ? 430 : undefined }}>
         <div
           ref={canvasRef}
-          className="relative w-full select-none overflow-hidden border border-dashed border-stone-400"
+          className="relative w-full select-none overflow-hidden outline outline-dashed outline-stone-400"
           style={{
             height: alturaPx || undefined,
             aspectRatio: alturaPx ? undefined : String(aspecto),

@@ -155,7 +155,7 @@ export function SeccionColapsable({
               color: "var(--brown-dark)",
               ...(titleStyle ?? {}),
               fontFamily: "var(--font-display)",
-              fontSize: "clamp(1.25rem, 3vw, 1.875rem)",
+              fontSize: "clamp(1.25rem, calc(3 * var(--wedding-vw, 1vw)), 1.875rem)",
               ...(designMode && titleSelected
                 ? { outline: "2px solid #b45309", outlineOffset: "3px", borderRadius: "8px" }
                 : {}),

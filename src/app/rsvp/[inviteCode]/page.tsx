@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { InviteRsvpForm } from "@/components/wedding/InviteRsvpForm";
 import { getWeddingConfig } from "@/lib/wedding-config-server";
+import WeddingViewport from "@/components/layout/WeddingViewport";
 
 export const dynamic = "force-dynamic";
 
@@ -134,11 +135,13 @@ export default async function InvitePage({ params }: { params: Promise<{ inviteC
   }
 
   return (
-    <InviteRsvpForm
-      inviteCode={inviteCode}
-      invitacion={data.invitacion}
-      personas={data.personas}
-      rsvpConfig={config.rsvp}
-    />
+    <WeddingViewport design={config.diseno}>
+      <InviteRsvpForm
+        inviteCode={inviteCode}
+        invitacion={data.invitacion}
+        personas={data.personas}
+        rsvpConfig={config.rsvp}
+      />
+    </WeddingViewport>
   );
 }

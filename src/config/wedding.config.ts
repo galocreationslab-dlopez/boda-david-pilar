@@ -682,7 +682,10 @@ export type WeddingConfig = {
 
   diseno?: {
     separador?: SeparadorDiseno;
+    margenesPc?: { izquierdo: number; derecho: number };
+    fondoPaginaColor?: string;
     fondoPaginaImagen?: string;
+    fondoPaginaTexturaTamanoPx?: number;
     tratamientosImagenes?: Record<string, TratamientoImagen>;
     secciones?: SeccionDiseno[];
     navegacion?: NavegacionDiseno;

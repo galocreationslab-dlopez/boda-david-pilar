@@ -26,6 +26,7 @@ import IntroReveal from "@/components/motion/IntroReveal";
 import PostIntroSectionsGate from "@/components/motion/PostIntroSectionsGate";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import type { CSSProperties } from "react";
+import WeddingViewport from "@/components/layout/WeddingViewport";
 
 const DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX = 252;
 const DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX = 16;
@@ -694,7 +695,7 @@ export default async function PaginaPrincipal({
     ? { url: resolveDriveMediaSrc(sobreTexture.url), sizePx: sobreTexture.sizePx, color: sobreTexture.color }
     : undefined;
 
-  return introSection?.intro ? (
+  const contentWithIntro = introSection?.intro ? (
     <>
       {lacreSrc ? <link rel="preload" href={lacreSrc} as="fetch" crossOrigin="anonymous" /> : null}
       {envelopeImageSrcs.map((src) => (
@@ -711,4 +712,6 @@ export default async function PaginaPrincipal({
       </IntroReveal>
     </>
   ) : pageContent;
+
+  return <WeddingViewport design={config.diseno}>{contentWithIntro}</WeddingViewport>;
 }

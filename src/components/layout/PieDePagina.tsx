@@ -10,6 +10,7 @@ import type { CSSProperties } from "react";
 import { SelloNupcial } from "@/components/ui/SelloNupcial";
 import type { SeccionDiseno, TratamientoImagen, WeddingConfig } from "@/config/wedding.config";
 import PortadaLibre from "@/components/wedding/PortadaLibre";
+import type { PortadaDispositivo } from "@/lib/portada-libre";
 
 type PieDePaginaProps = {
   config: Pick<WeddingConfig, "iniciales" | "novia" | "novio" | "fechaFormateada">;
@@ -18,13 +19,14 @@ type PieDePaginaProps = {
   resolveSrc?: (src?: string) => string;
   imageTreatments?: Record<string, TratamientoImagen>;
   themeVars?: CSSProperties;
+  forzarDispositivo?: PortadaDispositivo;
 };
 
-export function PieDePagina({ config, seccionPie, roleColors = {}, resolveSrc, imageTreatments, themeVars }: PieDePaginaProps) {
+export function PieDePagina({ config, seccionPie, roleColors = {}, resolveSrc, imageTreatments, themeVars, forzarDispositivo }: PieDePaginaProps) {
   if (seccionPie?.pie) {
     return (
       <footer id="pie" className="tex-cream" style={{ backgroundColor: "var(--cream)", ...themeVars }}>
-        <PortadaLibre config={seccionPie.pie} roleColors={roleColors} resolveSrc={resolveSrc} imageTreatments={imageTreatments} />
+        <PortadaLibre config={seccionPie.pie} roleColors={roleColors} resolveSrc={resolveSrc} imageTreatments={imageTreatments} forzarDispositivo={forzarDispositivo} />
       </footer>
     );
   }

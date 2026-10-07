@@ -95,7 +95,7 @@ export function HeroPortada({
       onClick={() => select("portada.fondo")}
     >
       {/* Primer viewport: solo identidad e invitación */}
-      <div className="relative flex min-h-[100svh] w-full flex-col items-center justify-center">
+      <div className="relative flex w-full flex-col items-center justify-center" style={{ minHeight: "calc(100 * var(--wedding-svh, 1svh))" }}>
       <div className={`relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center gap-5 py-16 sm:gap-7 sm:py-20 ${forceMobile ? "max-w-[21rem] gap-4 py-12" : ""}`}>
 
         {/* Sello */}
@@ -116,7 +116,7 @@ export function HeroPortada({
           <h1
             className="font-display font-light"
             style={styleFor("portada.nombres", {
-              fontSize: forceMobile ? "clamp(2.8rem, 14vw, 4.2rem)" : "clamp(3.5rem, 11vw, 6rem)",
+              fontSize: forceMobile ? "clamp(2.8rem, calc(14 * var(--wedding-vw, 1vw)), 4.2rem)" : "clamp(3.5rem, calc(11 * var(--wedding-vw, 1vw)), 6rem)",
               color: "var(--white)",
               lineHeight: 1.05,
               letterSpacing: "-0.01em",
