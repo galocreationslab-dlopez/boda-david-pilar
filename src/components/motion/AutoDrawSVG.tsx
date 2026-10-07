@@ -44,6 +44,7 @@ export type AutoDrawSVGProps = {
   maxEsperaMs?: number;
   sequential?: boolean;
   onComplete?: () => void;
+  onReady?: () => void;
   onAspectRatioDetected?: (ratio: number) => void;
   /** Avisa si el SVG cargado trae animacion propia (script/SMIL) en vez del dibujo manual. */
   onNativeAnimationDetected?: (detected: boolean) => void;
@@ -589,6 +590,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     maxEsperaMs = DEFAULT_MAX_ESPERA_MS,
     sequential = true,
     onComplete,
+    onReady,
     onAspectRatioDetected,
     onNativeAnimationDetected,
     onNativeAnimationsDetected,
@@ -762,6 +764,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     if (!svgEl) return;
 
     normalizeViewBoxToContent(svgEl);
+    onReady?.();
 
     // Ajuste universal de encaje: muchos SVG subidos vienen con width/height
     // absolutos muy grandes desde herramientas de diseno. Si no los normalizamos,
@@ -915,6 +918,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
     durationMs,
     onAspectRatioDetected,
     onComplete,
+    onReady,
     respectReducedMotion,
     restartTick,
     sequential,
@@ -952,6 +956,7 @@ export const AutoDrawSVG = forwardRef<AutoDrawSVGHandle, AutoDrawSVGProps>(funct
         <iframe
           title="SVG animado"
           srcDoc={animatedSvgDoc}
+          onLoad={onReady}
           sandbox="allow-scripts allow-same-origin"
           className="h-full w-full border-0"
           style={{ background: "transparent" }}

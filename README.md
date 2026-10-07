@@ -101,6 +101,30 @@ mantienen sus colores y proporciones; el control de tamaño del logo sigue
 aplicándose. Este campo no cambia el logo de la barra superior ni el lacre de
 la Intro.
 
+### Carga inicial de la Intro
+
+El servidor presenta un fondo liso del mismo color que el fondo general de los
+márgenes de PC, también en móvil, sin texto de carga visible. El estado de carga
+se anuncia solo a lectores de pantalla. No se presenta una geometría provisional
+de PC. Tras hidratar, se elige móvil por debajo de 768 px y PC desde 768 px. El sobre
+se dimensiona respecto al marco útil (incluidos los márgenes laterales de PC);
+la relación de aspecto fija y el ajuste a ancho/alto conservan sus opciones.
+
+El lacre se descarga una sola vez, conservando los bytes del PNG; los SVG se
+preparan desde ese mismo contenido. La textura de paleta, la imagen propia y el
+fondo exterior se precargan y decodifican antes de mostrar el sobre y el lacre
+juntos. No hay una espera mínima: caché caliente y recursos rápidos liberan la
+intro en cuanto están preparados. Cada carga tiene un límite de seguridad de
+30 segundos, no un retardo de presentación. Los fallos se registran en consola:
+una textura fallida mantiene el color base, sin incorporarse tarde, y un lacre
+fallido ofrece **Abrir invitación**. El movimiento reducido evita la apertura
+animada del sobre.
+
+Para verificar, recargar con caché desactivada en PC y móvil, retrasar o bloquear
+las solicitudes del lacre y la textura, y comprobar dimensiones y estilos
+además de la captura. `data-intro-state` indica `loading`/`ready` y
+`data-intro-phase` la fase del sobre. Ejecutar `npx tsc --noEmit` y `npm run build`.
+
 ### 1. Configuración centralizada
 **Todo** dato de la boda vive en `src/config/wedding.config.ts`.
 Los componentes reciben datos como **props**, nunca leen la config directamente.

@@ -1,28 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 export type DeviceViewport = "desktop" | "movil";
 
-const MOBILE_QUERY = "(max-width: 768px)";
+const MOBILE_QUERY = "(width < 768px)";
 
-/**
- * Detecta si el viewport actual corresponde a móvil o escritorio usando el
- * mismo punto de corte (768px) que el breakpoint `md` de Tailwind, reevaluado
- * en cada cambio de tamaño/orientación. Devuelve "desktop" hasta el primer
- * render en cliente para evitar desajustes de hidratación.
- */
-export function useDeviceViewport(): DeviceViewport {
-  const [viewport, setViewport] = useState<DeviceViewport>("desktop");
+function subscribe(onChange: () => void) {
+  const media = window.matchMedia(MOBILE_QUERY);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const media = window.matchMedia(MOBILE_QUERY);
-    const onChange = () => setViewport(media.matches ? "movil" : "desktop");
-    onChange();
-    media.addEventListener("change", onChange);
-    return () => media.removeEventListener("change", onChange);
-  }, []);
-
-  return viewport;
+// El servidor no conoce el dispositivo: no presenta una intro de PC provisional.
+export function useDeviceViewport(): DeviceViewport | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(MOBILE_QUERY).matches ? "movil" : "desktop",
+    () => null,
+  );
 }

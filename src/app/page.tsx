@@ -27,6 +27,7 @@ import PostIntroSectionsGate from "@/components/motion/PostIntroSectionsGate";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import type { CSSProperties } from "react";
 import WeddingViewport from "@/components/layout/WeddingViewport";
+import { getEnvelopeResources } from "@/lib/intro-envelope-resources";
 
 const DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX = 252;
 const DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX = 16;
@@ -673,33 +674,26 @@ export default async function PaginaPrincipal({
   const introStorageKey = `intro:${config.slug}`;
   const normalizedIntro = introSection?.intro ? normalizeIntroConfig(introSection.intro) : undefined;
 
-  // Precarga (en el <head>, antes de hidratar React) el lacre y el fondo del sobre:
-  // ambos se sirven vía nuestro proxy de Drive, así que el navegador puede empezar a
-  // descargarlos en paralelo con el JS en vez de esperar a que el componente monte y
-  // calcule el `background-image`/`fetch()`, que es lo que hacía que tardaran en verse.
-  const lacreSrc = normalizedIntro ? resolveDriveMediaSrc(normalizedIntro.lacreUrl) || "/images/Sello.svg" : undefined;
-  const envelopeImageSrcs = normalizedIntro
-    ? Array.from(
-        new Set(
-          [normalizedIntro.pc?.envelope?.imagenUrl, normalizedIntro.movil?.envelope?.imagenUrl]
-            .filter((url): url is string => Boolean(url?.trim()))
-            .map((url) => resolveDriveMediaSrc(url)),
-        ),
-      )
-    : [];
-
+  const lacreSrc = normalizedIntro?.activo ? resolveDriveMediaSrc(normalizedIntro.lacreUrl) || "/images/Sello.svg" : undefined;
   const introPalette = getPaletteBySection(introSection);
   const sobreRole = introSection?.componentRoles?.["intro.sobre"] ?? "fondoSubseccion";
   const sobreTexture = introPalette ? resolvePaletteRoleTextures(introPalette)[sobreRole] : undefined;
   const envelopeTexture = sobreTexture
     ? { url: resolveDriveMediaSrc(sobreTexture.url), sizePx: sobreTexture.sizePx, color: sobreTexture.color }
     : undefined;
+  const envelopeImageSrcs = normalizedIntro?.activo
+    ? [...new Set([normalizedIntro.pc, normalizedIntro.movil].flatMap((device) => {
+        if (device?.tipo !== "envelope") return [];
+        const resources = getEnvelopeResources(device.envelope ?? {}, envelopeTexture);
+        return [resources.texture?.url, resources.image, resources.exterior].filter((src): src is string => Boolean(src));
+      }))]
+    : [];
 
   const contentWithIntro = introSection?.intro ? (
     <>
-      {lacreSrc ? <link rel="preload" href={lacreSrc} as="fetch" crossOrigin="anonymous" /> : null}
+      {lacreSrc && !lacreSrc.trim().startsWith("<") ? <link rel="preload" href={lacreSrc} as="fetch" crossOrigin="anonymous" fetchPriority="high" /> : null}
       {envelopeImageSrcs.map((src) => (
-        <link key={src} rel="preload" href={src} as="image" />
+        <link key={src} rel="preload" href={src} as="image" fetchPriority="high" />
       ))}
       <IntroReveal
         config={introSection.intro}

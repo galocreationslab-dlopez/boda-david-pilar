@@ -6,6 +6,7 @@ import AutoDrawSVG, { parseNativeSvgAnimations, svgMarkupHandlesClick, type Nati
 import IntroAnimationStage from "@/components/motion/IntroAnimationStage";
 import EnvelopeOpenReveal, { type EnvelopeTexture } from "@/components/motion/EnvelopeOpenReveal";
 import { useDeviceViewport } from "@/components/motion/useDeviceViewport";
+import { decodeIntroImage, INTRO_RESOURCE_TIMEOUT_MS, useIntroReducedMotion } from "@/components/motion/useIntroResources";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { normalizeIntroConfig, type IntroDeviceConfig, type IntroSeccionConfig } from "@/config/wedding.config";
 
@@ -18,8 +19,8 @@ const DEFAULT_DEVICE_CONFIG: IntroDeviceConfig = { tipo: "revealBook" };
  * - "animatedSvg": SVG animado que NO escucha clics; el clic se captura desde fuera.
  * - "image": cualquier otra imagen (PNG, JPG, WebP...); el clic se captura desde fuera.
  */
-type LacreKind = "loading" | "staticSvg" | "interactiveSvg" | "animatedSvg" | "image";
-type LacreDetection = { kind: LacreKind; nativeAnimationOptions: NativeSvgAnimationOption[] };
+type LacreKind = "loading" | "failed" | "staticSvg" | "interactiveSvg" | "animatedSvg" | "image";
+type LacreDetection = { kind: LacreKind; nativeAnimationOptions: NativeSvgAnimationOption[]; source?: string };
 
 const LACRE_LOADING: LacreDetection = { kind: "loading", nativeAnimationOptions: [] };
 const LACRE_IMAGE: LacreDetection = { kind: "image", nativeAnimationOptions: [] };
@@ -31,22 +32,31 @@ function classifySvgMarkup(markup: string): LacreDetection {
   return { kind: svgMarkupHandlesClick(markup) ? "interactiveSvg" : "animatedSvg", nativeAnimationOptions: options };
 }
 
-async function detectLacreKind(lacreUrl: string): Promise<LacreDetection> {
+async function detectLacreKind(lacreUrl: string, signal: AbortSignal, retainUrl: (url: string) => void): Promise<LacreDetection> {
   const trimmed = lacreUrl.trim();
-  if (trimmed.startsWith("<svg") || trimmed.startsWith("<?xml")) return classifySvgMarkup(trimmed);
+  if (trimmed.startsWith("<svg") || trimmed.startsWith("<?xml")) return { ...classifySvgMarkup(trimmed), source: trimmed };
 
+  let res: Response;
   try {
-    const res = await fetch(lacreUrl);
-    if (!res.ok) return LACRE_IMAGE;
-    const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
-    // Evita descargar como texto imágenes binarias cuando el servidor ya dice qué son.
-    if (contentType.startsWith("image/") && !contentType.includes("svg")) return LACRE_IMAGE;
-    const text = await res.text();
-    return /<svg[\s>]/i.test(text) ? classifySvgMarkup(text) : LACRE_IMAGE;
-  } catch {
-    // Si no se puede leer (p. ej. CORS), se muestra como <img>, que no necesita leer el contenido.
-    return LACRE_IMAGE;
+    res = await fetch(lacreUrl, { signal });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    console.warn("[Intro] No se pudo inspeccionar el lacre; se intenta como imagen", lacreUrl, error);
+    await decodeIntroImage(lacreUrl, signal);
+    return { ...LACRE_IMAGE, source: lacreUrl };
   }
+  if (!res.ok) throw new Error(`No se pudo cargar el lacre (${res.status})`);
+  const blob = await res.blob();
+  const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+  if (!contentType.startsWith("image/") || contentType.includes("svg")) {
+    const text = await blob.text();
+    if (/<svg[\s>]/i.test(text)) return { ...classifySvgMarkup(text), source: text };
+  }
+  signal.throwIfAborted();
+  const source = URL.createObjectURL(blob);
+  retainUrl(source);
+  await decodeIntroImage(source, signal);
+  return { ...LACRE_IMAGE, source };
 }
 
 /** Detecta qué tipo de lacre se ha configurado para decidir cómo capturar el clic que inicia la intro. */
@@ -55,11 +65,23 @@ function useLacreDetection(lacreUrl: string): LacreDetection {
 
   useEffect(() => {
     let isMounted = true;
-    void detectLacreKind(lacreUrl).then((detection) => {
+    const controller = new AbortController();
+    let objectUrl: string | undefined;
+    const timer = window.setTimeout(() => controller.abort(new Error("Tiempo de carga del lacre agotado")), INTRO_RESOURCE_TIMEOUT_MS);
+    void detectLacreKind(lacreUrl, controller.signal, (url) => { objectUrl = url; }).then((detection) => {
       if (isMounted) setState({ src: lacreUrl, detection });
+    }).catch((error: unknown) => {
+      if (!isMounted) return;
+      console.warn("[Intro] Lacre no disponible", lacreUrl, error);
+      setState({ src: lacreUrl, detection: { kind: "failed", nativeAnimationOptions: [] } });
+    }).finally(() => {
+      window.clearTimeout(timer);
     });
     return () => {
       isMounted = false;
+      window.clearTimeout(timer);
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [lacreUrl]);
 
@@ -78,6 +100,7 @@ type Props = {
 export default function IntroReveal({ config: rawConfig, storageKey, themeStyle, introStyle, envelopeTexture, children }: Props) {
   const config = normalizeIntroConfig(rawConfig) ?? rawConfig;
   const viewport = useDeviceViewport();
+  const reduceMotion = useIntroReducedMotion();
   const deviceConfig = (viewport === "movil" ? config.movil : config.pc) ?? DEFAULT_DEVICE_CONFIG;
   const [started, setStarted] = useState(false);
   const [closingLacre, setClosingLacre] = useState(false);
@@ -90,11 +113,24 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   );
 
   const lacreSrc = resolveDriveMediaSrc(config.lacreUrl) || DEFAULT_LACRE;
-  const { kind: lacreKind, nativeAnimationOptions } = useLacreDetection(lacreSrc);
+  const { kind: detectedLacreKind, nativeAnimationOptions, source: preparedLacreSrc } = useLacreDetection(lacreSrc);
+  const [renderedLacreSrc, setRenderedLacreSrc] = useState<string>();
+  const [failedRenderSrc, setFailedRenderSrc] = useState<string>();
+  const lacreKind = preparedLacreSrc && failedRenderSrc === preparedLacreSrc ? "failed" : detectedLacreKind;
+  const markLacreReady = useCallback(() => setRenderedLacreSrc(preparedLacreSrc), [preparedLacreSrc]);
+  const lacreReady = lacreKind === "failed" || lacreKind === "image" || (lacreKind !== "loading" && renderedLacreSrc === preparedLacreSrc);
+  useEffect(() => {
+    if (!preparedLacreSrc || lacreReady) return;
+    const timer = window.setTimeout(() => {
+      console.warn("[Intro] El SVG del lacre no pudo prepararse", lacreSrc);
+      setFailedRenderSrc(preparedLacreSrc);
+    }, INTRO_RESOURCE_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [preparedLacreSrc, lacreReady, lacreSrc]);
   // Imágenes y SVG animados que no escuchan el clic: la web captura el clic sobre
   // el lacre, lo desvanece y usa ese clic como disparador de la intro.
-  const lacreUsesExternalClick = lacreKind === "image" || lacreKind === "animatedSvg";
-  const lacreDurationMs = Math.max(300, config.duracionLacreMs ?? 900);
+  const lacreUsesExternalClick = lacreKind === "image" || lacreKind === "animatedSvg" || lacreKind === "failed";
+  const lacreDurationMs = reduceMotion ? 0 : Math.max(300, config.duracionLacreMs ?? 900);
   const configuredNativeAnimationId = config.lacreTriggerAnimationId;
   const selectedNativeAnimationId = configuredNativeAnimationId && nativeAnimationOptions.some((animation) => animation.id === configuredNativeAnimationId)
     ? configuredNativeAnimationId
@@ -108,6 +144,11 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
 
   const startIntro = () => {
     if (closingLacre) return;
+    if (reduceMotion) {
+      setLacreGone(true);
+      setStarted(true);
+      return;
+    }
     setClosingLacre(true);
   };
 
@@ -196,6 +237,9 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
     if (lacreKind === "loading") {
       return <span className={`block ${sizeClassName}`} aria-hidden="true" />;
     }
+    if (lacreKind === "failed") {
+      return <button type="button" className={`block text-xs text-[var(--bronze-light)] underline ${sizeClassName}`} onClick={startIntro}>Abrir invitación</button>;
+    }
 
     if (lacreKind === "interactiveSvg") {
       // El lacre tiene animación nativa que escucha el clic por sí misma,
@@ -207,7 +251,8 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
           aria-label="Abriendo invitación"
         >
           <AutoDrawSVG
-            svgSource={lacreSrc}
+            svgSource={preparedLacreSrc ?? lacreSrc}
+            onReady={markLacreReady}
             animate
             strokeColorOverride={themeValue("--bronze-light")}
             durationMs={lacreDurationMs}
@@ -243,10 +288,11 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
           >
             {lacreKind === "image" ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={lacreSrc} alt="" draggable={false} className="h-full w-full object-contain" />
+              <img src={preparedLacreSrc} alt="" draggable={false} className="h-full w-full object-contain" />
             ) : (
               <AutoDrawSVG
-                svgSource={lacreSrc}
+                svgSource={preparedLacreSrc ?? lacreSrc}
+                onReady={markLacreReady}
                 animate
                 strokeColorOverride={themeValue("--bronze-light")}
                 durationMs={lacreDurationMs}
@@ -263,10 +309,11 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
 
     // El lacre es un SVG estático: espera clic para borrarse y luego abre la siguiente etapa.
     return (
-      <button type="button" className="group mx-auto block focus:outline-none" onClick={startIntro} aria-label="Abrir invitación">
+      <button type="button" className={`group mx-auto block focus:outline-none ${sizeClassName}`} onClick={startIntro} aria-label="Abrir invitación">
         <span className={`block ${sizeClassName}`} style={{ color: sealColor, backgroundColor: sealBackground }}>
           <AutoDrawSVG
-            svgSource={lacreSrc}
+            svgSource={preparedLacreSrc ?? lacreSrc}
+            onReady={markLacreReady}
             direction={closingLacre ? "reverse" : "forward"}
             animate={closingLacre}
             strokeColorOverride={themeValue("--bronze-light")}
@@ -280,11 +327,20 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
     );
   };
 
+  if (viewport === null) {
+    return (
+      <IntroProvider introActive={introIsCurrentlyActive}>
+        <div className="wedding-fixed fixed inset-y-0 z-[100]" aria-busy="true" style={{ backgroundColor: "var(--wedding-loading-background, #F7F3EC)" }}>
+          <span role="status" className="sr-only">Preparando invitación...</span>
+        </div>
+      </IntroProvider>
+    );
+  }
+
   if (isEnvelopeMode) {
     return (
       <IntroProvider introActive={introIsCurrentlyActive}>
         <>
-          {children}
           <div className="wedding-fixed fixed inset-y-0 z-[100] overflow-hidden" style={{ ...themeStyle, ...introStyle }}>
             <EnvelopeOpenReveal
               config={deviceConfig.envelope ?? {}}
@@ -292,10 +348,11 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
               fondo={introBackground}
               sealSizePercent={lacreSizePercent}
               sealBroken={lacreGone}
+              sealReady={lacreReady}
               sealSlot={renderSealVisual("h-full w-full")}
               onComplete={completeIntro}
             >
-              {children}
+              {lacreReady ? children : null}
             </EnvelopeOpenReveal>
 
             {(showIntroTitle || showIntroSubtitle) && !lacreGone ? (
@@ -327,8 +384,13 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
         {children}
 
       {isLacreStep ? (
-        <div className="wedding-fixed fixed inset-y-0 z-[100] flex min-h-[100svh] items-center justify-center overflow-hidden bg-[var(--brown-dark)] px-4 py-8" style={{ ...themeStyle, ...introStyle }}>
-          <div className="w-full max-w-5xl text-center" style={introFrameStyle}>
+        <div
+          className="wedding-fixed fixed inset-y-0 z-[100] flex min-h-[100svh] items-center justify-center overflow-hidden bg-[var(--brown-dark)] px-4 py-8"
+          aria-busy={!lacreReady}
+          style={{ ...themeStyle, ...introStyle, ...(!lacreReady ? { backgroundColor: "var(--wedding-loading-background, #F7F3EC)", backgroundImage: "none" } : {}) }}
+        >
+          {!lacreReady ? <span role="status" className="sr-only">Preparando invitación...</span> : null}
+          <div className="w-full max-w-5xl text-center" style={{ ...introFrameStyle, visibility: lacreReady ? "visible" : "hidden", transitionProperty: "none" }}>
             {showIntroTitle ? (
               <p className="font-display text-2xl text-[var(--cream)] sm:text-3xl">{introTitle}</p>
             ) : null}

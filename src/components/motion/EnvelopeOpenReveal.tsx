@@ -2,13 +2,10 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import type { IntroEnvelopeConfig } from "@/config/wedding.config";
-import { resolveDriveMediaSrc } from "@/lib/drive-image";
+import { getEnvelopeResources, type EnvelopeTexture } from "@/lib/intro-envelope-resources";
+import { useIntroImages, useIntroReducedMotion } from "@/components/motion/useIntroResources";
 
-export type EnvelopeTexture = {
-  url: string;
-  sizePx?: number;
-  color: string;
-};
+export type { EnvelopeTexture } from "@/lib/intro-envelope-resources";
 
 export type EnvelopeOpenRevealProps = {
   config: IntroEnvelopeConfig;
@@ -17,6 +14,7 @@ export type EnvelopeOpenRevealProps = {
   fondo?: string;
   /** Se activa cuando el lacre ha terminado su animación (el sello se ha roto). */
   sealBroken: boolean;
+  sealReady?: boolean;
   /** Contenido del lacre, se muestra centrado en el pico de la solapa mientras el sobre está cerrado. */
   sealSlot?: ReactNode;
   sealSizePercent?: number;
@@ -43,10 +41,10 @@ function roundedApex(apexX: number, apexY: number, cornerY: number, f: number) {
 /**
  * Ancho/alto del marco util. Solo se necesita en modo de relación de
  * aspecto "fijo": el propio recuadro del sobre puede dimensionarse con CSS
- * puro (`min()`/`aspect-ratio`), pero la portada se escala con `transform:
+ * puro (unidades de contenedor y `aspect-ratio`), pero la portada se escala con `transform:
  * scale()` sobre un elemento a tamaño de ventana, y ese factor de escala debe
  * ser un número (no se puede dividir una longitud CSS entre otra en calc()),
- * así que aquí sí hace falta medir la ventana.
+ * así que aquí sí hace falta medir el marco útil.
  *
  * Se mide en `useLayoutEffect` (síncrono, antes de pintar) en vez de
  * `useEffect`: así la primera pintura ya usa las medidas reales y no se ve
@@ -91,16 +89,15 @@ function useViewportSize(ref: RefObject<HTMLDivElement | null>) {
  * margen configurado pasa a ser un mínimo, y el lado sobrante se reparte como
  * margen extra en el eje que le sobre espacio.
  */
-export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken, sealSlot, sealSizePercent = 24, onComplete, children }: EnvelopeOpenRevealProps) {
+export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken, sealReady = true, sealSlot, sealSizePercent = 24, onComplete, children }: EnvelopeOpenRevealProps) {
   const [phase, setPhase] = useState<Phase>("closed");
   const patternId = useId();
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize(viewportRef);
+  const reduceMotion = useIntroReducedMotion();
 
   const modoFondo = config.modoFondo ?? "colores";
-  const acabadoPaleta = config.acabadoPaleta ?? "textura";
-  const paletteTexture = acabadoPaleta !== "personalizado" && texture?.url ? texture : undefined;
-  const tex = acabadoPaleta === "textura" ? paletteTexture : undefined;
+  const { paletteTexture, texture: configuredTexture, image: configuredImageSrc, exterior: exteriorSrc } = getEnvelopeResources(config, texture);
   const colorBase = paletteTexture?.color || config.colorBase || "#e8ddc7";
   // Color de la trasera y la cara exterior de la solapa: son la misma pieza de papel,
   // por eso comparten color, independiente del color del frontal.
@@ -114,8 +111,11 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   const sombraDesenfoque = Math.max(0, config.sombraDesenfoquePorcentaje ?? 3);
   const flapPct = Math.min(70, Math.max(20, config.alturaSolapaPorcentaje ?? 42));
   const radioPico = Math.min(50, Math.max(0, config.radioPicoSolapaPorcentaje ?? 10)) / 100;
-  const usaImagen = !paletteTexture && modoFondo !== "colores" && Boolean(config.imagenUrl);
-  const imagenSobreSrc = usaImagen ? resolveDriveMediaSrc(config.imagenUrl) : "";
+  const resources = useIntroImages([configuredTexture?.url ?? "", configuredImageSrc, exteriorSrc]);
+  const tex = configuredTexture && !resources.failed.includes(configuredTexture.url) ? configuredTexture : undefined;
+  const imagenSobreSrc = resources.failed.includes(configuredImageSrc) ? "" : configuredImageSrc;
+  const usaImagen = Boolean(imagenSobreSrc);
+  const ready = viewport.width > 0 && viewport.height > 0 && sealReady && resources.ready;
   const colorSombraApertura = config.colorSombraApertura || "rgba(0,0,0,0.55)";
   const intensidadSombraApertura = Math.min(100, Math.max(0, config.intensidadSombraAperturaPorcentaje ?? 45)) / 100;
   const colorGrosorPapel = config.colorGrosorPapel || "rgba(0,0,0,0.4)";
@@ -130,9 +130,9 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   const aspectoAncho = Math.max(0.1, config.aspectoAnchoSobre ?? 3);
   const aspectoAlto = Math.max(0.1, config.aspectoAltoSobre ?? 2);
   const aspectRatio = aspectoAncho / aspectoAlto;
-  const duracionApertura = Math.max(300, config.duracionAperturaMs ?? 900);
-  const duracionDescenso = Math.max(300, config.duracionDescensoMs ?? 700);
-  const duracionZoom = Math.max(300, config.duracionZoomMs ?? 900);
+  const duracionApertura = reduceMotion ? 0 : Math.max(300, config.duracionAperturaMs ?? 900);
+  const duracionDescenso = reduceMotion ? 0 : Math.max(300, config.duracionDescensoMs ?? 700);
+  const duracionZoom = reduceMotion ? 0 : Math.max(300, config.duracionZoomMs ?? 900);
   const sealSize = Math.min(40, Math.max(5, sealSizePercent));
 
   // Factor de escala = 1 - 2 * (margen / 100): al aplicarse desde el centro
@@ -148,16 +148,14 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   // nunca dejaba que el sobre se saliera; ahora el eje elegido manda siempre.
   const margenDisponiblePct = 100 - margenPantalla * 2;
   const envelopeFixedSizeExpr =
-    ajusteAspecto === "alto" ? `calc(${margenDisponiblePct} * var(--wedding-vh, 1vh))` : `calc(${margenDisponiblePct} * var(--wedding-vw, 1vw))`;
+    ajusteAspecto === "alto" ? `${margenDisponiblePct}cqh` : `${margenDisponiblePct}cqw`;
 
   const envelopeBoxStyle: CSSProperties =
     modoAspecto === "fijo"
       ? ajusteAspecto === "alto"
         ? { position: "absolute", left: "50%", top: "50%", height: envelopeFixedSizeExpr, width: "auto", aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
         : { position: "absolute", left: "50%", top: "50%", width: envelopeFixedSizeExpr, height: "auto", aspectRatio: `${aspectRatio}`, transform: "translate(-50%, -50%)" }
-      : tex
-        ? { position: "absolute", top: `${margenPantalla}%`, bottom: `${margenPantalla}%`, left: `${margenPantalla}%`, right: `${margenPantalla}%` }
-        : { position: "absolute", inset: 0, transformOrigin: "50% 50%", transform: `scale(${envelopeScale})` };
+      : { position: "absolute", top: `${margenPantalla}%`, bottom: `${margenPantalla}%`, left: `${margenPantalla}%`, right: `${margenPantalla}%` };
 
   // La portada se ajusta SIEMPRE al ancho disponible (sobre menos su margen), centrada
   // horizontalmente, con su borde superior pegado al borde superior del hueco (no se
@@ -205,9 +203,14 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   // a setPhase (el efecto se re-ejecuta por el cambio de `phase` y su cleanup
   // borra el timer recién creado antes de que llegue a disparar).
   useEffect(() => {
-    if (!sealBroken || phase !== "closed") return;
+    if (!sealBroken || !ready || phase !== "closed") return;
+    if (reduceMotion) {
+      setPhase("done");
+      onComplete?.();
+      return;
+    }
     setPhase("opening");
-  }, [sealBroken, phase]);
+  }, [sealBroken, ready, phase, reduceMotion, onComplete]);
 
   useEffect(() => {
     if (phase !== "opening") return;
@@ -263,9 +266,9 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
       }
     : { backgroundColor: colorTrasera };
 
-  const fondoExteriorStyle: CSSProperties = config.fondoExteriorImagenUrl
+  const fondoExteriorStyle: CSSProperties = exteriorSrc && !resources.failed.includes(exteriorSrc)
     ? {
-        backgroundImage: `url(${config.fondoExteriorImagenUrl})`,
+        backgroundImage: `url(${exteriorSrc})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundColor: fondoExteriorColor,
@@ -295,12 +298,8 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
 
   const isFinalSize = phase === "zooming" || phase === "done";
 
-  // Mientras el sobre está cerrado, la portada permanece oculta: aunque su tamaño ya
-  // esté bien calculado desde el primer render, el `useLayoutEffect` que mide la
-  // ventana real para corregirlo se dispara justo después, y ese reajuste podía verse
-  // como un "resize" de pantalla completa a su tamaño dentro del sobre. Ocultándola
-  // hasta que la solapa empieza a abrirse (momento en el que ya lleva un buen rato
-  // medida y corregida), la primera vez que se ve ya tiene el tamaño definitivo.
+  // La portada no debe transparentarse a través del sobre cerrado.
+  // Su geometría ya está medida antes de presentar la intro.
   const contentVisible = phase !== "closed";
 
   // La portada se desplaza (sin escalar) para pasar de centrada a pegada arriba de su
@@ -311,7 +310,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
     inset: 0,
     opacity: contentVisible ? 1 : 0,
     transform: `translateY(${isFinalSize ? 0 : contentOffsetY}px)`,
-    transition: `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1), opacity 150ms ease`,
+    transition: phase === "closed" ? "none" : `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1), opacity ${reduceMotion ? 0 : 150}ms ease`,
   };
 
   const contentWrapperStyle: CSSProperties = {
@@ -323,7 +322,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
     overflow: "hidden",
     transformOrigin: "50% 50%",
     transform: `scale(${isFinalSize ? 1 : contentScale})`,
-    transition: `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
+    transition: phase === "closed" ? "none" : `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
     // "Papel apilado": dos sombras planas y desplazadas simulan hojas debajo de la
     // portada, más una sombra difusa para separación del fondo; dan sensación de grosor.
     boxShadow: [
@@ -364,7 +363,18 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   };
 
   return (
-    <div ref={viewportRef} className="wedding-fixed fixed inset-y-0 overflow-hidden" style={fondoExteriorStyle}>
+    <div
+      ref={viewportRef}
+      className="wedding-fixed fixed inset-y-0 overflow-hidden"
+      data-intro-state={ready ? "ready" : "loading"}
+      data-intro-phase={phase}
+      aria-busy={!ready}
+      style={{ ...fondoExteriorStyle, ...(!ready ? { backgroundImage: "none", backgroundColor: "var(--wedding-loading-background, #F7F3EC)" } : {}), containerType: "size" }}
+    >
+      {!ready ? (
+        <span role="status" className="sr-only">Preparando invitación...</span>
+      ) : null}
+      <div className="absolute inset-0" style={{ visibility: ready ? "visible" : "hidden", transitionProperty: "none" }} aria-hidden={!ready} inert={!ready}>
       {/* Trasera del sobre: rectángulo liso del mismo color, siempre detrás de la
           portada; desciende en sincronía con el frontal para que el sobre se retire
           como un conjunto único. */}
@@ -385,7 +395,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
 
       {/* Portada real, siempre montada a tamaño natural; se ve reducida como una carta hasta el zoom final. */}
       <div className="z-10" style={contentOuterStyle}>
-        <div style={contentWrapperStyle}>{children}</div>
+        <div style={contentWrapperStyle}>{ready ? children : null}</div>
         <div style={paperBevelStyle} />
       </div>
 
@@ -589,18 +599,24 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
           <div
             className="absolute aspect-square"
             style={{
-              width: `calc(${sealSize} * var(--wedding-vmin, 1vmin))`,
+              width: `calc(${sealSize} * min(1cqw, 1cqh))`,
               left: "50%",
               top: `${flapPct}%`,
               transform: "translate(-50%, -50%)",
               opacity: sealVisible ? 1 : 0,
-              transition: "opacity 250ms ease",
+              transition: reduceMotion ? "none" : "opacity 250ms ease",
               pointerEvents: sealVisible ? "auto" : "none",
             }}
           >
             {sealSlot}
           </div>
         </div>
+      ) : null}
+      </div>
+      {ready && resources.failed.length > 0 && phase === "closed" ? (
+        <p role="status" className="absolute inset-x-0 bottom-2 text-center text-xs opacity-60" style={{ color: colorBorde }}>
+          No se pudieron cargar algunos recursos de la invitación.
+        </p>
       ) : null}
     </div>
   );

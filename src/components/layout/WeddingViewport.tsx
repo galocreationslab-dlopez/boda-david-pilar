@@ -53,8 +53,10 @@ export default function WeddingViewport({ design, device, resolveSrc = resolveDr
     };
   }, [device, izquierdo, derecho]);
 
+  const backgroundStyle = getPageBackgroundStyle(design, resolveSrc);
   const style = {
-    ...getPageBackgroundStyle(design, resolveSrc),
+    ...backgroundStyle,
+    "--wedding-loading-background": backgroundStyle.backgroundColor,
     "--wedding-margin-left": `${izquierdo}px`,
     "--wedding-margin-right": `${derecho}px`,
   } as CSSProperties;
