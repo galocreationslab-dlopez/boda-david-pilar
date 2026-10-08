@@ -125,6 +125,41 @@ las solicitudes del lacre y la textura, y comprobar dimensiones y estilos
 además de la captura. `data-intro-state` indica `loading`/`ready` y
 `data-intro-phase` la fase del sobre. Ejecutar `npx tsc --noEmit` y `npm run build`.
 
+### Sello seco en la solapa de la Intro (fase a)
+
+En **Contenido → Intro → PC / Móvil → Sobre**, configura **Sello seco en la
+solapa**: subida PNG/JPG/SVG, selección de recursos o URL. Guarda los cambios
+para persistirlo en `intro.pc.envelope` o `intro.movil.envelope`, dentro de
+`diseno.secciones` de `config_json`. Los campos son `selloSecoUrl`,
+`selloSecoTamanoPorcentaje`, `selloSecoXPorcentaje` y `selloSecoYPorcentaje`.
+Sin URL no hay sello seco y la Intro conserva su comportamiento anterior.
+Los defaults son ancho 18% del sobre y centro (50%, 35%) de la solapa.
+Se conservan las proporciones y se recorta el dibujo al papel de la solapa.
+
+PNG/JPG conservan sus colores y se integran en el papel mediante
+`selloSecoMezclaImagen`: `overlay` (default), `soft-light`, `hard-light` o
+`normal` (sin mezcla). Para SVG, `selloSecoRelieveSvg` permite activar un
+relieve adicional; por defecto está desactivado para respetar un relieve
+ya incorporado en el archivo. Al activarlo se aplica exactamente
+`drop-shadow(-1px -1px 1px rgba(255,255,255,.9)) drop-shadow(1px 1px 1px rgba(0,0,0,.35))`,
+sin recolorear ni sustituir los filtros originales. Ambos controles se
+guardan independientemente para PC y móvil. Las sombras del sobre no cambian.
+El sello pertenece a la cara exterior de la solapa:
+gira con ella, deja de verse por su reverso y se retira junto con el sobre.
+No cambia el lacre ni la secuencia de apertura. Las opciones de desaparición
+previas a la apertura corresponden a la fase (f), no a esta entrega.
+
+Los SVG conservan su animación propia mediante el visor SVG existente
+(incluido el visor aislado para animaciones nativas/script). El sello es
+decorativo y no captura clics ni dispara la apertura. Con movimiento reducido
+se muestra una versión estática del SVG, sin scripts ni animaciones.
+Su carga forma parte de la preparación inicial: un fallo se registra en
+consola y se anuncia, pero permite abrir la invitación sin ese sello.
+
+Prueba aislada: `/dev/envelope-test`. Permite introducir el recurso, ajustar
+tamaño/posición y reiniciar. Comprueba la fase cerrada, el giro, el descenso y
+la portada final; repite en móvil, con recurso ausente y con movimiento reducido.
+
 ### 1. Configuración centralizada
 **Todo** dato de la boda vive en `src/config/wedding.config.ts`.
 Los componentes reciben datos como **props**, nunca leen la config directamente.

@@ -688,10 +688,20 @@ export default async function PaginaPrincipal({
         return [resources.texture?.url, resources.image, resources.exterior].filter((src): src is string => Boolean(src));
       }))]
     : [];
+  const envelopeStampSrcs = normalizedIntro?.activo
+    ? [...new Set([normalizedIntro.pc, normalizedIntro.movil].flatMap((device) => {
+        if (device?.tipo !== "envelope") return [];
+        const src = getEnvelopeResources(device.envelope ?? {}, envelopeTexture).dryStamp;
+        return src && !src.trim().startsWith("<") ? [src] : [];
+      }))]
+    : [];
 
   const contentWithIntro = introSection?.intro ? (
     <>
       {lacreSrc && !lacreSrc.trim().startsWith("<") ? <link rel="preload" href={lacreSrc} as="fetch" crossOrigin="anonymous" fetchPriority="high" /> : null}
+      {envelopeStampSrcs.map((src) => (
+        <link key={src} rel="preload" href={src} as="fetch" crossOrigin="anonymous" fetchPriority="high" />
+      ))}
       {envelopeImageSrcs.map((src) => (
         <link key={src} rel="preload" href={src} as="image" fetchPriority="high" />
       ))}

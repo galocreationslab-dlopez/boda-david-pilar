@@ -55,10 +55,46 @@ export default function EnvelopeTestPage() {
       </p>
 
       <section className="relative z-50 grid gap-6 lg:grid-cols-[340px,1fr]">
-        <aside className="card-wedding space-y-4">
+        <aside className="card-wedding relative z-10 space-y-4">
           <button type="button" className="btn-secondary w-full" onClick={replay}>
             Reiniciar animación
           </button>
+
+          <div>
+            <label htmlFor="dry-stamp-url" className="label-field">Sello seco (PNG, JPG o SVG animado)</label>
+            <input id="dry-stamp-url" className="input-field" value={config.selloSecoUrl ?? ""} onChange={(e) => patch({ selloSecoUrl: e.target.value })} placeholder="/images/sello.svg" />
+          </div>
+          <div>
+            <label htmlFor="dry-stamp-size" className="label-field">Ancho sello seco (% sobre)</label>
+            <input id="dry-stamp-size" type="number" min={5} max={40} className="input-field" value={config.selloSecoTamanoPorcentaje ?? 18} onChange={(e) => patch({ selloSecoTamanoPorcentaje: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label htmlFor="dry-stamp-blend" className="label-field">Mezcla del sello seco PNG/JPG</label>
+            <select id="dry-stamp-blend" className="input-field" value={config.selloSecoMezclaImagen ?? "overlay"}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "overlay" || value === "soft-light" || value === "hard-light" || value === "normal") patch({ selloSecoMezclaImagen: value });
+              }}>
+              <option value="overlay">Overlay</option>
+              <option value="soft-light">Soft light</option>
+              <option value="hard-light">Hard light</option>
+              <option value="normal">Sin mezcla</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input id="dry-stamp-svg-relief" type="checkbox" checked={config.selloSecoRelieveSvg ?? false} onChange={(e) => patch({ selloSecoRelieveSvg: e.target.checked })} />
+            Simular relieve del SVG con luz y sombra
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="dry-stamp-x" className="label-field">Centro X (% solapa)</label>
+              <input id="dry-stamp-x" type="number" min={0} max={100} className="input-field" value={config.selloSecoXPorcentaje ?? 50} onChange={(e) => patch({ selloSecoXPorcentaje: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label htmlFor="dry-stamp-y" className="label-field">Centro Y (% solapa)</label>
+              <input id="dry-stamp-y" type="number" min={0} max={100} className="input-field" value={config.selloSecoYPorcentaje ?? 35} onChange={(e) => patch({ selloSecoYPorcentaje: Number(e.target.value) })} />
+            </div>
+          </div>
 
           <div>
             <label className="label-field">Acabado</label>

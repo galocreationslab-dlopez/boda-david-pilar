@@ -244,6 +244,12 @@ export type IntroEnvelopeConfig = {
   acabadoPaleta?: "textura" | "color" | "personalizado";
   modoFondo?: IntroEnvelopeModoFondo;
   imagenUrl?: string; // textura o sobre completo, según modoFondo
+  selloSecoUrl?: string; // opcional: PNG, JPG o SVG (también animado)
+  selloSecoTamanoPorcentaje?: number; // 5-40: ancho respecto al sobre; defecto 18
+  selloSecoXPorcentaje?: number; // centro respecto al ancho de la solapa; defecto 50
+  selloSecoYPorcentaje?: number; // centro respecto al alto de la solapa; defecto 35
+  selloSecoMezclaImagen?: "overlay" | "soft-light" | "hard-light" | "normal";
+  selloSecoRelieveSvg?: boolean; // false: conserva el acabado original del SVG
   colorBase?: string; // color del frontal (la cara exterior/visible del sobre)
   colorTrasera?: string; // color de la trasera y la cara exterior de la solapa (misma pieza de papel)
   colorBorde?: string;

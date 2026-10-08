@@ -4,6 +4,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties
 import type { IntroEnvelopeConfig } from "@/config/wedding.config";
 import { getEnvelopeResources, type EnvelopeTexture } from "@/lib/intro-envelope-resources";
 import { useIntroImages, useIntroReducedMotion } from "@/components/motion/useIntroResources";
+import EnvelopeDryStamp from "@/components/motion/EnvelopeDryStamp";
 
 export type { EnvelopeTexture } from "@/lib/intro-envelope-resources";
 
@@ -95,9 +96,10 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize(viewportRef);
   const reduceMotion = useIntroReducedMotion();
+  const [stampStatus, setStampStatus] = useState<{ src: string; failed: boolean; image: boolean }>();
 
   const modoFondo = config.modoFondo ?? "colores";
-  const { paletteTexture, texture: configuredTexture, image: configuredImageSrc, exterior: exteriorSrc } = getEnvelopeResources(config, texture);
+  const { paletteTexture, texture: configuredTexture, image: configuredImageSrc, exterior: exteriorSrc, dryStamp: dryStampSrc } = getEnvelopeResources(config, texture);
   const colorBase = paletteTexture?.color || config.colorBase || "#e8ddc7";
   // Color de la trasera y la cara exterior de la solapa: son la misma pieza de papel,
   // por eso comparten color, independiente del color del frontal.
@@ -115,7 +117,9 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   const tex = configuredTexture && !resources.failed.includes(configuredTexture.url) ? configuredTexture : undefined;
   const imagenSobreSrc = resources.failed.includes(configuredImageSrc) ? "" : configuredImageSrc;
   const usaImagen = Boolean(imagenSobreSrc);
-  const ready = viewport.width > 0 && viewport.height > 0 && sealReady && resources.ready;
+  const stampReady = !dryStampSrc || stampStatus?.src === dryStampSrc;
+  const stampFailed = Boolean(dryStampSrc && stampStatus?.src === dryStampSrc && stampStatus.failed);
+  const ready = viewport.width > 0 && viewport.height > 0 && sealReady && resources.ready && stampReady;
   const colorSombraApertura = config.colorSombraApertura || "rgba(0,0,0,0.55)";
   const intensidadSombraApertura = Math.min(100, Math.max(0, config.intensidadSombraAperturaPorcentaje ?? 45)) / 100;
   const colorGrosorPapel = config.colorGrosorPapel || "rgba(0,0,0,0.4)";
@@ -512,6 +516,38 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
                       </svg>
                     </>
                   ) : null}
+                  {dryStampSrc ? (
+                    <div
+                      data-envelope-dry-stamp
+                      className="absolute inset-0"
+                      aria-hidden="true"
+                      style={{
+                        ...shapeMask(flapPath),
+                        backfaceVisibility: "hidden",
+                        pointerEvents: "none",
+                        // La mezcla se aplica fuera del contexto aislado de la mascara para alcanzar el papel.
+                        mixBlendMode: stampStatus?.src === dryStampSrc && stampStatus.image ? config.selloSecoMezclaImagen ?? "overlay" : "normal",
+                      }}
+                    >
+                      <div
+                        className="absolute aspect-square"
+                        style={{
+                          width: `${Math.min(40, Math.max(5, config.selloSecoTamanoPorcentaje ?? 18))}%`,
+                          left: `${Math.min(100, Math.max(0, config.selloSecoXPorcentaje ?? 50))}%`,
+                          top: `${Math.min(100, Math.max(0, config.selloSecoYPorcentaje ?? 35))}%`,
+                          transform: "translate(-50%, -50%)",
+                        }}
+                      >
+                        <EnvelopeDryStamp
+                          key={dryStampSrc}
+                          src={dryStampSrc}
+                          svgRelief={config.selloSecoRelieveSvg ?? false}
+                          reduceMotion={reduceMotion}
+                          onStatus={setStampStatus}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
                   {/* Cara interior de la solapa, visible al girar más de 90º */}
                   <div
                     className="absolute inset-0"
@@ -613,9 +649,9 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
         </div>
       ) : null}
       </div>
-      {ready && resources.failed.length > 0 && phase === "closed" ? (
+      {ready && (resources.failed.length > 0 || stampFailed) && phase === "closed" ? (
         <p role="status" className="absolute inset-x-0 bottom-2 text-center text-xs opacity-60" style={{ color: colorBorde }}>
-          No se pudieron cargar algunos recursos de la invitación.
+          {stampFailed ? "No se pudo cargar el sello seco." : "No se pudieron cargar algunos recursos de la invitación."}
         </p>
       ) : null}
     </div>

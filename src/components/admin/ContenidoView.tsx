@@ -1680,6 +1680,67 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
 
                             {deviceConfig.tipo === "envelope" && (
                               <div className="space-y-3">
+                                <IntroAssetField
+                                  label="Sello seco en la solapa (opcional)"
+                                  value={deviceConfig.envelope?.selloSecoUrl ?? ""}
+                                  onChangeValue={(v) => patchIntroDeviceSub(device, "envelope", { selloSecoUrl: v })}
+                                  uploading={uploadingAssetKey === `${uploadPrefix}envelopeSelloSeco`}
+                                  onUpload={(file) => {
+                                    if (!/\.(png|jpe?g|svg)$/i.test(file.name)) {
+                                      showMsg("error", "El sello seco debe ser PNG, JPG o SVG");
+                                      return;
+                                    }
+                                    void uploadGenericAsset(`${uploadPrefix}envelopeSelloSeco`, file, (url) => patchIntroDeviceSub(device, "envelope", { selloSecoUrl: url }));
+                                  }}
+                                  disabled={!recursosDriveConfigured}
+                                  resources={resourcesForIntro}
+                                  placeholder="/images/sello.svg o https://..."
+                                  accept="image/png,image/jpeg,image/svg+xml,.png,.jpg,.jpeg,.svg"
+                                />
+                                <p className="text-xs text-stone-500">
+                                  Las imagenes se integran con el papel mediante el modo de mezcla seleccionado. Los SVG conservan su acabado y animacion propia, con relieve opcional.
+                                  No sustituye al lacre. Vacia la URL para quitarlo.
+                                </p>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Mezcla del sello seco PNG/JPG</label>
+                                    <select className="input-field" value={deviceConfig.envelope?.selloSecoMezclaImagen ?? "overlay"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { selloSecoMezclaImagen: e.target.value })}>
+                                      <option value="overlay">Overlay</option>
+                                      <option value="soft-light">Soft light</option>
+                                      <option value="hard-light">Hard light</option>
+                                      <option value="normal">Sin mezcla</option>
+                                    </select>
+                                  </div>
+                                  <label className="flex items-center gap-2 text-sm">
+                                    <input type="checkbox" checked={deviceConfig.envelope?.selloSecoRelieveSvg ?? false}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { selloSecoRelieveSvg: e.target.checked })} />
+                                    Simular relieve del SVG con luz y sombra
+                                  </label>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                  <div>
+                                    <label className="label-field">Ancho del sello seco (% del sobre)</label>
+                                    <input type="number" min={5} max={40} step={1} className="input-field"
+                                      value={deviceConfig.envelope?.selloSecoTamanoPorcentaje ?? 18}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { selloSecoTamanoPorcentaje: Math.min(40, Math.max(5, Number(e.target.value) || 5)) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Centro horizontal (% solapa)</label>
+                                    <input type="number" min={0} max={100} step={1} className="input-field"
+                                      value={deviceConfig.envelope?.selloSecoXPorcentaje ?? 50}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { selloSecoXPorcentaje: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Centro vertical (% solapa)</label>
+                                    <input type="number" min={0} max={100} step={1} className="input-field"
+                                      value={deviceConfig.envelope?.selloSecoYPorcentaje ?? 35}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { selloSecoYPorcentaje: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
+                                    />
+                                  </div>
+                                </div>
                                 <div>
                                   <label className="label-field">Acabado de la paleta</label>
                                   <select

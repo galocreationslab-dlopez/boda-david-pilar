@@ -15,5 +15,6 @@ export function getEnvelopeResources(config: IntroEnvelopeConfig, texture?: Enve
     texture: finish === "textura" ? paletteTexture : undefined,
     image: !paletteTexture && (config.modoFondo ?? "colores") !== "colores" ? resolveDriveMediaSrc(config.imagenUrl) : "",
     exterior: resolveDriveMediaSrc(config.fondoExteriorImagenUrl),
+    dryStamp: resolveDriveMediaSrc(config.selloSecoUrl),
   };
 }

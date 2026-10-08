@@ -2,91 +2,17 @@
 
 import { useCallback, useEffect, useSyncExternalStore, useState, type CSSProperties, type ReactNode } from "react";
 import { IntroProvider } from "@/contexts/IntroContext";
-import AutoDrawSVG, { parseNativeSvgAnimations, svgMarkupHandlesClick, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
+import AutoDrawSVG from "@/components/motion/AutoDrawSVG";
 import IntroAnimationStage from "@/components/motion/IntroAnimationStage";
 import EnvelopeOpenReveal, { type EnvelopeTexture } from "@/components/motion/EnvelopeOpenReveal";
 import { useDeviceViewport } from "@/components/motion/useDeviceViewport";
-import { decodeIntroImage, INTRO_RESOURCE_TIMEOUT_MS, useIntroReducedMotion } from "@/components/motion/useIntroResources";
+import { INTRO_RESOURCE_TIMEOUT_MS, useIntroReducedMotion } from "@/components/motion/useIntroResources";
+import { useIntroArtwork } from "@/components/motion/useIntroArtwork";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { normalizeIntroConfig, type IntroDeviceConfig, type IntroSeccionConfig } from "@/config/wedding.config";
 
 const DEFAULT_LACRE = "/images/Sello.svg";
 const DEFAULT_DEVICE_CONFIG: IntroDeviceConfig = { tipo: "revealBook" };
-
-/**
- * - "staticSvg": SVG sin animación propia; se dibuja/borra con AutoDrawSVG al hacer clic.
- * - "interactiveSvg": SVG animado que escucha el clic por sí mismo (dentro de su iframe).
- * - "animatedSvg": SVG animado que NO escucha clics; el clic se captura desde fuera.
- * - "image": cualquier otra imagen (PNG, JPG, WebP...); el clic se captura desde fuera.
- */
-type LacreKind = "loading" | "failed" | "staticSvg" | "interactiveSvg" | "animatedSvg" | "image";
-type LacreDetection = { kind: LacreKind; nativeAnimationOptions: NativeSvgAnimationOption[]; source?: string };
-
-const LACRE_LOADING: LacreDetection = { kind: "loading", nativeAnimationOptions: [] };
-const LACRE_IMAGE: LacreDetection = { kind: "image", nativeAnimationOptions: [] };
-
-function classifySvgMarkup(markup: string): LacreDetection {
-  const options = parseNativeSvgAnimations(markup);
-  const hasNativeAnimation = options.length > 0 || /<(?:script|animate|animateTransform|set)\b/i.test(markup);
-  if (!hasNativeAnimation) return { kind: "staticSvg", nativeAnimationOptions: [] };
-  return { kind: svgMarkupHandlesClick(markup) ? "interactiveSvg" : "animatedSvg", nativeAnimationOptions: options };
-}
-
-async function detectLacreKind(lacreUrl: string, signal: AbortSignal, retainUrl: (url: string) => void): Promise<LacreDetection> {
-  const trimmed = lacreUrl.trim();
-  if (trimmed.startsWith("<svg") || trimmed.startsWith("<?xml")) return { ...classifySvgMarkup(trimmed), source: trimmed };
-
-  let res: Response;
-  try {
-    res = await fetch(lacreUrl, { signal });
-  } catch (error) {
-    if (signal.aborted) throw error;
-    console.warn("[Intro] No se pudo inspeccionar el lacre; se intenta como imagen", lacreUrl, error);
-    await decodeIntroImage(lacreUrl, signal);
-    return { ...LACRE_IMAGE, source: lacreUrl };
-  }
-  if (!res.ok) throw new Error(`No se pudo cargar el lacre (${res.status})`);
-  const blob = await res.blob();
-  const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
-  if (!contentType.startsWith("image/") || contentType.includes("svg")) {
-    const text = await blob.text();
-    if (/<svg[\s>]/i.test(text)) return { ...classifySvgMarkup(text), source: text };
-  }
-  signal.throwIfAborted();
-  const source = URL.createObjectURL(blob);
-  retainUrl(source);
-  await decodeIntroImage(source, signal);
-  return { ...LACRE_IMAGE, source };
-}
-
-/** Detecta qué tipo de lacre se ha configurado para decidir cómo capturar el clic que inicia la intro. */
-function useLacreDetection(lacreUrl: string): LacreDetection {
-  const [state, setState] = useState<{ src: string; detection: LacreDetection } | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-    const controller = new AbortController();
-    let objectUrl: string | undefined;
-    const timer = window.setTimeout(() => controller.abort(new Error("Tiempo de carga del lacre agotado")), INTRO_RESOURCE_TIMEOUT_MS);
-    void detectLacreKind(lacreUrl, controller.signal, (url) => { objectUrl = url; }).then((detection) => {
-      if (isMounted) setState({ src: lacreUrl, detection });
-    }).catch((error: unknown) => {
-      if (!isMounted) return;
-      console.warn("[Intro] Lacre no disponible", lacreUrl, error);
-      setState({ src: lacreUrl, detection: { kind: "failed", nativeAnimationOptions: [] } });
-    }).finally(() => {
-      window.clearTimeout(timer);
-    });
-    return () => {
-      isMounted = false;
-      window.clearTimeout(timer);
-      controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [lacreUrl]);
-
-  return state && state.src === lacreUrl ? state.detection : LACRE_LOADING;
-}
 
 type Props = {
   config: IntroSeccionConfig;
@@ -113,7 +39,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   );
 
   const lacreSrc = resolveDriveMediaSrc(config.lacreUrl) || DEFAULT_LACRE;
-  const { kind: detectedLacreKind, nativeAnimationOptions, source: preparedLacreSrc } = useLacreDetection(lacreSrc);
+  const { kind: detectedLacreKind, nativeAnimationOptions, source: preparedLacreSrc } = useIntroArtwork(lacreSrc, "Lacre");
   const [renderedLacreSrc, setRenderedLacreSrc] = useState<string>();
   const [failedRenderSrc, setFailedRenderSrc] = useState<string>();
   const lacreKind = preparedLacreSrc && failedRenderSrc === preparedLacreSrc ? "failed" : detectedLacreKind;
