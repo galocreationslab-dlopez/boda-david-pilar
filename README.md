@@ -510,3 +510,9 @@ print(payload.get("ok"), payload.get("message"))
 html = payload.get("demo_html", "")
 if html:
         Path("linealive_demo.html").write_text(html, encoding="utf-8")
+Los elementos de tipo **Texto** de Portada libre también tienen un **Link del
+texto (opcional)** en Contenido y Diseño. Un enlace válido convierte todo el
+texto en un hipervínculo subrayado, conservando su fuente, color, alineación y
+dimensiones móvil/PC. Vacía el campo para volver al texto sin enlace y guarda
+los cambios para persistirlo. Se admiten HTTP, HTTPS, `mailto:` y `tel:`; los
+enlaces web se abren en una nueva pestaña.

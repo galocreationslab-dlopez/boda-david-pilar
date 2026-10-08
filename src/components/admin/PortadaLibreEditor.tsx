@@ -16,6 +16,7 @@ import {
   PANTALLA_ASPECTO,
   clampLayout,
   getElementoLayout,
+  getSafePortadaLinkUrl,
   getPantallas,
   normalizePortadaLibre,
   type PortadaDispositivo,
@@ -470,6 +471,17 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
           <p className="text-xs font-semibold text-stone-700">
             {selected.tipo === "texto" ? "Texto" : selected.tipo === "imagen" ? "Imagen" : selected.tipo === "enlace" ? "Enlace" : "Mapa"}: {selected.nombre || selected.texto?.slice(0, 30) || selected.url?.slice(-30) || selected.id}
           </p>
+          {selected.tipo === "texto" && (
+            <label className="label-field">
+              Link del texto (opcional)
+              <input type="url" className="input-field" placeholder="https://..." value={selected.enlaceUrl ?? ""} aria-invalid={Boolean(selected.enlaceUrl?.trim() && !getSafePortadaLinkUrl(selected.enlaceUrl))} onChange={(event) => {
+                const current = normalizadoRef.current;
+                onChangeRef.current({ ...current, elementos: current.elementos.map((elemento) => elemento.id === selected.id ? { ...elemento, enlaceUrl: event.target.value } : elemento) });
+              }} />
+              {selected.enlaceUrl?.trim() && !getSafePortadaLinkUrl(selected.enlaceUrl) && <span role="alert" className="block text-xs text-red-600">Link no válido. Usa http:, https:, mailto: o tel:.</span>}
+              <span className="text-xs text-stone-500">Con un enlace válido, el texto se muestra subrayado. Vacía el campo para quitarlo.</span>
+            </label>
+          )}
           {selected.tipo === "imagen" && (
             <>
               <MapsFields value={selected} label={selected.alt || selected.nombre || "imagen"} onChange={(patch) => {

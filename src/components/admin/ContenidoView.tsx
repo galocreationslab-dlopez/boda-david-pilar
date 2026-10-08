@@ -8,7 +8,7 @@ import MapsFields from "@/components/admin/MapsFields";
 import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, ELEMENTOS_BARRA_POR_DEFECTO, normalizeIntroConfig } from "@/config/wedding.config";
-import { buildDefaultLayout, buildDefaultPieConfig, buildDefaultPortadaLibre, normalizePieConfig, normalizePortadaLibre } from "@/lib/portada-libre";
+import { buildDefaultLayout, buildDefaultPieConfig, buildDefaultPortadaLibre, getSafePortadaLinkUrl, normalizePieConfig, normalizePortadaLibre } from "@/lib/portada-libre";
 import { normalizeSectionChains, preserveSectionChainNeighbors } from "@/lib/section-chains";
 import {
   TIMELINE_LOGO_HORIZONTAL,
@@ -2503,6 +2503,12 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                           <div>
                             <label className="label-field">Texto</label>
                             <textarea className="input-field min-h-[70px]" value={elemento.texto ?? ""} onChange={(e) => patchElemento(elemento.id, { texto: e.target.value })} />
+                            <label className="label-field">
+                              Link del texto (opcional)
+                              <input type="url" className="input-field" placeholder="https://..." value={elemento.enlaceUrl ?? ""} aria-invalid={Boolean(elemento.enlaceUrl?.trim() && !getSafePortadaLinkUrl(elemento.enlaceUrl))} onChange={(e) => patchElemento(elemento.id, { enlaceUrl: e.target.value })} />
+                            </label>
+                            {elemento.enlaceUrl?.trim() && !getSafePortadaLinkUrl(elemento.enlaceUrl) && <p role="alert" className="text-xs text-red-600">Link no válido. Usa http:, https:, mailto: o tel:.</p>}
+                            <p className="mt-1 text-xs text-stone-500">Con un enlace válido, el texto se muestra subrayado. Deja el campo vacío para quitar el enlace.</p>
                           </div>
                         ) : elemento.tipo === "enlace" ? (
                           <div className="grid gap-3 sm:grid-cols-2">
