@@ -143,11 +143,10 @@ relieve adicional; por defecto está desactivado para respetar un relieve
 ya incorporado en el archivo. Al activarlo se aplica exactamente
 `drop-shadow(-1px -1px 1px rgba(255,255,255,.9)) drop-shadow(1px 1px 1px rgba(0,0,0,.35))`,
 sin recolorear ni sustituir los filtros originales. Ambos controles se
-guardan independientemente para PC y móvil. Las sombras del sobre no cambian.
+guardan independientemente para PC y móvil.
 El sello pertenece a la cara exterior de la solapa:
 gira con ella, deja de verse por su reverso y se retira junto con el sobre.
-No cambia el lacre ni la secuencia de apertura. Las opciones de desaparición
-previas a la apertura corresponden a la fase (f), no a esta entrega.
+El lacre también pertenece a la cara exterior y conserva su interacción.
 
 Los SVG conservan su animación propia mediante el visor SVG existente
 (incluido el visor aislado para animaciones nativas/script). El sello es
@@ -159,6 +158,70 @@ consola y se anuncia, pero permite abrir la invitación sin ese sello.
 Prueba aislada: `/dev/envelope-test`. Permite introducir el recurso, ajustar
 tamaño/posición y reiniciar. Comprueba la fase cerrada, el giro, el descenso y
 la portada final; repite en móvil, con recurso ausente y con movimiento reducido.
+
+### Movimiento y salida del sobre
+
+En **Contenido → Intro → PC / Móvil → Sobre**, guarda por dispositivo:
+
+- `lacreFadeDuranteApertura`: checkbox **Desvanecer el lacre al empezar a
+  abrir la solapa**. Desmarcado (default), viaja con la solapa sin fade.
+  Marcado, el fade y el giro comparten exactamente el instante de inicio,
+  después de `pausaTrasTriggerMs`. `duracionFadeLacreMs` permite indicar una
+  duración propia (default 900 ms, 0 para desaparición inmediata), independiente
+  de `duracionLacreMs` y de la apertura. No retrasa la secuencia y permanece
+  unido a la solapa; si el sobre se retira antes, también se retira el lacre.
+  El antiguo `lacreFadeAntesApertura` se migra al nuevo comportamiento cuando
+  falta el campo nuevo. También se aplica a SVG: en este modo
+  el clic lo captura la web en lugar del disparador nativo. Con movimiento
+  reducido se omiten fade y pausa. Se guarda independientemente en PC/móvil.
+- `anguloMaximoAperturaGrados`: 1–180°, con fallback de 180°.
+- `modoSalidaSobre`: `descensoZoom` (modo anterior, por defecto) o
+  `fadeApertura` (todo el sobre se desvanece mientras gira, sin descenso ni zoom).
+- `direccionLuzGrados`: origen de la iluminación, en sentido antihorario:
+  0° derecha, 90° arriba, 180° izquierda, 270° abajo. La sombra va en sentido
+  opuesto: con 225° (default) la luz viene de abajo izquierda y la sombra va
+  arriba derecha; con 315° la sombra va arriba izquierda. Se reutilizan `colorSombraApertura`,
+  `intensidadSombraAperturaPorcentaje` y `sombraDesenfoquePorcentaje` para
+  las sombras variables de solapa y lacre.
+
+La dirección es común al grosor del papel, al cuerpo del sobre, a las caras
+de la solapa y al lacre, también en reposo. La sombra proyectada de la solapa
+se calcula punto a punto según su altura sobre el papel, anclada a la bisagra:
+su proyección cambia de forma y dirección diagonal durante el giro, no solo
+se traslada un triángulo vertical. Las sombras locales se proyectan sobre la
+superficie giratoria sin invertir artificialmente la luz al mostrar el reverso.
+Se eliminan los trazos de costura y el reborde pintado. Los antiguos campos
+`colorBorde`, `grosorBordePorcentaje` y `colorCostura` se conservan en los datos
+por compatibilidad, pero ya no dibujan contornos ni tienen controles.
+Los valores guardados de `direccionLuzGrados` conservan su número y pasan a
+esta convención corregida (90° arriba).
+
+La apertura usa un único reloj de Web Animations para giro, sombras y fade.
+La curva `ease-in-out` cambia la velocidad, no la duración: la fase siguiente
+espera a `Animation.finished`, no a un temporizador paralelo. Descenso y zoom
+también esperan al final real de sus transiciones CSS. La duración de
+apertura tiene un mínimo de 300 ms; se respetan duraciones guardadas mayores
+que el rango habitual del editor (5000 ms). El PNG del lacre no se borra ni encoge
+al pulsarlo en modo Sobre: viaja con la solapa y se oculta únicamente al verse
+su reverso. Los SVG con disparador nativo conservan ese disparador; la pausa
+configurada antes de abrir sigue aplicándose. Para PNG/JPG, `duracionLacreMs`
+no añade una espera de borrado en modo Sobre. El fade opcional tiene su propia
+duración y empieza junto con la solapa.
+
+En `fadeApertura`, la portada está a escala 1 y sin desplazamiento desde el
+estado cerrado, cubierta por la escena del sobre. También se desvanece la
+mesa exterior, evitando un cambio de fondo al terminar. Movimiento reducido
+finaliza sin animación; la finalización y la persistencia se ejecutan una vez
+y se restaura el scroll.
+El gutter de la barra de scroll permanece reservado también mientras el
+scroll está bloqueado; así su desbloqueo no estrecha la portada al terminar.
+
+En `/dev/envelope-test` se pueden probar ambos modos, ángulo, duración, luz,
+textura y sello seco, o activar **Probar IntroReveal** para comprobar lacre,
+scroll y persistencia. Para medir, observar `data-intro-phase`, los elementos
+`data-envelope-flap`, `data-envelope-seal`, las sombras y
+`data-envelope-content-scale`. Registrar el tiempo nativo de la animación
+y sus estilos en varios puntos, no solo capturas inicial/final.
 
 ### Tamaño del lacre por dispositivo
 

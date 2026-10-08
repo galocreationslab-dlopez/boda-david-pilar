@@ -2,17 +2,15 @@
 
 import { useState } from "react";
 import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
+import IntroReveal from "@/components/motion/IntroReveal";
 import type { IntroEnvelopeAjusteAspecto, IntroEnvelopeAspectoModo, IntroEnvelopeConfig, IntroEnvelopeDescensoModo, IntroEnvelopeModoFondo } from "@/config/wedding.config";
 
 const DEFAULT_CONFIG: IntroEnvelopeConfig = {
   modoFondo: "colores",
   colorBase: "#e8ddc7",
   colorTrasera: "#e0d2ab",
-  colorBorde: "#a9895f",
-  grosorBordePorcentaje: 0.6,
   radioEsquinasPorcentaje: 2,
   colorSolapaInterior: "#c9b48c",
-  colorCostura: "#8a6a44",
   sombraColor: "rgba(0,0,0,0.35)",
   sombraDesenfoquePorcentaje: 3,
   alturaSolapaPorcentaje: 42,
@@ -38,11 +36,25 @@ export default function EnvelopeTestPage() {
   const [config, setConfig] = useState<IntroEnvelopeConfig>(DEFAULT_CONFIG);
   const [sealBroken, setSealBroken] = useState(false);
   const [runId, setRunId] = useState(0);
+  const [integration, setIntegration] = useState(false);
+  const [lacreUrl, setLacreUrl] = useState("/images/Sello.jpg");
+  const [textureUrl, setTextureUrl] = useState("");
+  const [completions, setCompletions] = useState(0);
+  const texture = textureUrl ? { url: textureUrl, sizePx: 256, color: config.colorBase ?? "#e8ddc7" } : undefined;
+  const content = (
+    <div data-envelope-test-cover className="wedding-fixed fixed inset-y-0 flex items-center justify-center bg-[#f1eae0] p-6">
+      <div className="max-w-xl rounded-3xl border border-[rgba(0,0,0,0.1)] bg-[rgba(255,255,255,0.85)] p-6 text-center shadow-[0_18px_45px_rgba(0,0,0,0.08)] sm:p-8">
+        <h2 className="font-display text-3xl text-[var(--brown-dark)] sm:text-4xl">Portada revelada</h2>
+        <p className="mt-3 text-sm text-[var(--brown-mid)] sm:text-base">Este bloque simula la portada real que aparece tras la apertura del sobre.</p>
+      </div>
+    </div>
+  );
 
   const patch = (p: Partial<IntroEnvelopeConfig>) => setConfig((prev) => ({ ...prev, ...p }));
 
   const replay = () => {
     setSealBroken(false);
+    setCompletions(0);
     setRunId((id) => id + 1);
   };
 
@@ -55,10 +67,55 @@ export default function EnvelopeTestPage() {
       </p>
 
       <section className="relative z-50 grid gap-6 lg:grid-cols-[340px,1fr]">
-        <aside className="card-wedding relative z-10 space-y-4">
+        <aside className="card-wedding relative z-[200] space-y-4">
           <button type="button" className="btn-secondary w-full" onClick={replay}>
             Reiniciar animación
           </button>
+          <p role="status">Finalizaciones: {completions}</p>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={integration} onChange={(e) => { setIntegration(e.target.checked); replay(); }} />
+            Probar IntroReveal (scroll y persistencia)
+          </label>
+          <div>
+            <label htmlFor="test-lacre-url" className="label-field">URL del lacre (IntroReveal)</label>
+            <input id="test-lacre-url" className="input-field" value={lacreUrl} onChange={(e) => setLacreUrl(e.target.value)} />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input id="envelope-seal-fade" type="checkbox" checked={config.lacreFadeDuranteApertura ?? false}
+              onChange={(e) => patch({ lacreFadeDuranteApertura: e.target.checked })} />
+            Desvanecer lacre durante apertura
+          </label>
+          <div>
+            <label htmlFor="envelope-seal-fade-duration" className="label-field">Duración fade lacre (ms)</label>
+            <input id="envelope-seal-fade-duration" type="number" min={0} step={50} className="input-field"
+              disabled={!config.lacreFadeDuranteApertura} value={config.duracionFadeLacreMs ?? 900}
+              onChange={(e) => patch({ duracionFadeLacreMs: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label htmlFor="test-texture-url" className="label-field">URL textura de papel</label>
+            <input id="test-texture-url" className="input-field" value={textureUrl} onChange={(e) => setTextureUrl(e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor="envelope-exit" className="label-field">Modo de salida</label>
+            <select id="envelope-exit" className="input-field" value={config.modoSalidaSobre ?? "descensoZoom"}
+              onChange={(e) => patch({ modoSalidaSobre: e.target.value === "fadeApertura" ? "fadeApertura" : "descensoZoom" })}>
+              <option value="descensoZoom">Descenso y zoom</option>
+              <option value="fadeApertura">Fade durante apertura</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="envelope-angle" className="label-field">Ángulo máximo (grados)</label>
+            <input id="envelope-angle" type="number" min={1} max={180} className="input-field" value={config.anguloMaximoAperturaGrados ?? 180} onChange={(e) => patch({ anguloMaximoAperturaGrados: Number(e.target.value) })} />
+          </div>
+          <div>
+            <label htmlFor="envelope-light" className="label-field">Origen de luz (grados)</label>
+            <input id="envelope-light" type="number" min={0} max={360} className="input-field" value={config.direccionLuzGrados ?? 225} onChange={(e) => patch({ direccionLuzGrados: Number(e.target.value) })} />
+            <p className="text-xs">0° derecha; 90° arriba; 180° izquierda; 270° abajo. La sombra va al lado opuesto.</p>
+          </div>
+          <div>
+            <label htmlFor="envelope-softness" className="label-field">Suavidad de sombras (% vmin)</label>
+            <input id="envelope-softness" type="number" min={0} step={0.1} className="input-field" value={config.sombraDesenfoquePorcentaje ?? 3} onChange={(e) => patch({ sombraDesenfoquePorcentaje: Number(e.target.value) })} />
+          </div>
 
           <div>
             <label htmlFor="dry-stamp-url" className="label-field">Sello seco (PNG, JPG o SVG animado)</label>
@@ -134,17 +191,6 @@ export default function EnvelopeTestPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label-field">Color borde</label>
-              <input type="color" className="input-field h-10 w-full" value={config.colorBorde} onChange={(e) => patch({ colorBorde: e.target.value })} />
-            </div>
-            <div>
-              <label className="label-field">Grosor borde (% pantalla)</label>
-              <input type="number" step={0.1} className="input-field" value={config.grosorBordePorcentaje} onChange={(e) => patch({ grosorBordePorcentaje: Number(e.target.value) })} />
-            </div>
-          </div>
-
           <div>
             <label className="label-field">Radio esquinas (% pantalla)</label>
             <input type="number" step={0.5} className="input-field" value={config.radioEsquinasPorcentaje} onChange={(e) => patch({ radioEsquinasPorcentaje: Number(e.target.value) })} />
@@ -211,12 +257,12 @@ export default function EnvelopeTestPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label-field">Color sombra apertura</label>
-              <input className="input-field" value={config.colorSombraApertura} onChange={(e) => patch({ colorSombraApertura: e.target.value })} />
+              <label htmlFor="envelope-shadow-color" className="label-field">Color sombra apertura</label>
+              <input id="envelope-shadow-color" className="input-field" value={config.colorSombraApertura} onChange={(e) => patch({ colorSombraApertura: e.target.value })} />
             </div>
             <div>
-              <label className="label-field">Intensidad sombra (%)</label>
-              <input type="number" className="input-field" value={config.intensidadSombraAperturaPorcentaje} onChange={(e) => patch({ intensidadSombraAperturaPorcentaje: Number(e.target.value) })} />
+              <label htmlFor="envelope-shadow-intensity" className="label-field">Intensidad sombra (%)</label>
+              <input id="envelope-shadow-intensity" type="number" min={0} max={100} className="input-field" value={config.intensidadSombraAperturaPorcentaje} onChange={(e) => patch({ intensidadSombraAperturaPorcentaje: Number(e.target.value) })} />
             </div>
           </div>
 
@@ -241,6 +287,7 @@ export default function EnvelopeTestPage() {
             <select
               className="input-field"
               value={config.modoDescensoSobre}
+              disabled={config.modoSalidaSobre === "fadeApertura"}
               onChange={(e) => patch({ modoDescensoSobre: e.target.value as IntroEnvelopeDescensoModo })}
             >
               <option value="desplazamiento">Solo se desplaza</option>
@@ -251,29 +298,34 @@ export default function EnvelopeTestPage() {
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="label-field">Apertura (ms)</label>
-              <input type="number" className="input-field" value={config.duracionAperturaMs} onChange={(e) => patch({ duracionAperturaMs: Number(e.target.value) })} />
+              <label htmlFor="envelope-duration" className="label-field">Apertura (ms)</label>
+              <input id="envelope-duration" type="number" min={300} max={5000} className="input-field" value={config.duracionAperturaMs} onChange={(e) => patch({ duracionAperturaMs: Number(e.target.value) })} />
             </div>
             <div>
               <label className="label-field">Descenso (ms)</label>
-              <input type="number" className="input-field" value={config.duracionDescensoMs} onChange={(e) => patch({ duracionDescensoMs: Number(e.target.value) })} />
+              <input type="number" className="input-field" disabled={config.modoSalidaSobre === "fadeApertura"} value={config.duracionDescensoMs} onChange={(e) => patch({ duracionDescensoMs: Number(e.target.value) })} />
             </div>
             <div>
               <label className="label-field">Zoom (ms)</label>
-              <input type="number" className="input-field" value={config.duracionZoomMs} onChange={(e) => patch({ duracionZoomMs: Number(e.target.value) })} />
+              <input type="number" className="input-field" disabled={config.modoSalidaSobre === "fadeApertura"} value={config.duracionZoomMs} onChange={(e) => patch({ duracionZoomMs: Number(e.target.value) })} />
             </div>
           </div>
         </aside>
 
-        <article className="card-wedding relative flex h-40 items-center justify-center p-6 text-center text-sm text-[var(--brown-mid)]">
+        <article className="card-wedding relative flex h-[100svh] items-center justify-center p-6 text-center text-sm text-[var(--brown-mid)]">
           El sobre se renderiza a pantalla completa (fixed inset-0), superpuesto a toda esta página.
-          <EnvelopeOpenReveal
+          {integration ? (
+            <IntroReveal key={runId} storageKey="envelope-playground" envelopeTexture={texture}
+              config={{ activo: true, repetir: "siempre", lacreUrl, pc: { tipo: "envelope", envelope: config }, movil: { tipo: "envelope", envelope: config } }}>
+              {content}
+            </IntroReveal>
+          ) : <EnvelopeOpenReveal
             key={runId}
             config={config}
+            texture={texture}
             fondo="#2E1F0E"
             sealBroken={sealBroken}
             sealSlot={
-              !sealBroken ? (
                 <button
                   type="button"
                   onClick={() => setSealBroken(true)}
@@ -281,19 +333,11 @@ export default function EnvelopeTestPage() {
                 >
                   Abrir
                 </button>
-              ) : null
             }
-            onComplete={() => console.log("envelope intro complete")}
+            onComplete={() => setCompletions((count) => count + 1)}
           >
-            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.95),rgba(241,234,224,0.9))] p-6">
-              <div className="max-w-xl rounded-3xl border border-[rgba(0,0,0,0.1)] bg-[rgba(255,255,255,0.85)] p-6 text-center shadow-[0_18px_45px_rgba(0,0,0,0.08)] sm:p-8">
-                <h2 className="font-display text-3xl text-[var(--brown-dark)] sm:text-4xl">Portada revelada</h2>
-                <p className="mt-3 text-sm text-[var(--brown-mid)] sm:text-base">
-                  Este bloque simula la portada real que aparece tras la apertura del sobre.
-                </p>
-              </div>
-            </div>
-          </EnvelopeOpenReveal>
+            {content}
+          </EnvelopeOpenReveal>}
         </article>
       </section>
     </main>

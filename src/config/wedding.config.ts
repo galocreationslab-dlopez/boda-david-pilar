@@ -228,6 +228,7 @@ export type IntroEnvelopeModoFondo = "colores" | "textura" | "svgPersonalizado";
 
 // Cómo se comporta el sobre al descender tras abrirse la solapa.
 export type IntroEnvelopeDescensoModo = "desplazamiento" | "fade" | "ambos";
+export type IntroEnvelopeSalidaModo = "descensoZoom" | "fadeApertura";
 
 // "automatico": el sobre ocupa el área disponible (pantalla menos el margen) con la
 // misma relación de aspecto que la pantalla, como hasta ahora.
@@ -252,21 +253,21 @@ export type IntroEnvelopeConfig = {
   selloSecoRelieveSvg?: boolean; // false: conserva el acabado original del SVG
   colorBase?: string; // color del frontal (la cara exterior/visible del sobre)
   colorTrasera?: string; // color de la trasera y la cara exterior de la solapa (misma pieza de papel)
-  colorBorde?: string;
+  colorBorde?: string; // heredado: no se dibujan lineas de contorno
   // Todas las medidas se expresan como porcentaje del lado menor de la pantalla
   // (unidad "vmin"), ya que el sobre y la carta se dimensionan proporcionalmente.
-  grosorBordePorcentaje?: number;
+  grosorBordePorcentaje?: number; // heredado: sin efecto visual
   radioEsquinasPorcentaje?: number;
   colorSolapaInterior?: string;
-  colorCostura?: string;
+  colorCostura?: string; // heredado: sin efecto visual
   sombraColor?: string;
   sombraDesenfoquePorcentaje?: number;
   alturaSolapaPorcentaje?: number; // 0-100: altura de la solapa triangular respecto al alto del sobre
   radioPicoSolapaPorcentaje?: number; // 0-50: redondeo del pico de la solapa (y de la muesca a juego en el frontal)
-  // Sombra que proyecta la solapa (sobre su cara interior y la portada vista por el
-  // hueco) al empezar a abrirse; se desvanece a la vez que termina de abrirse.
+  // Sombras proyectadas por solapa y lacre, variables con el ángulo de apertura.
   colorSombraApertura?: string;
   intensidadSombraAperturaPorcentaje?: number; // 0-100
+  direccionLuzGrados?: number; // origen de luz: 0 derecha, 90 arriba, 180 izquierda, 270 abajo
   // Sombra sutil en el contorno de la solapa/frontal que simula el grosor del papel.
   colorGrosorPapel?: string;
   intensidadGrosorPapelPorcentaje?: number; // 0-100
@@ -281,10 +282,34 @@ export type IntroEnvelopeConfig = {
   fondoExteriorImagenUrl?: string; // textura opcional superpuesta al fondo exterior
   // Secuencia tras el lacre: abrir solapa -> el sobre desciende -> la portada hace zoom a pantalla completa.
   modoDescensoSobre?: IntroEnvelopeDescensoModo;
+  modoSalidaSobre?: IntroEnvelopeSalidaModo; // fadeApertura omite descenso y zoom
+  lacreFadeAntesApertura?: boolean; // heredado: se migra a fade durante el giro
+  lacreFadeDuranteApertura?: boolean; // false: conserva el lacre; true: fade al iniciar el giro
+  duracionFadeLacreMs?: number; // duracion propia del fade, defecto 900 ms
+  anguloMaximoAperturaGrados?: number; // 1-180; defecto 180
   duracionAperturaMs?: number; // tiempo en abrir la solapa
   duracionDescensoMs?: number; // tiempo en que el sobre desciende tras abrirse
   duracionZoomMs?: number; // tiempo en que la portada hace zoom hasta ocupar toda la pantalla
 };
+
+export function normalizeIntroEnvelopeConfig(config: IntroEnvelopeConfig = {}): IntroEnvelopeConfig {
+  const number = (value: number | undefined, fallback: number, min: number, max: number) =>
+    typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+  return {
+    ...config,
+    modoSalidaSobre: config.modoSalidaSobre === "fadeApertura" ? "fadeApertura" : "descensoZoom",
+    lacreFadeDuranteApertura: typeof config.lacreFadeDuranteApertura === "boolean"
+      ? config.lacreFadeDuranteApertura : config.lacreFadeAntesApertura === true,
+    duracionFadeLacreMs: number(config.duracionFadeLacreMs, 900, 0, Infinity),
+    anguloMaximoAperturaGrados: number(config.anguloMaximoAperturaGrados, 180, 1, 180),
+    direccionLuzGrados: number(config.direccionLuzGrados, 225, 0, 360),
+    intensidadSombraAperturaPorcentaje: number(config.intensidadSombraAperturaPorcentaje, 45, 0, 100),
+    sombraDesenfoquePorcentaje: number(config.sombraDesenfoquePorcentaje, 3, 0, Infinity),
+    duracionAperturaMs: number(config.duracionAperturaMs, 900, 300, Infinity),
+    duracionDescensoMs: number(config.duracionDescensoMs, 700, 300, Infinity),
+    duracionZoomMs: number(config.duracionZoomMs, 900, 300, Infinity),
+  };
+}
 
 export type NativeSvgAnimationOption = {
   id: string;
@@ -338,7 +363,6 @@ export type IntroSeccionConfig = {
  */
 export function normalizeIntroConfig(intro: IntroSeccionConfig | undefined): IntroSeccionConfig | undefined {
   if (!intro) return intro;
-  if (intro.pc && intro.movil) return intro;
 
   const legacyRevealBook: IntroRevealBookConfig = {
     panelIzquierdoUrl: intro.panelIzquierdoUrl,
@@ -349,11 +373,15 @@ export function normalizeIntroConfig(intro: IntroSeccionConfig | undefined): Int
     maxEsperaDibujoMs: intro.maxEsperaDibujoMs,
   };
   const deviceDefault: IntroDeviceConfig = { tipo: "revealBook", revealBook: legacyRevealBook };
+  const normalizeDevice = (device: IntroDeviceConfig): IntroDeviceConfig =>
+    device.tipo === "envelope" || device.envelope
+      ? { ...device, envelope: normalizeIntroEnvelopeConfig(device.envelope) }
+      : device;
 
   return {
     ...intro,
-    pc: intro.pc ?? deviceDefault,
-    movil: intro.movil ?? deviceDefault,
+    pc: normalizeDevice(intro.pc ?? deviceDefault),
+    movil: normalizeDevice(intro.movil ?? deviceDefault),
   };
 }
 

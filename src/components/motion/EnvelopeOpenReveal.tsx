@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
-import type { IntroEnvelopeConfig } from "@/config/wedding.config";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { normalizeIntroEnvelopeConfig, type IntroEnvelopeConfig } from "@/config/wedding.config";
 import { getEnvelopeResources, type EnvelopeTexture } from "@/lib/intro-envelope-resources";
 import { useIntroImages, useIntroReducedMotion } from "@/components/motion/useIntroResources";
 import EnvelopeDryStamp from "@/components/motion/EnvelopeDryStamp";
@@ -36,6 +36,38 @@ function roundedApex(apexX: number, apexY: number, cornerY: number, f: number) {
     leftX: apexX - apexX * f,
     rightX: apexX + apexX * f,
     y: apexY + (cornerY - apexY) * f,
+  };
+}
+
+function lightDirection(light: number) {
+  // Angulo matematico del origen de luz; CSS tiene el eje Y invertido.
+  return { x: -Math.cos(light), y: Math.sin(light) };
+}
+
+function directionalShadow(light: number, distance: number, blur: number, color: string, intensity: number, angleDegrees = 0) {
+  const { x, y } = lightDirection(light);
+  const localY = y * Math.cos(angleDegrees * Math.PI / 180);
+  return `drop-shadow(calc(${x * distance} * var(--wedding-vmin, 1vmin)) calc(${localY * distance} * var(--wedding-vmin, 1vmin)) calc(${blur} * var(--wedding-vmin, 1vmin)) color-mix(in srgb, ${color} ${intensity * 100}%, transparent))`;
+}
+
+function paperThicknessShadow(light: number, intensity: number, color: string, angleDegrees = 0) {
+  return directionalShadow(light, 0.15 + intensity * 0.5, 0.2 + intensity * 0.6, color, intensity, angleDegrees);
+}
+
+function openingShadows(angleDegrees: number, light: number, intensity: number, softness: number, color: string) {
+  const angle = angleDegrees * Math.PI / 180;
+  const lift = Math.sin(angle);
+  const { x, y } = lightDirection(light);
+  return {
+    flap: {
+      // Cada punto proyecta segun su altura; la bisagra permanece fija.
+      transform: `matrix(1, 0, ${x * lift * 0.65}, ${Math.cos(angle) + y * lift * 0.65}, 0, 0)`,
+      opacity: intensity * (0.25 + 0.75 * lift),
+      filter: `blur(calc(${softness * (0.2 + lift)} * var(--wedding-vmin, 1vmin)))`,
+    },
+    seal: {
+      filter: directionalShadow(light, 0.7 + lift * 0.5, softness * (0.12 + lift * 0.15), color, intensity, angleDegrees),
+    },
   };
 }
 
@@ -90,10 +122,29 @@ function useViewportSize(ref: RefObject<HTMLDivElement | null>) {
  * margen configurado pasa a ser un mínimo, y el lado sobrante se reparte como
  * margen extra en el eje que le sobre espacio.
  */
-export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken, sealReady = true, sealSlot, sealSizePercent = 24, onComplete, children }: EnvelopeOpenRevealProps) {
+export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, sealBroken, sealReady = true, sealSlot, sealSizePercent = 24, onComplete, children }: EnvelopeOpenRevealProps) {
+  const config = normalizeIntroEnvelopeConfig(rawConfig);
   const [phase, setPhase] = useState<Phase>("closed");
   const patternId = useId();
   const viewportRef = useRef<HTMLDivElement>(null);
+  const flapRef = useRef<HTMLDivElement>(null);
+  const shadowRef = useRef<HTMLDivElement>(null);
+  const sealRef = useRef<HTMLDivElement>(null);
+  const sealFadeAnimationRef = useRef<Animation | null>(null);
+  const flapExteriorRef = useRef<HTMLDivElement>(null);
+  const flapInteriorRef = useRef<HTMLDivElement>(null);
+  const frontMotionRef = useRef<HTMLDivElement>(null);
+  const contentMotionRef = useRef<HTMLDivElement>(null);
+  const contentScaleRef = useRef<HTMLDivElement>(null);
+  const completionRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  useIsoLayoutEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+  const complete = useCallback(() => {
+    if (completionRef.current) return;
+    completionRef.current = true;
+    setPhase("done");
+    onCompleteRef.current?.();
+  }, []);
   const viewport = useViewportSize(viewportRef);
   const reduceMotion = useIntroReducedMotion();
   const [stampStatus, setStampStatus] = useState<{ src: string; failed: boolean; image: boolean }>();
@@ -104,11 +155,8 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   // Color de la trasera y la cara exterior de la solapa: son la misma pieza de papel,
   // por eso comparten color, independiente del color del frontal.
   const colorTrasera = paletteTexture?.color || config.colorTrasera || colorBase;
-  const colorBorde = config.colorBorde || "#a9895f";
-  const grosorBorde = Math.max(0, config.grosorBordePorcentaje ?? 0.6);
   const radioEsquinas = Math.max(0, config.radioEsquinasPorcentaje ?? 2);
   const colorSolapaInterior = config.colorSolapaInterior || "#c9b48c";
-  const colorCostura = config.colorCostura || "#8a6a44";
   const sombraColor = config.sombraColor || "rgba(0,0,0,0.35)";
   const sombraDesenfoque = Math.max(0, config.sombraDesenfoquePorcentaje ?? 3);
   const flapPct = Math.min(70, Math.max(20, config.alturaSolapaPorcentaje ?? 42));
@@ -129,6 +177,9 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   const margenContenido = Math.min(40, Math.max(0, config.margenContenidoPorcentaje ?? 4));
   const fondoExteriorColor = config.fondoExteriorColor || fondo || "#2E1F0E";
   const modoDescenso = config.modoDescensoSobre ?? "desplazamiento";
+  const fadeApertura = config.modoSalidaSobre === "fadeApertura";
+  const anguloMaximo = config.anguloMaximoAperturaGrados ?? 180;
+  const direccionLuz = (config.direccionLuzGrados ?? 225) * Math.PI / 180;
   const modoAspecto = config.modoAspectoSobre ?? "automatico";
   const ajusteAspecto = config.ajusteAspectoSobre ?? "ancho";
   const aspectoAncho = Math.max(0.1, config.aspectoAnchoSobre ?? 3);
@@ -201,41 +252,101 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
     contentOffsetY = targetTop - naturalTop;
   }
 
-  // Se separan en efectos independientes por fase: programar el temporizador
-  // de la SIGUIENTE fase dentro del mismo efecto que cambia el estado actual
-  // provoca que la limpieza cancele el propio temporizador en cuanto se llama
-  // a setPhase (el efecto se re-ejecuta por el cambio de `phase` y su cleanup
-  // borra el timer recién creado antes de que llegue a disparar).
   useEffect(() => {
     if (!sealBroken || !ready || phase !== "closed") return;
     if (reduceMotion) {
-      setPhase("done");
-      onComplete?.();
+      complete();
       return;
     }
-    setPhase("opening");
-  }, [sealBroken, ready, phase, reduceMotion, onComplete]);
+    // Garantiza una pintura cerrada incluso con sealBroken activo desde el montaje.
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => setPhase("opening"));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [sealBroken, ready, phase, reduceMotion, complete]);
 
-  useEffect(() => {
-    if (phase !== "opening") return;
-    const t = window.setTimeout(() => setPhase("descending"), duracionApertura);
-    return () => window.clearTimeout(t);
-  }, [phase, duracionApertura]);
+  useIsoLayoutEffect(() => {
+    if (phase !== "opening" || !flapRef.current) return;
+    if (reduceMotion) {
+      complete();
+      return;
+    }
+    const options: KeyframeAnimationOptions = { duration: duracionApertura, easing: "ease-in-out", fill: "forwards" };
+    const rotation = flapRef.current.animate(
+      [{ transform: "rotateX(0deg)" }, { transform: `rotateX(${-anguloMaximo}deg)` }],
+      options,
+    );
+    const shadows: Keyframe[] = [];
+    const sealShadows: Keyframe[] = [];
+    const exteriorEdges: Keyframe[] = [];
+    const interiorEdges: Keyframe[] = [];
+    for (let i = 0; i <= 60; i++) {
+      const angle = anguloMaximo * i / 60;
+      const frame = openingShadows(angle, direccionLuz, intensidadSombraApertura, sombraDesenfoque, colorSombraApertura);
+      shadows.push({ offset: i / 60, ...frame.flap });
+      sealShadows.push({ offset: i / 60, ...frame.seal });
+      exteriorEdges.push({ offset: i / 60, filter: paperThicknessShadow(direccionLuz, intensidadGrosorPapel, colorGrosorPapel, angle) });
+      // La cara interior gira ademas 180 grados sobre Y.
+      interiorEdges.push({ offset: i / 60, filter: paperThicknessShadow(Math.PI - direccionLuz, intensidadGrosorPapel, colorGrosorPapel, angle) });
+    }
+    const animations = [rotation];
+    if (shadowRef.current) animations.push(shadowRef.current.animate(shadows, options));
+    if (sealRef.current) animations.push(sealRef.current.animate(sealShadows, options));
+    if (sealRef.current && config.lacreFadeDuranteApertura) {
+      const fade = sealRef.current.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: config.duracionFadeLacreMs ?? 900,
+        easing: "ease",
+        fill: "forwards",
+      });
+      sealFadeAnimationRef.current?.cancel();
+      sealFadeAnimationRef.current = fade;
+      // El fade conserva su reloj durante descenso/zoom, sin reiniciarse por fase.
+    }
+    if (flapExteriorRef.current) animations.push(flapExteriorRef.current.animate(exteriorEdges, options));
+    if (flapInteriorRef.current) animations.push(flapInteriorRef.current.animate(interiorEdges, options));
+    if (fadeApertura) {
+      viewportRef.current?.querySelectorAll<HTMLElement>("[data-envelope-layer]").forEach((layer) => {
+        animations.push(layer.animate([{ opacity: 1 }, { opacity: 0 }], options));
+      });
+    }
+    // Un solo reloj nativo: giro, sombras y fade comparten inicio, duración y curva.
+    const startTime = document.timeline.currentTime;
+    animations.forEach((animation) => { animation.startTime = startTime; });
+    if (sealFadeAnimationRef.current) sealFadeAnimationRef.current.startTime = startTime;
+    let cancelled = false;
+    rotation.finished.then(() => {
+      if (cancelled) return;
+      if (fadeApertura) complete();
+      else setPhase("descending");
+    }, (error: unknown) => {
+      if (!cancelled) console.error("[Intro] No se pudo completar la apertura del sobre", error);
+    });
+    return () => {
+      cancelled = true;
+      animations.forEach((animation) => animation.cancel());
+    };
+  }, [phase, reduceMotion, duracionApertura, anguloMaximo, direccionLuz, intensidadSombraApertura, sombraDesenfoque, colorSombraApertura, intensidadGrosorPapel, colorGrosorPapel, fadeApertura, config.lacreFadeDuranteApertura, config.duracionFadeLacreMs, complete]);
 
-  useEffect(() => {
-    if (phase !== "descending") return;
-    const t = window.setTimeout(() => setPhase("zooming"), duracionDescenso);
-    return () => window.clearTimeout(t);
-  }, [phase, duracionDescenso]);
+  useEffect(() => () => {
+    sealFadeAnimationRef.current?.cancel();
+  }, []);
 
-  useEffect(() => {
-    if (phase !== "zooming") return;
-    const t = window.setTimeout(() => {
-      setPhase("done");
-      onComplete?.();
-    }, duracionZoom);
-    return () => window.clearTimeout(t);
-  }, [phase, duracionZoom, onComplete]);
+  useIsoLayoutEffect(() => {
+    if (phase !== "descending" && phase !== "zooming") return;
+    const elements = phase === "descending"
+      ? [frontMotionRef.current]
+      : [contentMotionRef.current, contentScaleRef.current];
+    const transitions = elements.flatMap((element) => element?.getAnimations() ?? []);
+    let cancelled = false;
+    Promise.all(transitions.map((animation) => animation.finished)).then(() => {
+      if (cancelled) return;
+      if (phase === "descending") setPhase("zooming");
+      else complete();
+    }, (error: unknown) => {
+      if (!cancelled) console.error("[Intro] No se pudo completar la salida del sobre", error);
+    });
+    return () => { cancelled = true; };
+  }, [phase, duracionDescenso, duracionZoom, complete]);
 
   const tileStyle: CSSProperties = tex
     ? {
@@ -282,11 +393,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
 
   const isOpenOrLater = phase !== "closed";
   const isDescendingOrLater = phase === "descending" || phase === "zooming" || phase === "done";
-  // Un poco menos de -180° (en vez de p.ej. -172°) para que la solapa quede
-  // extendida hacia arriba, mostrando su cara interior, en vez de desaparecer
-  // de canto a medio camino.
-  const flapRotation = isOpenOrLater ? -179 : 0;
-  const sealVisible = phase === "closed";
+  const flapRotation = isOpenOrLater ? -anguloMaximo : 0;
 
   // Muesca del frontal (rectángulo con el hueco triangular donde encaja la solapa,
   // con el pico redondeado) y triángulo de la solapa (mismo redondeo, en su propio
@@ -300,11 +407,11 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   const descendTransform = modoDescenso !== "fade" && isDescendingOrLater ? "translateY(220%)" : "translateY(0%)";
   const descendOpacity = modoDescenso !== "desplazamiento" && isDescendingOrLater ? 0 : 1;
 
-  const isFinalSize = phase === "zooming" || phase === "done";
+  const isFinalSize = fadeApertura || phase === "zooming" || phase === "done";
 
   // La portada no debe transparentarse a través del sobre cerrado.
   // Su geometría ya está medida antes de presentar la intro.
-  const contentVisible = phase !== "closed";
+  const contentVisible = fadeApertura || phase !== "closed";
 
   // La portada se desplaza (sin escalar) para pasar de centrada a pegada arriba de su
   // hueco, y por separado se escala desde su propio centro; hacerlo en dos elementos
@@ -329,22 +436,22 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
     transition: phase === "closed" ? "none" : `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
     // "Papel apilado": dos sombras planas y desplazadas simulan hojas debajo de la
     // portada, más una sombra difusa para separación del fondo; dan sensación de grosor.
-    boxShadow: [
-      "calc(1.4 * var(--wedding-vmin, 1vmin)) calc(1.6 * var(--wedding-vmin, 1vmin)) 0 0 rgba(255,252,244,0.85)",
-      "calc(2.8 * var(--wedding-vmin, 1vmin)) calc(3.2 * var(--wedding-vmin, 1vmin)) 0 0 rgba(232,221,199,0.7)",
-      `0 calc(${sombraDesenfoque / 2} * var(--wedding-vmin, 1vmin)) calc(${sombraDesenfoque} * var(--wedding-vmin, 1vmin)) rgba(0,0,0,0.4)`,
+    boxShadow: fadeApertura ? "none" : [
+      `calc(${lightDirection(direccionLuz).x * 1.6} * var(--wedding-vmin, 1vmin)) calc(${lightDirection(direccionLuz).y * 1.6} * var(--wedding-vmin, 1vmin)) 0 0 rgba(255,252,244,0.85)`,
+      `calc(${lightDirection(direccionLuz).x * 3.2} * var(--wedding-vmin, 1vmin)) calc(${lightDirection(direccionLuz).y * 3.2} * var(--wedding-vmin, 1vmin)) 0 0 rgba(232,221,199,0.7)`,
+      `calc(${lightDirection(direccionLuz).x * sombraDesenfoque / 2} * var(--wedding-vmin, 1vmin)) calc(${lightDirection(direccionLuz).y * sombraDesenfoque / 2} * var(--wedding-vmin, 1vmin)) calc(${sombraDesenfoque} * var(--wedding-vmin, 1vmin)) ${sombraColor}`,
     ].join(", "),
     pointerEvents: phase === "done" ? "auto" : "none",
   };
 
-  // Reborde sutil (claro arriba-izq., oscuro abajo-der.) para insinuar el bisel del papel.
+  // Bisel de la carta orientado hacia la misma luz que el sobre.
   const paperBevelStyle: CSSProperties = {
     position: "absolute",
     inset: 0,
     transformOrigin: "50% 50%",
     transform: contentWrapperStyle.transform,
     transition: contentWrapperStyle.transition,
-    background: "linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.1) 100%)",
+    background: `linear-gradient(${90 - (config.direccionLuzGrados ?? 225)}deg, rgba(0,0,0,0.1), transparent 12%, transparent 88%, rgba(255,255,255,0.16))`,
     pointerEvents: "none",
   };
 
@@ -355,15 +462,14 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
   // Sombra sutil en el contorno recortado del papel (frontal/solapa), para dar
   // sensación de grosor; se aplica como filtro CSS (no SVG) para que no se distorsione
   // con el `preserveAspectRatio="none"` de los `<svg>` internos.
-  const paperEdgeFilter = `drop-shadow(0 calc(${0.15 + intensidadGrosorPapel * 0.5} * var(--wedding-vmin, 1vmin)) calc(${0.2 + intensidadGrosorPapel * 0.6} * var(--wedding-vmin, 1vmin)) ${colorGrosorPapel})`;
+  const paperEdgeFilter = paperThicknessShadow(direccionLuz, intensidadGrosorPapel, colorGrosorPapel);
+  const exteriorShadow = directionalShadow(direccionLuz, sombraDesenfoque / 2, sombraDesenfoque, sombraColor, intensidadSombraApertura);
 
-  // La sombra de apertura ya está a su valor máximo mientras el sobre está cerrado
-  // (oculta, tapada por la propia solapa cerrada) y se desvanece a la vez que la
-  // solapa gira, con la misma duración: así ambas quedan sincronizadas sin necesitar
-  // una animación por fotogramas.
+  const restingShadows = openingShadows(isDescendingOrLater ? anguloMaximo : 0, direccionLuz, intensidadSombraApertura, sombraDesenfoque, colorSombraApertura);
   const aperturaShadowStyle: CSSProperties = {
-    opacity: phase === "closed" ? intensidadSombraApertura : 0,
-    transition: `opacity ${duracionApertura}ms ease-out`,
+    ...restingShadows.flap,
+    opacity: isDescendingOrLater ? 0 : restingShadows.flap.opacity,
+    transformOrigin: "50% 0%",
   };
 
   return (
@@ -373,17 +479,19 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
       data-intro-state={ready ? "ready" : "loading"}
       data-intro-phase={phase}
       aria-busy={!ready}
-      style={{ ...fondoExteriorStyle, ...(!ready ? { backgroundImage: "none", backgroundColor: "var(--wedding-loading-background, #F7F3EC)" } : {}), containerType: "size" }}
+      data-envelope-exit={config.modoSalidaSobre}
+      style={{ ...(!ready ? { backgroundColor: "var(--wedding-loading-background, #F7F3EC)" } : {}), containerType: "size" }}
     >
       {!ready ? (
         <span role="status" className="sr-only">Preparando invitación...</span>
       ) : null}
       <div className="absolute inset-0" style={{ visibility: ready ? "visible" : "hidden", transitionProperty: "none" }} aria-hidden={!ready} inert={!ready}>
+      {phase !== "done" ? <div data-envelope-layer className="absolute inset-0" style={{ ...fondoExteriorStyle, zIndex: fadeApertura ? 11 : 0 }} /> : null}
       {/* Trasera del sobre: rectángulo liso del mismo color, siempre detrás de la
           portada; desciende en sincronía con el frontal para que el sobre se retire
           como un conjunto único. */}
       {phase !== "done" ? (
-        <div className="z-0" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
+        <div data-envelope-layer className={fadeApertura ? "z-[12]" : "z-0"} style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
           <div
             className="h-full w-full"
             style={{
@@ -392,26 +500,23 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
               transition: `transform ${duracionDescenso}ms ease-in, opacity ${duracionDescenso}ms ease-in`,
             }}
           >
-            <div className="absolute inset-0" style={{ ...bodyFill, borderRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))` }} />
+            <div data-envelope-body-shadow className="absolute inset-0" style={{ ...bodyFill, borderRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))`, filter: `${paperEdgeFilter} ${exteriorShadow}` }} />
           </div>
         </div>
       ) : null}
 
       {/* Portada real, siempre montada a tamaño natural; se ve reducida como una carta hasta el zoom final. */}
-      <div className="z-10" style={contentOuterStyle}>
-        <div style={contentWrapperStyle}>{ready ? children : null}</div>
-        <div style={paperBevelStyle} />
+      <div ref={contentMotionRef} data-envelope-content className="z-10" style={contentOuterStyle}>
+        <div ref={contentScaleRef} data-envelope-content-scale style={contentWrapperStyle} inert={phase !== "done"}>{ready ? children : null}</div>
+        {!fadeApertura ? <div style={paperBevelStyle} /> : null}
       </div>
 
-      {/* Sombra de apertura sobre la portada: mientras la solapa cerrada tapa el hueco,
-          esta sombra ya está a su intensidad máxima (invisible, oculta debajo); al
-          empezar a girar la solapa, ambas cosas se desvanecen/giran a la vez, dando la
-          sensación de que la solapa proyecta sombra sobre la carta al levantarse. */}
+      {/* Proyección sobre la carta y la mesa, sincronizada con el ángulo de la solapa. */}
       {phase !== "done" ? (
-        <div className="z-[12]" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
-          <div className="absolute left-0 top-0 w-full" style={{ height: `${flapPct}%` }}>
+        <div data-envelope-layer className="z-[35]" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
+          <div ref={shadowRef} data-envelope-flap-shadow className="absolute left-0 top-0 w-full" style={{ height: `${flapPct}%`, ...aperturaShadowStyle }}>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-              <path d={flapPath} fill={colorSombraApertura} style={aperturaShadowStyle} />
+              <path d={flapPath} fill={colorSombraApertura} />
             </svg>
           </div>
         </div>
@@ -421,7 +526,7 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
           mesa) tapa lo que sobra de portada por debajo del sobre; arranca justo en el
           borde inferior del sobre y desciende junto con él hasta dejarla ver entera. */}
       {phase !== "done" ? (
-        <div className="z-[15]" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
+        <div data-envelope-layer className="z-[15]" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
           <div
             className="h-full w-full"
             style={{
@@ -435,12 +540,9 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
         </div>
       ) : null}
 
-      {/* Solapa: por delante de la portada mientras está cerrada/abriéndose (también
-          extendida hacia arriba, fuera del área de la portada); en cuanto termina de
-          abrirse pasa a la misma capa que la trasera (detrás de la portada) y desciende
-          junto con ella y el frontal, como un conjunto único. */}
+      {/* Solapa y lacre comparten eje; su grupo queda por encima del frontal al abrir. */}
       {phase !== "done" ? (
-        <div style={{ ...envelopeBoxStyle, zIndex: isDescendingOrLater ? 0 : 20, pointerEvents: "none" }}>
+        <div data-envelope-layer style={{ ...envelopeBoxStyle, zIndex: isDescendingOrLater ? 0 : 40, pointerEvents: "none" }}>
           <div
             className="h-full w-full"
             style={{
@@ -456,26 +558,27 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
                   height: `${flapPct}%`,
                   borderTopLeftRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))`,
                   borderTopRightRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))`,
-                  // Solo se recorta con el sobre cerrado (para redondear las esquinas
-                  // superiores a juego con el sobre); si se recorta también al abrirse,
-                  // la solapa no puede extenderse hacia arriba y parece desaparecer.
-                  overflow: phase === "closed" ? "hidden" : "visible",
+                  overflow: "visible",
                 }}
               >
                 <div
+                  ref={flapRef}
+                  data-envelope-flap
                   className="h-full w-full origin-top"
                   style={{
                     transformStyle: "preserve-3d",
                     transform: `rotateX(${flapRotation}deg)`,
-                    transition: `transform ${duracionApertura}ms cubic-bezier(0.22,1,0.36,1)`,
+                    borderTopLeftRadius: "inherit",
+                    borderTopRightRadius: "inherit",
                   }}
                 >
                   {/* Cara frontal de la solapa */}
+                  <div ref={flapExteriorRef} data-envelope-flap-edge className="absolute inset-0" style={{ backfaceVisibility: "hidden", borderTopLeftRadius: "inherit", borderTopRightRadius: "inherit", filter: paperThicknessShadow(direccionLuz, intensidadGrosorPapel, colorGrosorPapel, isDescendingOrLater ? anguloMaximo : 0) }}>
                   <svg
                     viewBox="0 0 100 100"
                     preserveAspectRatio="none"
                     className="absolute inset-0 h-full w-full"
-                    style={{ backfaceVisibility: "hidden", filter: paperEdgeFilter }}
+                    style={{ borderTopLeftRadius: "inherit", borderTopRightRadius: "inherit" }}
                   >
                     {usaImagen ? (
                       <defs>
@@ -495,26 +598,12 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
                         style={imagenMezclaStyle}
                       />
                     ) : null}
-                    <path
-                      d={flapPath}
-                      fill="none"
-                      style={{ stroke: colorCostura, strokeWidth: "calc(0.35 * var(--wedding-vmin, 1vmin))", vectorEffect: "non-scaling-stroke" } as CSSProperties}
-                    />
                   </svg>
                   {tex ? (
-                    <>
                       <div
                         className="absolute inset-0"
-                        style={{ ...tileStyle, ...shapeMask(flapPath), backfaceVisibility: "hidden" }}
+                        style={{ ...tileStyle, ...shapeMask(flapPath), backfaceVisibility: "hidden", borderTopLeftRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))`, borderTopRightRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))` }}
                       />
-                      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" style={{ backfaceVisibility: "hidden" }}>
-                        <path
-                          d={flapPath}
-                          fill="none"
-                          style={{ stroke: colorCostura, strokeWidth: "calc(0.35 * var(--wedding-vmin, 1vmin))", vectorEffect: "non-scaling-stroke" } as CSSProperties}
-                        />
-                      </svg>
-                    </>
                   ) : null}
                   {dryStampSrc ? (
                     <div
@@ -548,19 +637,39 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
                       </div>
                     </div>
                   ) : null}
+                  </div>
                   {/* Cara interior de la solapa, visible al girar más de 90º */}
                   <div
+                    ref={flapInteriorRef}
+                    data-envelope-flap-inner-edge
                     className="absolute inset-0"
                     style={{
-                      backgroundColor: colorSolapaInterior,
-                      clipPath: "polygon(0% 0%, 100% 0%, 50% 100%)",
                       transform: "rotateY(180deg)",
                       backfaceVisibility: "hidden",
+                      filter: paperThicknessShadow(Math.PI - direccionLuz, intensidadGrosorPapel, colorGrosorPapel, isDescendingOrLater ? anguloMaximo : 0),
                     }}
                   >
-                    {/* Sombra que se proyecta sobre la cara interior al abrirse, para reforzar el efecto 3D. */}
-                    <div className="absolute inset-0" style={{ backgroundColor: colorSombraApertura, ...aperturaShadowStyle }} />
+                    <div className="absolute inset-0" style={{ backgroundColor: colorSolapaInterior, ...shapeMask(flapPath) }} />
                   </div>
+                  {sealSlot ? (
+                    <div
+                      data-envelope-seal
+                      className="absolute aspect-square"
+                      style={{
+                        width: `calc(${sealSize} * min(1cqw, 1cqh))`,
+                        left: "50%",
+                        top: "100%",
+                        transform: "translate(-50%, -50%) translateZ(1px)",
+                        backfaceVisibility: "hidden",
+                        pointerEvents: phase === "closed" ? "auto" : "none",
+                      }}
+                      inert={phase !== "closed"}
+                    >
+                      <div ref={sealRef} data-envelope-seal-shadow className="h-full w-full" style={restingShadows.seal}>
+                        {sealSlot}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -568,13 +677,12 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
         </div>
       ) : null}
 
-      {/* Frontal del sobre: por delante de la portada; desciende junto con la trasera
-          y la solapa para que el sobre se retire como un conjunto único. La sombra
-          exterior solo existe con el sobre cerrado: al empezar a abrirse desaparece,
-          para no barrer la portada mientras el frontal desciende. */}
+      {/* Frontal del sobre: su sombra sigue la silueta completa, incluida la textura. */}
       {phase !== "done" ? (
-        <div className="z-30" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
+        <div data-envelope-layer className="z-30" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
           <div
+            ref={frontMotionRef}
+            data-envelope-front-motion
             className="h-full w-full"
             style={{
               transform: descendTransform,
@@ -583,24 +691,15 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
             }}
           >
             <div
-              className="absolute inset-0 overflow-hidden"
+              data-envelope-front-edge
+              className="absolute inset-0"
               style={{
                 borderRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))`,
-                // El borde y la sombra solo existen con el sobre cerrado: el frontal es
-                // una sola pieza y, al desplazarse, arrastraría ambos por encima del
-                // contenido si siguieran pintándose mientras desciende.
-                boxShadow:
-                  phase === "closed"
-                    ? [
-                        grosorBorde > 0 ? `inset 0 0 0 calc(${grosorBorde} * var(--wedding-vmin, 1vmin)) ${colorBorde}` : null,
-                        `0 calc(${sombraDesenfoque / 2} * var(--wedding-vmin, 1vmin)) calc(${sombraDesenfoque} * var(--wedding-vmin, 1vmin)) ${sombraColor}`,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")
-                    : undefined,
+                filter: paperEdgeFilter,
               }}
             >
-              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" style={{ filter: paperEdgeFilter }}>
+              <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: "inherit" }}>
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
                 {usaImagen ? (
                   <defs>
                     <clipPath id={`${patternId}-front-clip`}>
@@ -621,36 +720,15 @@ export default function EnvelopeOpenReveal({ config, texture, fondo, sealBroken,
                 ) : null}
               </svg>
               {tex ? <div className="absolute inset-0" style={{ ...tileStyle, ...shapeMask(frontPath) }} /> : null}
+              </div>
             </div>
           </div>
         </div>
       ) : null}
 
-      {/* Lacre: capa independiente con su propio z-index de nivel superior, para
-          quedar siempre por encima del frontal. Anidarlo dentro del grupo de la
-          solapa (z-20) lo limitaba a ese contexto de apilamiento y quedaba por
-          debajo del frontal (z-30) aunque tuviera un z-index local más alto. */}
-      {phase !== "done" && sealSlot ? (
-        <div className="z-50" style={{ ...envelopeBoxStyle, pointerEvents: "none" }}>
-          <div
-            className="absolute aspect-square"
-            style={{
-              width: `calc(${sealSize} * min(1cqw, 1cqh))`,
-              left: "50%",
-              top: `${flapPct}%`,
-              transform: "translate(-50%, -50%)",
-              opacity: sealVisible ? 1 : 0,
-              transition: reduceMotion ? "none" : "opacity 250ms ease",
-              pointerEvents: sealVisible ? "auto" : "none",
-            }}
-          >
-            {sealSlot}
-          </div>
-        </div>
-      ) : null}
       </div>
       {ready && (resources.failed.length > 0 || stampFailed) && phase === "closed" ? (
-        <p role="status" className="absolute inset-x-0 bottom-2 text-center text-xs opacity-60" style={{ color: colorBorde }}>
+        <p role="status" className="absolute inset-x-0 bottom-2 text-center text-xs opacity-60" style={{ color: colorGrosorPapel }}>
           {stampFailed ? "No se pudo cargar el sello seco." : "No se pudieron cargar algunos recursos de la invitación."}
         </p>
       ) : null}

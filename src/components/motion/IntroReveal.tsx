@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useSyncExternalStore, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore, useState, type CSSProperties, type ReactNode } from "react";
 import { IntroProvider } from "@/contexts/IntroContext";
 import AutoDrawSVG from "@/components/motion/AutoDrawSVG";
 import IntroAnimationStage from "@/components/motion/IntroAnimationStage";
@@ -28,6 +28,14 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   const viewport = useDeviceViewport();
   const reduceMotion = useIntroReducedMotion();
   const deviceConfig = (viewport === "movil" ? config.movil : config.pc) ?? DEFAULT_DEVICE_CONFIG;
+  const isEnvelopeMode = deviceConfig.tipo === "envelope";
+  const fadeEnvelopeSeal = isEnvelopeMode && deviceConfig.envelope?.lacreFadeDuranteApertura === true;
+  const completedRef = useRef(false);
+  const triggeredRef = useRef(false);
+  const delayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (delayRef.current !== null) clearTimeout(delayRef.current);
+  }, []);
   const [started, setStarted] = useState(false);
   const [closingLacre, setClosingLacre] = useState(false);
   const [lacreGone, setLacreGone] = useState(false);
@@ -64,12 +72,26 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   const hasSelectedNativeTrigger = nativeAnimationOptions.length <= 1 || Boolean(selectedNativeAnimationId);
 
   const completeIntro = useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    if (delayRef.current !== null) clearTimeout(delayRef.current);
     window.localStorage.setItem(storageKey, "1");
     setUnlocked(true);
   }, [storageKey]);
 
   const startIntro = () => {
-    if (closingLacre) return;
+    if (triggeredRef.current || completedRef.current) return;
+    triggeredRef.current = true;
+    if (isEnvelopeMode) {
+      const begin = () => {
+        setLacreGone(true);
+        setStarted(true);
+      };
+      const delay = reduceMotion ? 0 : Math.max(0, config.pausaTrasTriggerMs ?? 0);
+      if (delay > 0) delayRef.current = setTimeout(begin, delay);
+      else begin();
+      return;
+    }
     if (reduceMotion) {
       setLacreGone(true);
       setStarted(true);
@@ -118,20 +140,22 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   }, [config.activo, unlocked, visitRecorded]);
 
   const finishLacreWithDelay = useCallback(() => {
-    const delay = Math.max(0, config.pausaTrasTriggerMs ?? 0);
+    const delay = reduceMotion ? 0 : Math.max(0, config.pausaTrasTriggerMs ?? 0);
     if (delay > 0) {
-      setTimeout(() => {
+      delayRef.current = setTimeout(() => {
         finishLacre();
       }, delay);
     } else {
       finishLacre();
     }
-  }, [config.pausaTrasTriggerMs, finishLacre]);
+  }, [config.pausaTrasTriggerMs, finishLacre, reduceMotion]);
 
   const finishAutoLacre = useCallback(() => {
-    const delay = Math.max(0, config.pausaTrasTriggerMs ?? 0);
+    if (triggeredRef.current || completedRef.current) return;
+    triggeredRef.current = true;
+    const delay = reduceMotion ? 0 : Math.max(0, config.pausaTrasTriggerMs ?? 0);
     if (delay > 0) {
-      setTimeout(() => {
+      delayRef.current = setTimeout(() => {
         setLacreGone(true);
         setStarted(true);
       }, delay);
@@ -139,13 +163,13 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
       setLacreGone(true);
       setStarted(true);
     }
-  }, [config.pausaTrasTriggerMs]);
+  }, [config.pausaTrasTriggerMs, reduceMotion]);
 
   useEffect(() => {
-    if (!closingLacre || !lacreUsesExternalClick) return;
+    if (!closingLacre || !lacreUsesExternalClick || isEnvelopeMode) return;
     const t = window.setTimeout(finishLacreWithDelay, lacreDurationMs);
     return () => window.clearTimeout(t);
-  }, [closingLacre, lacreUsesExternalClick, lacreDurationMs, finishLacreWithDelay]);
+  }, [closingLacre, lacreUsesExternalClick, lacreDurationMs, finishLacreWithDelay, isEnvelopeMode]);
 
   if (!config.activo || unlocked || visitRecorded) {
     return <>{children}</>;
@@ -153,12 +177,11 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
 
   const isLacreStep = !started || !lacreGone;
   const introIsCurrentlyActive = config.activo && !unlocked && !visitRecorded;
-  const isEnvelopeMode = deviceConfig.tipo === "envelope";
 
   const sealColor = themeValue("--bronze-light") || "#C4964A";
 
   const renderSealVisual = (sizeClassName: string, sealBackground?: string) => {
-    if (lacreGone) return null;
+    if (lacreGone && !isEnvelopeMode) return null;
 
     if (lacreKind === "loading") {
       return <span className={`block ${sizeClassName}`} aria-hidden="true" />;
@@ -167,7 +190,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
       return <button type="button" className={`block text-xs text-[var(--bronze-light)] underline ${sizeClassName}`} onClick={startIntro}>Abrir invitación</button>;
     }
 
-    if (lacreKind === "interactiveSvg") {
+    if (lacreKind === "interactiveSvg" && !fadeEnvelopeSeal) {
       // El lacre tiene animación nativa que escucha el clic por sí misma,
       // y su finalización dispara automáticamente la siguiente etapa.
       return (
@@ -191,7 +214,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
       );
     }
 
-    if (lacreUsesExternalClick) {
+    if (lacreUsesExternalClick || fadeEnvelopeSeal) {
       // Imagen (PNG, JPG...) o SVG animado que no escucha clics: una capa
       // transparente por encima captura el clic (también el que caería dentro
       // del iframe del SVG), el lacre se desvanece y arranca la intro.
@@ -207,8 +230,8 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
             style={{
               color: sealColor,
               backgroundColor: sealBackground,
-              opacity: closingLacre ? 0 : 1,
-              transform: closingLacre ? "scale(0.85)" : "scale(1)",
+              opacity: closingLacre && !isEnvelopeMode ? 0 : 1,
+              transform: closingLacre && !isEnvelopeMode ? "scale(0.85)" : "scale(1)",
               transition: `opacity ${lacreDurationMs}ms ease, transform ${lacreDurationMs}ms ease`,
             }}
           >
@@ -219,7 +242,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
               <AutoDrawSVG
                 svgSource={preparedLacreSrc ?? lacreSrc}
                 onReady={markLacreReady}
-                animate
+                animate={!fadeEnvelopeSeal}
                 strokeColorOverride={themeValue("--bronze-light")}
                 durationMs={lacreDurationMs}
                 sequential={false}
@@ -240,8 +263,8 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
           <AutoDrawSVG
             svgSource={preparedLacreSrc ?? lacreSrc}
             onReady={markLacreReady}
-            direction={closingLacre ? "reverse" : "forward"}
-            animate={closingLacre}
+            direction={closingLacre && !isEnvelopeMode ? "reverse" : "forward"}
+            animate={closingLacre && !isEnvelopeMode}
             strokeColorOverride={themeValue("--bronze-light")}
             durationMs={lacreDurationMs}
             sequential={false}

@@ -1842,52 +1842,20 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   </div>
                                 </div>
 
-                                <div className="grid gap-3 sm:grid-cols-3">
-                                  <div>
-                                    <label className="label-field">Color del borde</label>
-                                    <input
-                                      type="color"
-                                      className="input-field h-10 w-full"
-                                      value={deviceConfig.envelope?.colorBorde ?? "#a9895f"}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorBorde: e.target.value })}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="label-field">Grosor del borde (% pantalla)</label>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      max={5}
-                                      step={0.1}
-                                      className="input-field"
-                                      value={deviceConfig.envelope?.grosorBordePorcentaje ?? 0.6}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { grosorBordePorcentaje: Math.max(0, Number(e.target.value) || 0) })}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="label-field">Radio de esquinas (% pantalla)</label>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      max={20}
-                                      step={0.5}
-                                      className="input-field"
-                                      value={deviceConfig.envelope?.radioEsquinasPorcentaje ?? 2}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { radioEsquinasPorcentaje: Math.max(0, Number(e.target.value) || 0) })}
-                                    />
-                                  </div>
+                                <div>
+                                  <label className="label-field">Radio de esquinas (% pantalla)</label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={20}
+                                    step={0.5}
+                                    className="input-field"
+                                    value={deviceConfig.envelope?.radioEsquinasPorcentaje ?? 2}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { radioEsquinasPorcentaje: Math.max(0, Number(e.target.value) || 0) })}
+                                  />
                                 </div>
 
-                                <div className="grid gap-3 sm:grid-cols-3">
-                                  <div>
-                                    <label className="label-field">Color de la costura</label>
-                                    <input
-                                      type="color"
-                                      className="input-field h-10 w-full"
-                                      value={deviceConfig.envelope?.colorCostura ?? "#8a6a44"}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { colorCostura: e.target.value })}
-                                    />
-                                  </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
                                   <div>
                                     <label className="label-field">Color de la sombra</label>
                                     <input
@@ -1899,11 +1867,10 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                     />
                                   </div>
                                   <div>
-                                    <label className="label-field">Difuminado de sombra (% pantalla)</label>
+                                    <label className="label-field">Suavidad compartida de sombras (% vmin)</label>
                                     <input
                                       type="number"
                                       min={0}
-                                      max={15}
                                       step={0.5}
                                       className="input-field"
                                       value={deviceConfig.envelope?.sombraDesenfoquePorcentaje ?? 3}
@@ -2050,7 +2017,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                 <div className="border-t border-stone-200 pt-3">
                                   <p className="label-field">Sombra al abrir la solapa</p>
                                   <p className="mt-1 text-xs text-stone-500">
-                                    Se proyecta sobre la cara interior de la solapa y sobre la portada vista por el hueco, y se desvanece a la vez que la solapa termina de abrirse.
+                                    La proyección de la solapa y la sombra del lacre cambian con el giro. Comparten tono, intensidad, luz y suavidad.
                                   </p>
                                 </div>
                                 <div className="grid gap-3 sm:grid-cols-2">
@@ -2078,10 +2045,18 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   </div>
                                 </div>
 
+                                <div>
+                                  <label className="label-field">Origen de la luz (grados)</label>
+                                  <input type="number" min={0} max={360} step={5} className="input-field max-w-xs"
+                                    value={deviceConfig.envelope?.direccionLuzGrados ?? 225}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { direccionLuzGrados: Math.min(360, Math.max(0, Number(e.target.value) || 0)) })} />
+                                  <p className="mt-1 text-xs text-stone-500">Origen de la luz: 0° derecha, 90° arriba, 180° izquierda, 270° abajo. La sombra se proyecta al lado opuesto; 225° ilumina desde abajo izquierda y proyecta hacia arriba derecha.</p>
+                                </div>
+
                                 <div className="border-t border-stone-200 pt-3">
                                   <p className="label-field">Grosor de papel en los bordes</p>
                                   <p className="mt-1 text-xs text-stone-500">
-                                    Sombra sutil en el contorno recortado del frontal y la solapa, para que parezca que tienen grosor de papel.
+                                    El contorno no tiene líneas ni costura: solo la sombra del grosor del papel, con la misma dirección de luz que el sobre y el lacre.
                                   </p>
                                 </div>
                                 <div className="grid gap-3 sm:grid-cols-2">
@@ -2112,8 +2087,41 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                 <div className="border-t border-stone-200 pt-3">
                                   <p className="label-field">Secuencia tras el lacre</p>
                                   <p className="mt-1 text-xs text-stone-500">
-                                    Se abre la solapa, luego el sobre desciende dejando ver la portada, y por último la portada hace zoom hasta ocupar toda la pantalla (momento en el que se activa).
+                                    El modo clásico conserva descenso y zoom. Fade durante apertura retira todo el sobre con la portada ya a tamaño definitivo, sin fases posteriores.
                                   </p>
+                                </div>
+
+                                <label className="flex items-center gap-2 text-sm">
+                                  <input type="checkbox" checked={deviceConfig.envelope?.lacreFadeDuranteApertura ?? false}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { lacreFadeDuranteApertura: e.target.checked })} />
+                                  Desvanecer el lacre al empezar a abrir la solapa
+                                </label>
+                                <p className="text-xs text-stone-500">
+                                  El fade y el giro empiezan juntos después de la pausa configurada. El lacre sigue unido a la solapa mientras se desvanece, sin encogerse ni retrasar la apertura.
+                                </p>
+                                <div>
+                                  <label className="label-field">Duración del desvanecimiento del lacre (ms)</label>
+                                  <input type="number" min={0} step={50} className="input-field max-w-xs"
+                                    disabled={!deviceConfig.envelope?.lacreFadeDuranteApertura}
+                                    value={deviceConfig.envelope?.duracionFadeLacreMs ?? 900}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { duracionFadeLacreMs: Math.max(0, Number(e.target.value) || 0) })} />
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <label className="label-field">Modo de salida del sobre</label>
+                                    <select className="input-field" value={deviceConfig.envelope?.modoSalidaSobre ?? "descensoZoom"}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { modoSalidaSobre: e.target.value })}>
+                                      <option value="descensoZoom">Clásico: descenso y zoom</option>
+                                      <option value="fadeApertura">Fade durante apertura (sin zoom)</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="label-field">Ángulo máximo de apertura (grados)</label>
+                                    <input type="number" min={1} max={180} step={1} className="input-field"
+                                      value={deviceConfig.envelope?.anguloMaximoAperturaGrados ?? 180}
+                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { anguloMaximoAperturaGrados: Math.min(180, Math.max(1, Number(e.target.value) || 180)) })} />
+                                  </div>
                                 </div>
 
                                 <div>
@@ -2121,6 +2129,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                   <select
                                     className="input-field max-w-xs"
                                     value={deviceConfig.envelope?.modoDescensoSobre ?? "desplazamiento"}
+                                    disabled={deviceConfig.envelope?.modoSalidaSobre === "fadeApertura"}
                                     onChange={(e) => patchIntroDeviceSub(device, "envelope", { modoDescensoSobre: e.target.value })}
                                   >
                                     <option value="desplazamiento">Solo se desplaza hacia abajo</option>
@@ -2151,6 +2160,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                       step={50}
                                       className="input-field"
                                       value={deviceConfig.envelope?.duracionDescensoMs ?? 700}
+                                      disabled={deviceConfig.envelope?.modoSalidaSobre === "fadeApertura"}
                                       onChange={(e) => patchIntroDeviceSub(device, "envelope", { duracionDescensoMs: Math.max(300, Number(e.target.value) || 300) })}
                                     />
                                   </div>
@@ -2163,6 +2173,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                       step={50}
                                       className="input-field"
                                       value={deviceConfig.envelope?.duracionZoomMs ?? 900}
+                                      disabled={deviceConfig.envelope?.modoSalidaSobre === "fadeApertura"}
                                       onChange={(e) => patchIntroDeviceSub(device, "envelope", { duracionZoomMs: Math.max(300, Number(e.target.value) || 300) })}
                                     />
                                   </div>
