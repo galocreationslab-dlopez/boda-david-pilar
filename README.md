@@ -160,6 +160,17 @@ Prueba aislada: `/dev/envelope-test`. Permite introducir el recurso, ajustar
 tamaño/posición y reiniciar. Comprueba la fase cerrada, el giro, el descenso y
 la portada final; repite en móvil, con recurso ausente y con movimiento reducido.
 
+### Tamaño del lacre por dispositivo
+
+En **Contenido → Intro → PC / Móvil**, activa **Usar tamaño propio del lacre**
+y ajusta el tamaño entre 5% y 40%. Se guarda en
+`intro.pc.tamanoLacrePorcentaje` o `intro.movil.tamanoLacrePorcentaje` al
+guardar los cambios, y se aplica a todos los modos de Intro, incluido Sobre.
+Desactiva la opción para volver al tamaño común
+`intro.tamanoLacrePorcentaje`. Las configuraciones antiguas conservan ese
+valor común, o 24% si tampoco estaba definido. El recurso, la interacción y
+la duración del lacre siguen siendo comunes.
+
 ### 1. Configuración centralizada
 **Todo** dato de la boda vive en `src/config/wedding.config.ts`.
 Los componentes reciben datos como **props**, nunca leen la config directamente.

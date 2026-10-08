@@ -1392,7 +1392,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
 
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div>
-                      <label className="label-field">Tamano del lacre (% de pantalla): {introConfig.tamanoLacrePorcentaje ?? 24}%</label>
+                      <label className="label-field">Tamano comun del lacre (% de pantalla): {introConfig.tamanoLacrePorcentaje ?? 24}%</label>
                       <input
                         type="range"
                         min={5}
@@ -1402,6 +1402,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         value={introConfig.tamanoLacrePorcentaje ?? 24}
                         onChange={(e) => patchIntro({ tamanoLacrePorcentaje: Number(e.target.value) })}
                       />
+                      <p className="mt-1 text-xs text-stone-500">Se usa si PC o Movil no tienen un tamano propio.</p>
                     </div>
                     <div>
                       <label className="label-field">Duracion del lacre (ms)</label>
@@ -1470,6 +1471,31 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         const uploadPrefix = `${device}-`;
                         return (
                           <div key={device} className="mt-3 space-y-3">
+                            <div>
+                              <label className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={deviceConfig.tamanoLacrePorcentaje !== undefined}
+                                  onChange={(e) => patchIntroDevice(device, {
+                                    tamanoLacrePorcentaje: e.target.checked ? introConfig.tamanoLacrePorcentaje ?? 24 : undefined,
+                                  })}
+                                />
+                                Usar tamano propio del lacre en {device === "pc" ? "PC" : "Movil"}
+                              </label>
+                              <label className="label-field">
+                                Tamano del lacre (% de pantalla): {deviceConfig.tamanoLacrePorcentaje ?? introConfig.tamanoLacrePorcentaje ?? 24}%
+                              </label>
+                              <input
+                                type="range"
+                                min={5}
+                                max={40}
+                                step={1}
+                                className="w-full accent-stone-700"
+                                disabled={deviceConfig.tamanoLacrePorcentaje === undefined}
+                                value={deviceConfig.tamanoLacrePorcentaje ?? introConfig.tamanoLacrePorcentaje ?? 24}
+                                onChange={(e) => patchIntroDevice(device, { tamanoLacrePorcentaje: Number(e.target.value) })}
+                              />
+                            </div>
                             <div>
                               <label className="label-field">Tipo de animacion</label>
                               <select

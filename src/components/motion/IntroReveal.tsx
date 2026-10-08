@@ -91,7 +91,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   const introTitle = config.textoTitulo ?? "";
   const introSubtitle = config.textoSubtitulo ?? "";
   const introSkipLabel = config.textoSaltar ?? "";
-  const lacreSizePercent = Math.min(40, Math.max(5, config.tamanoLacrePorcentaje ?? 24));
+  const lacreSizePercent = Math.min(40, Math.max(5, deviceConfig.tamanoLacrePorcentaje ?? config.tamanoLacrePorcentaje ?? 24));
   const showIntroTitle = introTitle.trim().length > 0;
   const showIntroSubtitle = introSubtitle.trim().length > 0;
   const showIntroSkip = introSkipLabel.trim().length > 0;

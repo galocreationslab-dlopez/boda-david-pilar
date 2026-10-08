@@ -296,6 +296,7 @@ export type NativeSvgAnimationOption = {
 
 export type IntroDeviceConfig = {
   tipo: IntroAnimationType;
+  tamanoLacrePorcentaje?: number; // 5-40; si falta, usa el tamaño común de la Intro
   revealBook?: IntroRevealBookConfig;
   cortinas?: IntroCortinasConfig;
   fadeIn?: IntroFadeInConfig;
