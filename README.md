@@ -63,6 +63,30 @@ supabase/
 
 ## Principios arquitectónicos
 
+### Geometría del sobre
+
+En **Contenido → Intro → Apertura de sobre**, PC y móvil guardan por separado
+la geometría en `intro.pc.envelope` / `intro.movil.envelope` de `config_json`.
+**Papel plegado** añade relieve y dos costuras diagonales inferiores detrás
+de la solapa superior; **Compatible: aspecto anterior** recupera la silueta
+y el acabado previos. Cambiar de modo no borra las medidas.
+
+La altura inferior (5–95%) se mide desde abajo respecto al **alto del sobre**;
+el extremo plano (0–80%), respecto a su **ancho**. Cero produce un pico.
+El redondeo (0–50%) recorta una fracción de los lados adyacentes: cero deja
+ángulos vivos. La altura y el redondeo superiores mantienen sus controles.
+Esquinas, grosor y sombras siguen usando los controles existentes; las medidas
+en **% vmin** corresponden al lado menor de la pantalla, no al sobre.
+
+Las siluetas, máscaras, costuras y sombras proceden de la misma geometría.
+La solapa inferior se recorta al frontal para no invadir el hueco de la carta,
+incluso si su altura supera la de la superior. No cambia la secuencia,
+el lacre, el sello seco, la carga inicial, las texturas ni las dimensiones.
+La previsualización del editor y `/dev/envelope-test` usan el mismo renderizador
+y controles inferiores. Guarda los cambios en el editor para persistirlos.
+Las regresiones de geometría y serialización se ejecutan con
+`node --test tests/envelope-geometry.test.mjs`.
+
 ### Imágenes y logos con Google Maps
 
 En **Contenido**, las imágenes de **Portada (formato libre)** y los eventos del

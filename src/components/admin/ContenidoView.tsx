@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
 import EnvelopeTimelineControls from "@/components/admin/EnvelopeTimelineControls";
+import EnvelopeGeometryControls from "@/components/admin/EnvelopeGeometryControls";
 import MapsFields from "@/components/admin/MapsFields";
 import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
@@ -1815,7 +1816,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                 )}
 
                                 <p className="text-xs text-stone-500">
-                                  El sobre ocupa siempre la pantalla completa. Las medidas de abajo se expresan en % del lado menor de la pantalla, para que la composición se mantenga proporcional en cualquier dispositivo.
+                                  Las alturas de solapa se expresan en % del alto del sobre; el extremo plano, en % de su ancho. Esquinas y suavidad usan % vmin (lado menor de la pantalla). Cada dispositivo guarda sus propios ajustes.
                                 </p>
 
                                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1890,7 +1891,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
 
                                 <div className="grid gap-3 sm:grid-cols-2">
                                   <div>
-                                    <label className="label-field">Altura de la solapa (% del sobre)</label>
+                                    <label className="label-field">Altura superior (% del alto del sobre)</label>
                                     <input
                                       type="number"
                                       min={20}
@@ -1902,7 +1903,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                     />
                                   </div>
                                   <div>
-                                    <label className="label-field">Redondeo del pico de la solapa (%)</label>
+                                    <label className="label-field">Redondeo superior (% de los lados)</label>
                                     <input
                                       type="number"
                                       min={0}
@@ -1914,6 +1915,9 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                     />
                                   </div>
                                 </div>
+
+                                <EnvelopeGeometryControls value={deviceConfig.envelope ?? {}}
+                                  onChange={(patch) => patchIntroDeviceSub(device, "envelope", patch)} />
 
                                 <div className="border-t border-stone-200 pt-3">
                                   <p className="label-field">Escena (fondo exterior y márgenes)</p>
@@ -2065,7 +2069,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                 <div className="border-t border-stone-200 pt-3">
                                   <p className="label-field">Grosor de papel en los bordes</p>
                                   <p className="mt-1 text-xs text-stone-500">
-                                    El contorno no tiene líneas ni costura: solo la sombra del grosor del papel, con la misma dirección de luz que el sobre y el lacre.
+                                    El acabado de papel combina grosor, luz en el canto y sombras suaves en los pliegues, sin líneas de tinta. Comparte la dirección de luz del sobre y el lacre. El modo compatible conserva las sombras anteriores.
                                   </p>
                                 </div>
                                 <div className="grid gap-3 sm:grid-cols-2">

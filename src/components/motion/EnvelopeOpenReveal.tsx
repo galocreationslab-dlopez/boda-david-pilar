@@ -5,6 +5,7 @@ import { normalizeEnvelopeTimeline, normalizeIntroEnvelopeConfig, type IntroEnve
 import { getEnvelopeResources, type EnvelopeTexture } from "@/lib/intro-envelope-resources";
 import { useIntroImages, useIntroReducedMotion } from "@/components/motion/useIntroResources";
 import EnvelopeDryStamp from "@/components/motion/EnvelopeDryStamp";
+import { getEnvelopeGeometry } from "@/lib/envelope-geometry";
 
 export type { EnvelopeTexture } from "@/lib/intro-envelope-resources";
 
@@ -26,20 +27,6 @@ export type EnvelopeOpenRevealProps = {
 };
 
 type Phase = "closed" | "opening" | "descending" | "zooming" | "done";
-
-/**
- * Punto redondeado de un vértice en (apexX, apexY) cuyos dos lados van hacia
- * (0, cornerY) y (2*apexX, cornerY): sustituye el ángulo vivo por dos puntos
- * desplazados una fracción `f` del vértice hacia cada esquina, para unirlos
- * después con una curva cuadrática (con el vértice original como control).
- */
-function roundedApex(apexX: number, apexY: number, cornerY: number, f: number) {
-  return {
-    leftX: apexX - apexX * f,
-    rightX: apexX + apexX * f,
-    y: apexY + (cornerY - apexY) * f,
-  };
-}
 
 function lightDirection(light: number) {
   // Angulo matematico del origen de luz; CSS tiene el eje Y invertido.
@@ -163,8 +150,9 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
   const colorSolapaInterior = config.colorSolapaInterior || "#c9b48c";
   const sombraColor = config.sombraColor || "rgba(0,0,0,0.35)";
   const sombraDesenfoque = Math.max(0, config.sombraDesenfoquePorcentaje ?? 3);
-  const flapPct = Math.min(70, Math.max(20, config.alturaSolapaPorcentaje ?? 42));
-  const radioPico = Math.min(50, Math.max(0, config.radioPicoSolapaPorcentaje ?? 10)) / 100;
+  const geometry = getEnvelopeGeometry(config);
+  const flapPct = geometry.height;
+  const paperGeometry = config.geometriaSobre === "papel";
   const resources = useIntroImages([configuredTexture?.url ?? "", configuredImageSrc, exteriorSrc]);
   const tex = configuredTexture && !resources.failed.includes(configuredTexture.url) ? configuredTexture : undefined;
   const imagenSobreSrc = resources.failed.includes(configuredImageSrc) ? "" : configuredImageSrc;
@@ -431,14 +419,7 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
   const isDescendingOrLater = phase === "descending" || phase === "zooming" || phase === "done";
   const flapRotation = isOpenOrLater ? -anguloMaximo : 0;
 
-  // Muesca del frontal (rectángulo con el hueco triangular donde encaja la solapa,
-  // con el pico redondeado) y triángulo de la solapa (mismo redondeo, en su propio
-  // sistema de coordenadas local 0-100), calculados con la misma fracción de redondeo
-  // para que ambas piezas encajen visualmente.
-  const front = roundedApex(50, flapPct, 0, radioPico);
-  const frontPath = `M0,100 L0,0 L${front.leftX},${front.y} Q50,${flapPct} ${front.rightX},${front.y} L100,0 L100,100 Z`;
-  const flap = roundedApex(50, 100, 0, radioPico);
-  const flapPath = `M0,0 L100,0 L${flap.rightX},${flap.y} Q50,100 ${flap.leftX},${flap.y} Z`;
+  const { frontPath, flapPath } = geometry;
 
   const descendTransform = modoDescenso !== "fade" && isDescendingOrLater ? "translateY(220%)" : "translateY(0%)";
   const descendOpacity = modoDescenso !== "desplazamiento" && isDescendingOrLater ? 0 : 1;
@@ -501,6 +482,19 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
   const paperEdgeFilter = paperThicknessShadow(direccionLuz, intensidadGrosorPapel, colorGrosorPapel);
   const exteriorShadow = directionalShadow(direccionLuz, sombraDesenfoque / 2, sombraDesenfoque, sombraColor, intensidadSombraApertura);
 
+  const paperRelief = (edge: string, silhouette: string) => paperGeometry ? (
+    <div data-envelope-paper-relief className="absolute inset-0" style={{ ...shapeMask(silhouette), borderRadius: "inherit", overflow: "hidden", pointerEvents: "none" }}>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" style={{ overflow: "visible" }}>
+        <path d={edge} fill="none" stroke={colorGrosorPapel} strokeOpacity={intensidadGrosorPapel * 0.3}
+          vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round"
+          style={{ strokeWidth: "calc(0.28 * var(--wedding-vmin, 1vmin))", filter: directionalShadow(direccionLuz, 0.12, 0.18, colorGrosorPapel, intensidadGrosorPapel) }} />
+        <path d={edge} fill="none" stroke="white" strokeOpacity={intensidadGrosorPapel * 0.85}
+          vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round"
+          style={{ strokeWidth: "calc(0.08 * var(--wedding-vmin, 1vmin))" }} />
+      </svg>
+    </div>
+  ) : null;
+
   const restingShadows = openingShadows(isDescendingOrLater ? anguloMaximo : 0, direccionLuz, intensidadSombraApertura, sombraDesenfoque, colorSombraApertura);
   const aperturaShadowStyle: CSSProperties = {
     ...restingShadows.flap,
@@ -536,7 +530,8 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
               transition: `transform ${duracionDescenso}ms ease-in, opacity ${duracionDescenso}ms ease-in`,
             }}
           >
-            <div data-envelope-body-shadow className="absolute inset-0" style={{ ...bodyFill, borderRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))`, filter: `${paperEdgeFilter} ${exteriorShadow}` }} />
+            <div data-envelope-body-shadow className="absolute inset-0" style={{ ...bodyFill, borderRadius: `calc(${radioEsquinas} * var(--wedding-vmin, 1vmin))`, filter: `${paperEdgeFilter} ${exteriorShadow}`,
+              boxShadow: paperGeometry ? `inset 0 0 calc(0.3 * var(--wedding-vmin, 1vmin)) color-mix(in srgb, ${colorGrosorPapel} ${intensidadGrosorPapel * 30}%, transparent)` : undefined }} />
           </div>
         </div>
       ) : null}
@@ -673,6 +668,7 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
                       </div>
                     </div>
                   ) : null}
+                  {paperRelief(geometry.flapEdge, flapPath)}
                   </div>
                   {/* Cara interior de la solapa, visible al girar más de 90º */}
                   <div
@@ -686,6 +682,7 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
                     }}
                   >
                     <div className="absolute inset-0" style={{ backgroundColor: colorSolapaInterior, ...shapeMask(flapPath) }} />
+                    {paperRelief(geometry.flapEdge, flapPath)}
                   </div>
                   {sealSlot ? (
                     <div
@@ -756,6 +753,16 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
                 ) : null}
               </svg>
               {tex ? <div className="absolute inset-0" style={{ ...tileStyle, ...shapeMask(frontPath) }} /> : null}
+              {paperGeometry ? (
+                <div data-envelope-lower-flap className="absolute inset-0" style={shapeMask(frontPath)}>
+                  <div className="absolute inset-0" style={{
+                    ...shapeMask(geometry.lowerPath),
+                    background: `linear-gradient(${90 - (config.direccionLuzGrados ?? 225)}deg, rgba(255,255,255,${intensidadGrosorPapel * 0.16}), transparent 45%, color-mix(in srgb, ${colorGrosorPapel} ${intensidadGrosorPapel * 12}%, transparent))`,
+                  }} />
+                  {paperRelief(geometry.lowerEdge, frontPath)}
+                </div>
+              ) : null}
+              {paperRelief(geometry.frontEdge, frontPath)}
               </div>
             </div>
           </div>

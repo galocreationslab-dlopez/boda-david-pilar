@@ -287,16 +287,20 @@ export type IntroEnvelopeConfig = {
   colorBase?: string; // color del frontal (la cara exterior/visible del sobre)
   colorTrasera?: string; // color de la trasera y la cara exterior de la solapa (misma pieza de papel)
   colorBorde?: string; // heredado: no se dibujan lineas de contorno
-  // Todas las medidas se expresan como porcentaje del lado menor de la pantalla
-  // (unidad "vmin"), ya que el sobre y la carta se dimensionan proporcionalmente.
+  // Esquinas y suavidad usan % del lado menor de la pantalla (vmin).
+  // La geometria de las solapas usa % del alto/ancho del propio sobre.
   grosorBordePorcentaje?: number; // heredado: sin efecto visual
   radioEsquinasPorcentaje?: number;
   colorSolapaInterior?: string;
   colorCostura?: string; // heredado: sin efecto visual
   sombraColor?: string;
   sombraDesenfoquePorcentaje?: number;
-  alturaSolapaPorcentaje?: number; // 0-100: altura de la solapa triangular respecto al alto del sobre
+  alturaSolapaPorcentaje?: number; // 20-70: altura de la solapa triangular respecto al alto del sobre
   radioPicoSolapaPorcentaje?: number; // 0-50: redondeo del pico de la solapa (y de la muesca a juego en el frontal)
+  geometriaSobre?: "papel" | "clasica";
+  alturaSolapaInferiorPorcentaje?: number; // 5-95: porcentaje del alto del sobre, desde abajo
+  anchoPlanoSolapaInferiorPorcentaje?: number; // 0-80: porcentaje del ancho del sobre
+  redondeoSolapaInferiorPorcentaje?: number; // 0-50: fraccion de los lados adyacentes al extremo
   // Sombras proyectadas por solapa y lacre, variables con el ángulo de apertura.
   colorSombraApertura?: string;
   intensidadSombraAperturaPorcentaje?: number; // 0-100
@@ -331,6 +335,13 @@ export function normalizeIntroEnvelopeConfig(config: IntroEnvelopeConfig = {}): 
     typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
   return {
     ...config,
+    geometriaSobre: config.geometriaSobre === "clasica" ? "clasica" : "papel",
+    alturaSolapaPorcentaje: number(config.alturaSolapaPorcentaje, 42, 20, 70),
+    radioPicoSolapaPorcentaje: number(config.radioPicoSolapaPorcentaje, 10, 0, 50),
+    alturaSolapaInferiorPorcentaje: number(config.alturaSolapaInferiorPorcentaje, 58, 5, 95),
+    anchoPlanoSolapaInferiorPorcentaje: number(config.anchoPlanoSolapaInferiorPorcentaje, 12, 0, 80),
+    redondeoSolapaInferiorPorcentaje: number(config.redondeoSolapaInferiorPorcentaje, 10, 0, 50),
+    intensidadGrosorPapelPorcentaje: number(config.intensidadGrosorPapelPorcentaje, 35, 0, 100),
     modoSalidaSobre: config.modoSalidaSobre === "fadeProgramado" ? "fadeProgramado"
       : config.modoSalidaSobre === "fadeApertura" ? "fadeApertura" : "descensoZoom",
     lineaTemporal: normalizeEnvelopeTimeline(config.lineaTemporal),

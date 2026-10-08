@@ -4,6 +4,7 @@ import { useState } from "react";
 import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
 import IntroReveal from "@/components/motion/IntroReveal";
 import EnvelopeTimelineControls from "@/components/admin/EnvelopeTimelineControls";
+import EnvelopeGeometryControls from "@/components/admin/EnvelopeGeometryControls";
 import type { IntroEnvelopeAjusteAspecto, IntroEnvelopeAspectoModo, IntroEnvelopeConfig, IntroEnvelopeDescensoModo, IntroEnvelopeModoFondo } from "@/config/wedding.config";
 
 const DEFAULT_CONFIG: IntroEnvelopeConfig = {
@@ -100,6 +101,7 @@ export default function EnvelopeTestPage() {
             <label htmlFor="test-texture-url" className="label-field">URL textura de papel</label>
             <input id="test-texture-url" className="input-field" value={textureUrl} onChange={(e) => setTextureUrl(e.target.value)} />
           </div>
+          <EnvelopeGeometryControls value={config} onChange={patch} />
           <div>
             <label htmlFor="envelope-exit" className="label-field">Modo de salida</label>
             <select id="envelope-exit" className="input-field" value={config.modoSalidaSobre ?? "descensoZoom"}
@@ -208,12 +210,12 @@ export default function EnvelopeTestPage() {
           </div>
 
           <div>
-            <label className="label-field">Altura solapa (%): {config.alturaSolapaPorcentaje}</label>
+            <label className="label-field">Altura superior (% del alto del sobre): {config.alturaSolapaPorcentaje}</label>
             <input type="range" min={20} max={70} className="w-full" value={config.alturaSolapaPorcentaje} onChange={(e) => patch({ alturaSolapaPorcentaje: Number(e.target.value) })} />
           </div>
 
           <div>
-            <label className="label-field">Redondeo del pico (%): {config.radioPicoSolapaPorcentaje}</label>
+            <label className="label-field">Redondeo superior (% de los lados): {config.radioPicoSolapaPorcentaje}</label>
             <input type="range" min={0} max={50} className="w-full" value={config.radioPicoSolapaPorcentaje} onChange={(e) => patch({ radioPicoSolapaPorcentaje: Number(e.target.value) })} />
           </div>
 
