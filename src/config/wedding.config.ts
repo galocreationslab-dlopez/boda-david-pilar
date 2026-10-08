@@ -228,7 +228,38 @@ export type IntroEnvelopeModoFondo = "colores" | "textura" | "svgPersonalizado";
 
 // Cómo se comporta el sobre al descender tras abrirse la solapa.
 export type IntroEnvelopeDescensoModo = "desplazamiento" | "fade" | "ambos";
-export type IntroEnvelopeSalidaModo = "descensoZoom" | "fadeApertura";
+export type IntroEnvelopeSalidaModo = "descensoZoom" | "fadeApertura" | "fadeProgramado";
+
+export type IntroEnvelopeTimelineConfig = {
+  inicioAperturaMs: number;
+  duracionAperturaMs: number;
+  inicioFadeLacreMs: number;
+  duracionFadeLacreMs: number;
+  inicioFadeSobreMs: number;
+  duracionFadeSobreMs: number;
+  inicioZoomMs: number;
+  duracionZoomMs: number;
+};
+
+export const DEFAULT_ENVELOPE_TIMELINE: IntroEnvelopeTimelineConfig = {
+  inicioAperturaMs: 300,
+  duracionAperturaMs: 2000,
+  inicioFadeLacreMs: 100,
+  duracionFadeLacreMs: 500,
+  inicioFadeSobreMs: 1000,
+  duracionFadeSobreMs: 1000,
+  inicioZoomMs: 1500,
+  duracionZoomMs: 1000,
+};
+
+export function normalizeEnvelopeTimeline(config: Partial<IntroEnvelopeTimelineConfig> = {}): IntroEnvelopeTimelineConfig {
+  const result = { ...DEFAULT_ENVELOPE_TIMELINE };
+  for (const key of Object.keys(result) as (keyof IntroEnvelopeTimelineConfig)[]) {
+    const value = config?.[key];
+    if (typeof value === "number" && Number.isFinite(value)) result[key] = Math.max(0, value);
+  }
+  return result;
+}
 
 // "automatico": el sobre ocupa el área disponible (pantalla menos el margen) con la
 // misma relación de aspecto que la pantalla, como hasta ahora.
@@ -283,6 +314,7 @@ export type IntroEnvelopeConfig = {
   // Secuencia tras el lacre: abrir solapa -> el sobre desciende -> la portada hace zoom a pantalla completa.
   modoDescensoSobre?: IntroEnvelopeDescensoModo;
   modoSalidaSobre?: IntroEnvelopeSalidaModo; // fadeApertura omite descenso y zoom
+  lineaTemporal?: Partial<IntroEnvelopeTimelineConfig>; // fadeProgramado: tiempos desde el clic
   lacreFadeAntesApertura?: boolean; // heredado: se migra a fade durante el giro
   lacreFadeDuranteApertura?: boolean; // false: conserva el lacre; true: fade al iniciar el giro
   duracionFadeLacreMs?: number; // duracion propia del fade, defecto 900 ms
@@ -297,7 +329,9 @@ export function normalizeIntroEnvelopeConfig(config: IntroEnvelopeConfig = {}): 
     typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
   return {
     ...config,
-    modoSalidaSobre: config.modoSalidaSobre === "fadeApertura" ? "fadeApertura" : "descensoZoom",
+    modoSalidaSobre: config.modoSalidaSobre === "fadeProgramado" ? "fadeProgramado"
+      : config.modoSalidaSobre === "fadeApertura" ? "fadeApertura" : "descensoZoom",
+    lineaTemporal: normalizeEnvelopeTimeline(config.lineaTemporal),
     lacreFadeDuranteApertura: typeof config.lacreFadeDuranteApertura === "boolean"
       ? config.lacreFadeDuranteApertura : config.lacreFadeAntesApertura === true,
     duracionFadeLacreMs: number(config.duracionFadeLacreMs, 900, 0, Infinity),

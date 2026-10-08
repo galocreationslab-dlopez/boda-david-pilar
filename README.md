@@ -175,8 +175,31 @@ En **Contenido → Intro → PC / Móvil → Sobre**, guarda por dispositivo:
   el clic lo captura la web en lugar del disparador nativo. Con movimiento
   reducido se omiten fade y pausa. Se guarda independientemente en PC/móvil.
 - `anguloMaximoAperturaGrados`: 1–180°, con fallback de 180°.
-- `modoSalidaSobre`: `descensoZoom` (modo anterior, por defecto) o
-  `fadeApertura` (todo el sobre se desvanece mientras gira, sin descenso ni zoom).
+- `modoSalidaSobre`: `descensoZoom` (modo anterior, por defecto),
+  `fadeApertura` (todo el sobre se desvanece mientras gira, sin descenso ni zoom)
+  o **`fadeProgramado` (desvanecimiento con línea temporal desde el clic)**.
+  Este nuevo modo tiene cuatro efectos independientes en `lineaTemporal`,
+  con inicio y duración en milisegundos por dispositivo:
+
+  | Efecto | Inicio desde el clic | Duración por defecto |
+  | --- | ---: | ---: |
+  | Lacre (`inicioFadeLacreMs`, `duracionFadeLacreMs`) | 100 | 500 |
+  | Solapa (`inicioAperturaMs`, `duracionAperturaMs`) | 300 | 2000 |
+  | Sobre completo (`inicioFadeSobreMs`, `duracionFadeSobreMs`) | 1000 | 1000 |
+  | Zoom (`inicioZoomMs`, `duracionZoomMs`) | 1500 | 1000 |
+
+  El instante 0 es el clic (también en SVG, capturado por la web), sin sumar
+  `pausaTrasTriggerMs` ni esperar una animación nativa del lacre. Los efectos
+  pueden solaparse y aceptan duración 0; los valores ausentes/no finitos usan
+  los defaults y los negativos se normalizan a 0. El fade incluye solapa,
+  lacre, sello seco, sombras, mesa y cobertores, pero no la web. No hay descenso.
+  La portada conserva su geometría inicial de carta y anima escala y posición
+  hasta su tamaño definitivo; si ya está a escala 1 y desplazamiento 0,
+  no se crea ni se espera el zoom. La intro finaliza una sola vez al terminar
+  todos los efectos aplicables, sin saltos al desmontar. Con movimiento
+  reducido se omiten inicios y duraciones, y se desbloquea el scroll.
+  Los controles y duraciones de los dos modos anteriores se conservan
+  separados: cambiar de modo no sobrescribe sus ajustes guardados.
 - `direccionLuzGrados`: origen de la iluminación, en sentido antihorario:
   0° derecha, 90° arriba, 180° izquierda, 270° abajo. La sombra va en sentido
   opuesto: con 225° (default) la luz viene de abajo izquierda y la sombra va

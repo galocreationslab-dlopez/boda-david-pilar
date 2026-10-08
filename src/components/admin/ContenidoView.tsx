@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
+import EnvelopeTimelineControls from "@/components/admin/EnvelopeTimelineControls";
 import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, ELEMENTOS_BARRA_POR_DEFECTO, normalizeIntroConfig } from "@/config/wedding.config";
@@ -1430,6 +1431,10 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                     </div>
                   </div>
 
+                  <p className="text-xs text-stone-500">
+                    En Sobre con línea temporal, el clic inicia el reloj directamente: la duración del lacre,
+                    la espera tras trigger y la animación trigger no intervienen.
+                  </p>
                   {lacreNativeAnimations.length > 0 && (
                     <div>
                       <label className="label-field">Animacion trigger del lacre</label>
@@ -2085,12 +2090,32 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                 </div>
 
                                 <div className="border-t border-stone-200 pt-3">
-                                  <p className="label-field">Secuencia tras el lacre</p>
+                                  <p className="label-field">Finalización y movimiento del sobre</p>
                                   <p className="mt-1 text-xs text-stone-500">
-                                    El modo clásico conserva descenso y zoom. Fade durante apertura retira todo el sobre con la portada ya a tamaño definitivo, sin fases posteriores.
+                                    Conserva la secuencia clásica o diseña efectos independientes desde el clic con el nuevo desvanecimiento programado.
                                   </p>
                                 </div>
 
+                                <div>
+                                  <label className="label-field">Modo de salida del sobre</label>
+                                  <select className="input-field" value={deviceConfig.envelope?.modoSalidaSobre ?? "descensoZoom"}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { modoSalidaSobre: e.target.value })}>
+                                    <option value="descensoZoom">Clásico: descenso y zoom</option>
+                                    <option value="fadeApertura">Fade durante apertura (sin zoom)</option>
+                                    <option value="fadeProgramado">Desvanecimiento con línea temporal desde el clic</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="label-field">Ángulo máximo de apertura (grados)</label>
+                                  <input type="number" min={1} max={180} step={1} className="input-field"
+                                    value={deviceConfig.envelope?.anguloMaximoAperturaGrados ?? 180}
+                                    onChange={(e) => patchIntroDeviceSub(device, "envelope", { anguloMaximoAperturaGrados: Math.min(180, Math.max(1, Number(e.target.value) || 180)) })} />
+                                </div>
+                                {deviceConfig.envelope?.modoSalidaSobre === "fadeProgramado" ? (
+                                  <EnvelopeTimelineControls value={deviceConfig.envelope.lineaTemporal}
+                                    onChange={(lineaTemporal) => patchIntroDeviceSub(device, "envelope", { lineaTemporal })} />
+                                ) : (
+                                <>
                                 <label className="flex items-center gap-2 text-sm">
                                   <input type="checkbox" checked={deviceConfig.envelope?.lacreFadeDuranteApertura ?? false}
                                     onChange={(e) => patchIntroDeviceSub(device, "envelope", { lacreFadeDuranteApertura: e.target.checked })} />
@@ -2105,23 +2130,6 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                     disabled={!deviceConfig.envelope?.lacreFadeDuranteApertura}
                                     value={deviceConfig.envelope?.duracionFadeLacreMs ?? 900}
                                     onChange={(e) => patchIntroDeviceSub(device, "envelope", { duracionFadeLacreMs: Math.max(0, Number(e.target.value) || 0) })} />
-                                </div>
-
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                  <div>
-                                    <label className="label-field">Modo de salida del sobre</label>
-                                    <select className="input-field" value={deviceConfig.envelope?.modoSalidaSobre ?? "descensoZoom"}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { modoSalidaSobre: e.target.value })}>
-                                      <option value="descensoZoom">Clásico: descenso y zoom</option>
-                                      <option value="fadeApertura">Fade durante apertura (sin zoom)</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="label-field">Ángulo máximo de apertura (grados)</label>
-                                    <input type="number" min={1} max={180} step={1} className="input-field"
-                                      value={deviceConfig.envelope?.anguloMaximoAperturaGrados ?? 180}
-                                      onChange={(e) => patchIntroDeviceSub(device, "envelope", { anguloMaximoAperturaGrados: Math.min(180, Math.max(1, Number(e.target.value) || 180)) })} />
-                                  </div>
                                 </div>
 
                                 <div>
@@ -2181,6 +2189,8 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                                 <p className="text-xs text-stone-500">
                                   El lacre configurado arriba se mostrará centrado en el pico de la solapa del sobre cerrado; al completarse su animación, la solapa se abrirá y comenzará la secuencia de salida.
                                 </p>
+                                </>
+                                )}
                               </div>
                             )}
                           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
-import { normalizeIntroEnvelopeConfig, type IntroEnvelopeConfig } from "@/config/wedding.config";
+import { normalizeEnvelopeTimeline, normalizeIntroEnvelopeConfig, type IntroEnvelopeConfig } from "@/config/wedding.config";
 import { getEnvelopeResources, type EnvelopeTexture } from "@/lib/intro-envelope-resources";
 import { useIntroImages, useIntroReducedMotion } from "@/components/motion/useIntroResources";
 import EnvelopeDryStamp from "@/components/motion/EnvelopeDryStamp";
@@ -13,10 +13,12 @@ export type EnvelopeOpenRevealProps = {
   /** Textura de la paleta (se repite como mosaico); sustituye a los colores y a la imagen del sobre. */
   texture?: EnvelopeTexture;
   fondo?: string;
-  /** Se activa cuando el lacre ha terminado su animación (el sello se ha roto). */
+  /** Dispara la secuencia; en linea temporal se activa directamente con el clic. */
   sealBroken: boolean;
+  /** Reloj document.timeline capturado en el clic; solo para la linea temporal. */
+  triggerTimeMs?: number;
   sealReady?: boolean;
-  /** Contenido del lacre, se muestra centrado en el pico de la solapa mientras el sobre está cerrado. */
+  /** Contenido del lacre, unido al pico de la solapa. */
   sealSlot?: ReactNode;
   sealSizePercent?: number;
   onComplete?: () => void;
@@ -111,6 +113,8 @@ function useViewportSize(ref: RefObject<HTMLDivElement | null>) {
  * 3. "zooming": la carta crece (zoom) hasta ocupar toda la pantalla.
  * 4. "done": la portada real ya ocupa toda la pantalla y se activa (el padre
  *    desmonta este componente y la deja interactiva).
+ * En fadeProgramado, apertura, fades y zoom se solapan desde el clic y no
+ * se recorren las fases de descenso/zoom de la secuencia clasica.
  *
  * El sobre se compone de 3 piezas independientes (trasera, frontal y solapa).
  * En modo de relación de aspecto "automático" se dimensionan mediante
@@ -122,7 +126,7 @@ function useViewportSize(ref: RefObject<HTMLDivElement | null>) {
  * margen configurado pasa a ser un mínimo, y el lado sobrante se reparte como
  * margen extra en el eje que le sobre espacio.
  */
-export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, sealBroken, sealReady = true, sealSlot, sealSizePercent = 24, onComplete, children }: EnvelopeOpenRevealProps) {
+export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, sealBroken, triggerTimeMs, sealReady = true, sealSlot, sealSizePercent = 24, onComplete, children }: EnvelopeOpenRevealProps) {
   const config = normalizeIntroEnvelopeConfig(rawConfig);
   const [phase, setPhase] = useState<Phase>("closed");
   const patternId = useId();
@@ -178,6 +182,9 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
   const fondoExteriorColor = config.fondoExteriorColor || fondo || "#2E1F0E";
   const modoDescenso = config.modoDescensoSobre ?? "desplazamiento";
   const fadeApertura = config.modoSalidaSobre === "fadeApertura";
+  const fadeProgramado = config.modoSalidaSobre === "fadeProgramado";
+  const { inicioAperturaMs, duracionAperturaMs, inicioFadeLacreMs, duracionFadeLacreMs,
+    inicioFadeSobreMs, duracionFadeSobreMs, inicioZoomMs, duracionZoomMs } = normalizeEnvelopeTimeline(config.lineaTemporal);
   const anguloMaximo = config.anguloMaximoAperturaGrados ?? 180;
   const direccionLuz = (config.direccionLuzGrados ?? 225) * Math.PI / 180;
   const modoAspecto = config.modoAspectoSobre ?? "automatico";
@@ -251,11 +258,17 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
     const naturalTop = (viewport.height * (1 - contentScale)) / 2;
     contentOffsetY = targetTop - naturalTop;
   }
+  const timelineContentScale = fadeProgramado ? contentScale : 1;
+  const timelineContentOffsetY = fadeProgramado ? contentOffsetY : 0;
 
-  useEffect(() => {
+  useIsoLayoutEffect(() => {
     if (!sealBroken || !ready || phase !== "closed") return;
     if (reduceMotion) {
       complete();
+      return;
+    }
+    if (fadeProgramado) {
+      setPhase("opening");
       return;
     }
     // Garantiza una pintura cerrada incluso con sealBroken activo desde el montaje.
@@ -263,7 +276,7 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
       frame = requestAnimationFrame(() => setPhase("opening"));
     });
     return () => cancelAnimationFrame(frame);
-  }, [sealBroken, ready, phase, reduceMotion, complete]);
+  }, [sealBroken, ready, phase, reduceMotion, fadeProgramado, complete]);
 
   useIsoLayoutEffect(() => {
     if (phase !== "opening" || !flapRef.current) return;
@@ -271,7 +284,12 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
       complete();
       return;
     }
-    const options: KeyframeAnimationOptions = { duration: duracionApertura, easing: "ease-in-out", fill: "forwards" };
+    const options: KeyframeAnimationOptions = {
+      duration: fadeProgramado ? duracionAperturaMs : duracionApertura,
+      delay: fadeProgramado ? inicioAperturaMs : 0,
+      easing: "ease-in-out",
+      fill: "both",
+    };
     const rotation = flapRef.current.animate(
       [{ transform: "rotateX(0deg)" }, { transform: `rotateX(${-anguloMaximo}deg)` }],
       options,
@@ -292,31 +310,49 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
     const animations = [rotation];
     if (shadowRef.current) animations.push(shadowRef.current.animate(shadows, options));
     if (sealRef.current) animations.push(sealRef.current.animate(sealShadows, options));
-    if (sealRef.current && config.lacreFadeDuranteApertura) {
+    if (sealRef.current && (fadeProgramado || config.lacreFadeDuranteApertura)) {
       const fade = sealRef.current.animate([{ opacity: 1 }, { opacity: 0 }], {
-        duration: config.duracionFadeLacreMs ?? 900,
+        duration: fadeProgramado ? duracionFadeLacreMs : config.duracionFadeLacreMs ?? 900,
+        delay: fadeProgramado ? inicioFadeLacreMs : 0,
         easing: "ease",
-        fill: "forwards",
+        fill: "both",
       });
-      sealFadeAnimationRef.current?.cancel();
-      sealFadeAnimationRef.current = fade;
-      // El fade conserva su reloj durante descenso/zoom, sin reiniciarse por fase.
+      if (fadeProgramado) animations.push(fade);
+      else {
+        sealFadeAnimationRef.current?.cancel();
+        sealFadeAnimationRef.current = fade;
+        // El fade conserva su reloj durante descenso/zoom, sin reiniciarse por fase.
+      }
     }
     if (flapExteriorRef.current) animations.push(flapExteriorRef.current.animate(exteriorEdges, options));
     if (flapInteriorRef.current) animations.push(flapInteriorRef.current.animate(interiorEdges, options));
-    if (fadeApertura) {
+    if (fadeApertura || fadeProgramado) {
       viewportRef.current?.querySelectorAll<HTMLElement>("[data-envelope-layer]").forEach((layer) => {
-        animations.push(layer.animate([{ opacity: 1 }, { opacity: 0 }], options));
+        animations.push(layer.animate([{ opacity: 1 }, { opacity: 0 }], fadeProgramado ? {
+          duration: duracionFadeSobreMs, delay: inicioFadeSobreMs, easing: "ease-in-out", fill: "both",
+        } : options));
       });
     }
-    // Un solo reloj nativo: giro, sombras y fade comparten inicio, duración y curva.
-    const startTime = document.timeline.currentTime;
+    if (fadeProgramado && (Math.abs(timelineContentScale - 1) > 0.000001 || Math.abs(timelineContentOffsetY) > 0.000001)) {
+      const zoomOptions: KeyframeAnimationOptions = {
+        duration: duracionZoomMs, delay: inicioZoomMs, easing: "cubic-bezier(0.22,1,0.36,1)", fill: "both",
+      };
+      if (contentMotionRef.current) animations.push(contentMotionRef.current.animate(
+        [{ transform: `translateY(${timelineContentOffsetY}px)` }, { transform: "translateY(0px)" }], zoomOptions,
+      ));
+      if (contentScaleRef.current) animations.push(contentScaleRef.current.animate(
+        [{ transform: `scale(${timelineContentScale})` }, { transform: "scale(1)" }], zoomOptions,
+      ));
+    }
+    // Los delays independientes se miden sobre el mismo reloj capturado en el clic.
+    const startTime = fadeProgramado ? triggerTimeMs ?? document.timeline.currentTime : document.timeline.currentTime;
     animations.forEach((animation) => { animation.startTime = startTime; });
     if (sealFadeAnimationRef.current) sealFadeAnimationRef.current.startTime = startTime;
     let cancelled = false;
-    rotation.finished.then(() => {
+    const finished = fadeProgramado ? Promise.all(animations.map((animation) => animation.finished)) : rotation.finished;
+    finished.then(() => {
       if (cancelled) return;
-      if (fadeApertura) complete();
+      if (fadeApertura || fadeProgramado) complete();
       else setPhase("descending");
     }, (error: unknown) => {
       if (!cancelled) console.error("[Intro] No se pudo completar la apertura del sobre", error);
@@ -325,7 +361,7 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
       cancelled = true;
       animations.forEach((animation) => animation.cancel());
     };
-  }, [phase, reduceMotion, duracionApertura, anguloMaximo, direccionLuz, intensidadSombraApertura, sombraDesenfoque, colorSombraApertura, intensidadGrosorPapel, colorGrosorPapel, fadeApertura, config.lacreFadeDuranteApertura, config.duracionFadeLacreMs, complete]);
+  }, [phase, reduceMotion, duracionApertura, anguloMaximo, direccionLuz, intensidadSombraApertura, sombraDesenfoque, colorSombraApertura, intensidadGrosorPapel, colorGrosorPapel, fadeApertura, fadeProgramado, config.lacreFadeDuranteApertura, config.duracionFadeLacreMs, inicioAperturaMs, duracionAperturaMs, inicioFadeLacreMs, duracionFadeLacreMs, inicioFadeSobreMs, duracionFadeSobreMs, inicioZoomMs, duracionZoomMs, timelineContentScale, timelineContentOffsetY, triggerTimeMs, complete]);
 
   useEffect(() => () => {
     sealFadeAnimationRef.current?.cancel();
@@ -411,7 +447,7 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
 
   // La portada no debe transparentarse a través del sobre cerrado.
   // Su geometría ya está medida antes de presentar la intro.
-  const contentVisible = fadeApertura || phase !== "closed";
+  const contentVisible = fadeApertura || fadeProgramado || phase !== "closed";
 
   // La portada se desplaza (sin escalar) para pasar de centrada a pegada arriba de su
   // hueco, y por separado se escala desde su propio centro; hacerlo en dos elementos
@@ -421,7 +457,7 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
     inset: 0,
     opacity: contentVisible ? 1 : 0,
     transform: `translateY(${isFinalSize ? 0 : contentOffsetY}px)`,
-    transition: phase === "closed" ? "none" : `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1), opacity ${reduceMotion ? 0 : 150}ms ease`,
+    transition: phase === "closed" || fadeProgramado ? "none" : `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1), opacity ${reduceMotion ? 0 : 150}ms ease`,
   };
 
   const contentWrapperStyle: CSSProperties = {
@@ -433,10 +469,10 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
     overflow: "hidden",
     transformOrigin: "50% 50%",
     transform: `scale(${isFinalSize ? 1 : contentScale})`,
-    transition: phase === "closed" ? "none" : `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
+    transition: phase === "closed" || fadeProgramado ? "none" : `transform ${duracionZoom}ms cubic-bezier(0.22,1,0.36,1)`,
     // "Papel apilado": dos sombras planas y desplazadas simulan hojas debajo de la
     // portada, más una sombra difusa para separación del fondo; dan sensación de grosor.
-    boxShadow: fadeApertura ? "none" : [
+    boxShadow: fadeApertura || fadeProgramado ? "none" : [
       `calc(${lightDirection(direccionLuz).x * 1.6} * var(--wedding-vmin, 1vmin)) calc(${lightDirection(direccionLuz).y * 1.6} * var(--wedding-vmin, 1vmin)) 0 0 rgba(255,252,244,0.85)`,
       `calc(${lightDirection(direccionLuz).x * 3.2} * var(--wedding-vmin, 1vmin)) calc(${lightDirection(direccionLuz).y * 3.2} * var(--wedding-vmin, 1vmin)) 0 0 rgba(232,221,199,0.7)`,
       `calc(${lightDirection(direccionLuz).x * sombraDesenfoque / 2} * var(--wedding-vmin, 1vmin)) calc(${lightDirection(direccionLuz).y * sombraDesenfoque / 2} * var(--wedding-vmin, 1vmin)) calc(${sombraDesenfoque} * var(--wedding-vmin, 1vmin)) ${sombraColor}`,
@@ -508,7 +544,7 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
       {/* Portada real, siempre montada a tamaño natural; se ve reducida como una carta hasta el zoom final. */}
       <div ref={contentMotionRef} data-envelope-content className="z-10" style={contentOuterStyle}>
         <div ref={contentScaleRef} data-envelope-content-scale style={contentWrapperStyle} inert={phase !== "done"}>{ready ? children : null}</div>
-        {!fadeApertura ? <div style={paperBevelStyle} /> : null}
+        {!fadeApertura && !fadeProgramado ? <div style={paperBevelStyle} /> : null}
       </div>
 
       {/* Proyección sobre la carta y la mesa, sincronizada con el ángulo de la solapa. */}

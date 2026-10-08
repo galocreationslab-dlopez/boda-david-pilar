@@ -29,7 +29,9 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   const reduceMotion = useIntroReducedMotion();
   const deviceConfig = (viewport === "movil" ? config.movil : config.pc) ?? DEFAULT_DEVICE_CONFIG;
   const isEnvelopeMode = deviceConfig.tipo === "envelope";
-  const fadeEnvelopeSeal = isEnvelopeMode && deviceConfig.envelope?.lacreFadeDuranteApertura === true;
+  const timelineEnvelope = isEnvelopeMode && deviceConfig.envelope?.modoSalidaSobre === "fadeProgramado";
+  const fadeEnvelopeSeal = isEnvelopeMode && (timelineEnvelope || deviceConfig.envelope?.lacreFadeDuranteApertura === true);
+  const [envelopeTriggerTime, setEnvelopeTriggerTime] = useState<number | undefined>();
   const completedRef = useRef(false);
   const triggeredRef = useRef(false);
   const delayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -83,11 +85,15 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
     if (triggeredRef.current || completedRef.current) return;
     triggeredRef.current = true;
     if (isEnvelopeMode) {
+      if (timelineEnvelope) {
+        const time = document.timeline.currentTime;
+        setEnvelopeTriggerTime(typeof time === "number" ? time : performance.now());
+      }
       const begin = () => {
         setLacreGone(true);
         setStarted(true);
       };
-      const delay = reduceMotion ? 0 : Math.max(0, config.pausaTrasTriggerMs ?? 0);
+      const delay = reduceMotion || timelineEnvelope ? 0 : Math.max(0, config.pausaTrasTriggerMs ?? 0);
       if (delay > 0) delayRef.current = setTimeout(begin, delay);
       else begin();
       return;
@@ -297,6 +303,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
               fondo={introBackground}
               sealSizePercent={lacreSizePercent}
               sealBroken={lacreGone}
+              triggerTimeMs={envelopeTriggerTime}
               sealReady={lacreReady}
               sealSlot={renderSealVisual("h-full w-full")}
               onComplete={completeIntro}

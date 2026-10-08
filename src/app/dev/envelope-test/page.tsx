@@ -3,6 +3,7 @@
 import { useState } from "react";
 import EnvelopeOpenReveal from "@/components/motion/EnvelopeOpenReveal";
 import IntroReveal from "@/components/motion/IntroReveal";
+import EnvelopeTimelineControls from "@/components/admin/EnvelopeTimelineControls";
 import type { IntroEnvelopeAjusteAspecto, IntroEnvelopeAspectoModo, IntroEnvelopeConfig, IntroEnvelopeDescensoModo, IntroEnvelopeModoFondo } from "@/config/wedding.config";
 
 const DEFAULT_CONFIG: IntroEnvelopeConfig = {
@@ -35,6 +36,7 @@ const DEFAULT_CONFIG: IntroEnvelopeConfig = {
 export default function EnvelopeTestPage() {
   const [config, setConfig] = useState<IntroEnvelopeConfig>(DEFAULT_CONFIG);
   const [sealBroken, setSealBroken] = useState(false);
+  const [triggerTimeMs, setTriggerTimeMs] = useState<number>();
   const [runId, setRunId] = useState(0);
   const [integration, setIntegration] = useState(false);
   const [lacreUrl, setLacreUrl] = useState("/images/Sello.jpg");
@@ -54,6 +56,7 @@ export default function EnvelopeTestPage() {
 
   const replay = () => {
     setSealBroken(false);
+    setTriggerTimeMs(undefined);
     setCompletions(0);
     setRunId((id) => id + 1);
   };
@@ -80,6 +83,7 @@ export default function EnvelopeTestPage() {
             <label htmlFor="test-lacre-url" className="label-field">URL del lacre (IntroReveal)</label>
             <input id="test-lacre-url" className="input-field" value={lacreUrl} onChange={(e) => setLacreUrl(e.target.value)} />
           </div>
+          {config.modoSalidaSobre !== "fadeProgramado" ? <>
           <label className="flex items-center gap-2 text-sm">
             <input id="envelope-seal-fade" type="checkbox" checked={config.lacreFadeDuranteApertura ?? false}
               onChange={(e) => patch({ lacreFadeDuranteApertura: e.target.checked })} />
@@ -91,6 +95,7 @@ export default function EnvelopeTestPage() {
               disabled={!config.lacreFadeDuranteApertura} value={config.duracionFadeLacreMs ?? 900}
               onChange={(e) => patch({ duracionFadeLacreMs: Number(e.target.value) })} />
           </div>
+          </> : null}
           <div>
             <label htmlFor="test-texture-url" className="label-field">URL textura de papel</label>
             <input id="test-texture-url" className="input-field" value={textureUrl} onChange={(e) => setTextureUrl(e.target.value)} />
@@ -98,11 +103,17 @@ export default function EnvelopeTestPage() {
           <div>
             <label htmlFor="envelope-exit" className="label-field">Modo de salida</label>
             <select id="envelope-exit" className="input-field" value={config.modoSalidaSobre ?? "descensoZoom"}
-              onChange={(e) => patch({ modoSalidaSobre: e.target.value === "fadeApertura" ? "fadeApertura" : "descensoZoom" })}>
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "fadeApertura" || value === "descensoZoom" || value === "fadeProgramado") patch({ modoSalidaSobre: value });
+              }}>
               <option value="descensoZoom">Descenso y zoom</option>
               <option value="fadeApertura">Fade durante apertura</option>
+              <option value="fadeProgramado">Desvanecimiento con línea temporal</option>
             </select>
           </div>
+          {config.modoSalidaSobre === "fadeProgramado" ? <EnvelopeTimelineControls value={config.lineaTemporal}
+            onChange={(lineaTemporal) => patch({ lineaTemporal })} /> : null}
           <div>
             <label htmlFor="envelope-angle" className="label-field">Ángulo máximo (grados)</label>
             <input id="envelope-angle" type="number" min={1} max={180} className="input-field" value={config.anguloMaximoAperturaGrados ?? 180} onChange={(e) => patch({ anguloMaximoAperturaGrados: Number(e.target.value) })} />
@@ -282,6 +293,7 @@ export default function EnvelopeTestPage() {
             <input type="color" className="input-field h-10 w-full" value={config.fondoExteriorColor} onChange={(e) => patch({ fondoExteriorColor: e.target.value })} />
           </div>
 
+          {config.modoSalidaSobre !== "fadeProgramado" ? <>
           <div>
             <label className="label-field">Al descender, el sobre...</label>
             <select
@@ -310,6 +322,7 @@ export default function EnvelopeTestPage() {
               <input type="number" className="input-field" disabled={config.modoSalidaSobre === "fadeApertura"} value={config.duracionZoomMs} onChange={(e) => patch({ duracionZoomMs: Number(e.target.value) })} />
             </div>
           </div>
+          </> : null}
         </aside>
 
         <article className="card-wedding relative flex h-[100svh] items-center justify-center p-6 text-center text-sm text-[var(--brown-mid)]">
@@ -325,10 +338,16 @@ export default function EnvelopeTestPage() {
             texture={texture}
             fondo="#2E1F0E"
             sealBroken={sealBroken}
+            triggerTimeMs={triggerTimeMs}
             sealSlot={
                 <button
                   type="button"
-                  onClick={() => setSealBroken(true)}
+                  onClick={() => {
+                    if (sealBroken) return;
+                    const time = document.timeline.currentTime;
+                    setTriggerTimeMs(typeof time === "number" ? time : performance.now());
+                    setSealBroken(true);
+                  }}
                   className="flex h-full w-full items-center justify-center rounded-full bg-[#C4964A] text-xs font-semibold uppercase tracking-wide text-white shadow-md"
                 >
                   Abrir
