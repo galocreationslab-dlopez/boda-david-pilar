@@ -63,6 +63,37 @@ supabase/
 
 ## Principios arquitectónicos
 
+### Imágenes y logos con Google Maps
+
+En **Contenido**, las imágenes de **Portada (formato libre)** y los eventos del
+timeline permiten asignar/quitar **Enlace de Google Maps**, añadir una URL
+embebible opcional y previsualizarla. En Diseño también están disponibles los
+controles de Maps de la imagen seleccionada en Portada libre. Guarda los cambios
+para persistirlos. Si una imagen ya tiene un enlace, elige explícitamente
+**Voltear y mostrar Maps**; el enlace anterior no se elimina.
+
+El mapa se carga únicamente al pulsar la imagen o la entrada completa del
+timeline. Ambas giran para mostrar la cara B en exactamente la misma región,
+sin ampliar columnas ni añadir espacio; el mapa se adapta al espacio disponible
+y **Cómo llegar** queda debajo dentro del mismo reverso. Se mantienen los
+tamaños móvil/PC de los logos y el layout de las entradas.
+
+Pulsa fuera del componente para recuperar la cara A; no hay botón de volver.
+También se puede abrir con Enter/Espacio y cerrar con Escape fuera del iframe.
+El foco se restaura si estaba dentro del componente, sin quitarlo a otro control
+pulsado fuera. Interactuar con el mapa o **Cómo llegar** no cierra el reverso;
+la preferencia de movimiento reducido sustituye las caras sin giro.
+
+Se admiten URLs de Google Maps (`google.com`/`google.es`, `www`/`maps`) con
+`q`, `query`, lugar/búsqueda o destino de ruta, inserción `/maps/embed?pb=…`,
+y enlaces cortos `maps.app.goo.gl` / `goo.gl/maps`. Se normalizan a HTTPS al
+guardar. No se acepta HTML de iframe ni dominios arbitrarios. Los enlaces
+cortos y las vistas sin ubicación extraíble no se usan como iframe: añade la
+URL de **Compartir → Insertar un mapa** (solo su `src`) para la misma ubicación.
+Si no es posible insertar el mapa, se muestra un error y se conserva
+**Cómo llegar**. Los bloqueos internos de Google no siempre generan un error
+de iframe detectable; **¿No ves el mapa?** ofrece también esta alternativa.
+
 ### Márgenes de PC y fondo general
 
 En **Diseño de la web → Marco y fondo general** se configuran independientemente

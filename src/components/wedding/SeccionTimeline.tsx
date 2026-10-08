@@ -3,13 +3,14 @@
 /**
  * components/wedding/SeccionTimeline.tsx
  * Timeline horizontal.
- * 3 puntos: Bus, Ceremonia, Celebración — con mini-mapa en el primero
- * e imagen + enlace en los otros dos.
+ * Cada entrada gira para mostrar su mapa en la misma region.
  */
 
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
 import type { AlineacionLogoTimeline, Localizacion, TamanoLogoTimeline } from "@/config/wedding.config";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
+import ImageMapFlip from "@/components/media/ImageMapFlip";
+import { getGoogleMapsLinkUrl } from "@/lib/portada-libre";
 import { resolveTimelineLogoAlign, resolveTimelineLogoSize, type TimelineLogoDevice } from "@/lib/timeline-logo-size";
 import { useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 
@@ -24,7 +25,7 @@ export type TimelineComponentKey =
 
 type Props = {
   localizaciones: Localizacion[];
-  timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; imagen?: string; enlaceMaps?: string; logoTamano?: TamanoLogoTimeline; logoAlineacion?: AlineacionLogoTimeline }>;
+  timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; imagen?: string; enlaceMaps?: string; enlaceMapsEmbed?: string; logoTamano?: TamanoLogoTimeline; logoAlineacion?: AlineacionLogoTimeline }>;
   // Valor del antiguo slider global de "timeline.icono"; solo se usa si el evento no tiene tamano propio.
   legacyLogoSize?: number;
   viewport?: "desktop" | "movil";
@@ -47,9 +48,8 @@ type PuntoTimeline = {
   iconoUrl?: string;
   logoTamano?: TamanoLogoTimeline;
   logoAlineacion?: AlineacionLogoTimeline;
-  mapaSrc: string | null;
   mapaLink: string | null;
-  mapaTexto: string;
+  mapaEmbed?: string;
 };
 
 const PUNTOS_FALLBACK: PuntoTimeline[] = [
@@ -59,9 +59,7 @@ const PUNTOS_FALLBACK: PuntoTimeline[] = [
     titulo: "Salida del autobús",
     subtitulo: "Punto de recogida",
     icono: "bus",
-    mapaSrc: "https://maps.google.com/maps?q=Granada+Capital&output=embed",
     mapaLink: "https://maps.google.com/?q=Granada+Capital",
-    mapaTexto: "Ver punto de recogida",
   },
   {
     id: "ceremonia",
@@ -69,9 +67,7 @@ const PUNTOS_FALLBACK: PuntoTimeline[] = [
     titulo: "Ceremonia nupcial",
     subtitulo: "Iglesia de Beas de Granada",
     icono: "rings",
-    mapaSrc: "https://maps.google.com/maps?q=Iglesia+Beas+de+Granada&output=embed",
     mapaLink: "https://maps.google.com/?q=Iglesia+Beas+de+Granada",
-    mapaTexto: "Cómo llegar",
   },
   {
     id: "celebracion",
@@ -79,9 +75,7 @@ const PUNTOS_FALLBACK: PuntoTimeline[] = [
     titulo: "Cóctel y celebración",
     subtitulo: "Finca Torre del Rey",
     icono: "finca",
-    mapaSrc: "https://maps.google.com/maps?q=Finca+Torre+del+Rey+Granada&output=embed",
     mapaLink: "https://maps.google.com/?q=Finca+Torre+del+Rey+Granada",
-    mapaTexto: "Cómo llegar",
   },
 ];
 
@@ -169,12 +163,8 @@ function LogoTimeline({
   const slotWidth = Math.max(src ? boxWidth : size, minSlot);
   const slotHeight = Math.max(src ? boxHeight : size, minSlot);
 
-  return (
-    <div
-      className={`flex flex-shrink-0 items-center justify-center ${className ?? ""}`}
-      style={{ ...style, width: `${slotWidth}px`, height: `${slotHeight}px` }}
-      onClick={onClick}
-    >
+  const visual = (
+    <span className="flex h-full w-full items-center justify-center">
       {src ? (
         // Máscara: el color del icono (currentColor) tiñe la imagen.
         <span
@@ -197,6 +187,15 @@ function LogoTimeline({
       ) : Builtin ? (
         <Builtin size={size} />
       ) : null}
+    </span>
+  );
+  return (
+    <div
+      className={`flex flex-shrink-0 items-center justify-center ${className ?? ""}`}
+      style={{ ...style, width: `${slotWidth}px`, height: `${slotHeight}px` }}
+      onClick={onClick}
+    >
+      {visual}
     </div>
   );
 }
@@ -231,39 +230,18 @@ function inferMapLink(
   item: { titulo: string; descripcion: string; enlaceMaps?: string },
   localizaciones: Localizacion[],
 ): string | null {
-  if (item.enlaceMaps) return item.enlaceMaps;
+  if (item.enlaceMaps !== undefined) return item.enlaceMaps || null;
 
   const match = localizaciones.find((loc) => {
     const titulo = item.titulo.toLowerCase();
     const descripcion = item.descripcion.toLowerCase();
     return (
-      titulo.includes(loc.nombre.toLowerCase()) ||
-      descripcion.includes(loc.nombre.toLowerCase()) ||
-      descripcion.includes(loc.descripcion.toLowerCase())
+      (Boolean(loc.nombre.trim()) && (titulo.includes(loc.nombre.toLowerCase()) || descripcion.includes(loc.nombre.toLowerCase()))) ||
+      (Boolean(loc.descripcion.trim()) && descripcion.includes(loc.descripcion.toLowerCase()))
     );
   });
 
   return match?.enlaceMaps ?? null;
-}
-
-function toMapEmbedUrl(link: string | null, fallbackQuery?: string): string | null {
-  if (!link) return null;
-  if (link.includes("output=embed")) return link;
-
-  try {
-    const url = new URL(link);
-    const q = url.searchParams.get("q");
-    if (q) return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&output=embed`;
-    if (fallbackQuery && fallbackQuery.trim().length > 0) {
-      return `https://maps.google.com/maps?q=${encodeURIComponent(fallbackQuery)}&output=embed`;
-    }
-    return null;
-  } catch {
-    if (fallbackQuery && fallbackQuery.trim().length > 0) {
-      return `https://maps.google.com/maps?q=${encodeURIComponent(fallbackQuery)}&output=embed`;
-    }
-    return null;
-  }
 }
 
 function buildTimelinePoints(
@@ -274,7 +252,6 @@ function buildTimelinePoints(
 
   return timeline.map((item) => {
     const mapaLink = inferMapLink(item, localizaciones);
-    const fallbackQuery = `${item.titulo} ${item.descripcion}`.trim();
     const icono = normalizeIcon(item.icono);
     return {
     id: item.id,
@@ -285,9 +262,8 @@ function buildTimelinePoints(
     iconoUrl: item.imagen?.trim() || undefined,
     logoTamano: item.logoTamano,
     logoAlineacion: item.logoAlineacion,
-    mapaSrc: toMapEmbedUrl(mapaLink, fallbackQuery),
-    mapaLink,
-    mapaTexto: icono === "bus" ? "Ver punto de recogida" : "Cómo llegar",
+    mapaLink: mapaLink ? getGoogleMapsLinkUrl(mapaLink) ?? mapaLink : null,
+    mapaEmbed: item.enlaceMapsEmbed,
   };
   });
 }
@@ -310,6 +286,10 @@ export function SeccionTimeline({
   const showStraightLine = puntos.length > 1 && puntos.length !== 3;
   const forceMobile = viewport === "movil";
   const logoRowHeight = desktopLogoRowHeight(puntos, legacyLogoSize);
+  const gridStyle: CSSProperties = {
+    gridTemplateColumns: `repeat(${Math.max(puntos.length, 1)}, minmax(0, 1fr))`,
+    gridTemplateRows: `${logoRowHeight}px auto 1fr`,
+  };
   const styleFor = (key: TimelineComponentKey, base: CSSProperties = {}): CSSProperties => ({
     ...base,
     ...(componentStyles?.[key] ?? {}),
@@ -345,6 +325,13 @@ export function SeccionTimeline({
             const rowLayout = mobileRowDirection(punto.logoAlineacion);
             return (
             <article key={punto.id}>
+              <ImageMapFlip
+                link={punto.mapaLink ?? undefined}
+                embed={punto.mapaEmbed}
+                label={punto.titulo}
+                enabled={!designMode && !editable}
+                contentSized
+              >
               <div
                 className="tex-white space-y-3 border px-4 pb-4 pt-3"
                 style={styleFor("timeline.card", {
@@ -418,32 +405,8 @@ export function SeccionTimeline({
                   {punto.subtitulo}
                 </p>
 
-                {punto.mapaSrc && (
-                  <div className="overflow-hidden" style={styleFor("timeline.mapa", { height: "150px" })} onClick={(event) => { event.stopPropagation(); select("timeline.mapa"); }}>
-                    <iframe
-                      src={punto.mapaSrc}
-                      width="100%"
-                      height="150"
-                      style={{ border: 0 }}
-                      allowFullScreen={false}
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      title="Punto de recogida"
-                    />
-                  </div>
-                )}
-
-                {punto.mapaLink && (
-                  <a
-                    href={punto.mapaLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-secondary !w-full !justify-center !px-3 !py-2 !text-xs"
-                  >
-                    {punto.mapaTexto}
-                  </a>
-                )}
               </div>
+              </ImageMapFlip>
             </article>
             );
           })}
@@ -467,13 +430,19 @@ export function SeccionTimeline({
 
             <div
               className="relative z-10 grid gap-4"
-              style={{
-                gridTemplateColumns: `repeat(${Math.max(puntos.length, 1)}, minmax(0, 1fr))`,
-                gridTemplateRows: `${logoRowHeight}px auto 1fr`,
-              }}
+              style={gridStyle}
             >
               {puntos.map((punto) => (
-                <div key={punto.id} className="grid row-span-3 grid-rows-subgrid justify-items-center gap-4 min-w-0">
+                <ImageMapFlip
+                  key={punto.id}
+                  link={punto.mapaLink ?? undefined}
+                  embed={punto.mapaEmbed}
+                  label={punto.titulo}
+                  enabled={!designMode && !editable}
+                  contentSized
+                  className="grid row-span-3 grid-rows-subgrid gap-4 min-w-0"
+                  frontClassName="grid row-span-3 grid-rows-subgrid justify-items-center gap-4 min-w-0"
+                >
 
                   {/* Icono, sin fondo circular */}
                   <LogoTimeline
@@ -545,35 +514,8 @@ export function SeccionTimeline({
                       {punto.subtitulo}
                     </p>
 
-                    {/* Mini mapa embed para el bus */}
-                    {punto.mapaSrc && (
-                      <div className="mb-3 overflow-hidden" style={styleFor("timeline.mapa", { height: "120px" })} onClick={(event) => { event.stopPropagation(); select("timeline.mapa"); }}>
-                        <iframe
-                          src={punto.mapaSrc}
-                          width="100%"
-                          height="120"
-                          style={{ border: 0 }}
-                          allowFullScreen={false}
-                          loading="lazy"
-                          referrerPolicy="no-referrer-when-downgrade"
-                          title="Punto de recogida"
-                        />
-                      </div>
-                    )}
-
-                    {/* Enlace al mapa */}
-                    {punto.mapaLink && (
-                      <a
-                        href={punto.mapaLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-secondary !py-1.5 !px-3 !text-xs w-full justify-center"
-                      >
-                        {punto.mapaTexto}
-                      </a>
-                    )}
                   </div>
-                </div>
+                </ImageMapFlip>
               ))}
             </div>
           </div>

@@ -1,0 +1,18 @@
+.root { position: relative; min-width: 0; perspective: 1000px; }
+.front { width: 100%; height: 100%; padding: 0; border: 0; background: none; color: inherit; backface-visibility: hidden; transition: transform 400ms ease; }
+.front[role="button"] { cursor: pointer; }
+.contentSized { height: auto; }
+.open .front { transform: rotateY(180deg); pointer-events: none; }
+.front:focus-visible, .back:focus-visible, .back a:focus-visible, .back button:focus-visible { outline: 3px solid var(--bronze, #a16207); outline-offset: -3px; }
+.inline { position: absolute; inset: 0; pointer-events: none; min-width: 0; min-height: 0; }
+.inline:empty { display: none; }
+.back { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; background: var(--white, white); color: var(--brown-dark, #292524); box-sizing: border-box; pointer-events: auto; backface-visibility: hidden; animation: map-turn 400ms ease; }
+.mapArea { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.map { display: block; width: 100%; height: 100%; border: 0; }
+.status { position: absolute; inset: 0; display: grid; place-items: center; background: var(--white, white); pointer-events: none; font-size: 12px; }
+.error { height: 100%; overflow: auto; padding: 6px; margin: 0; font-size: 12px; }
+.footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 8px; flex-shrink: 0; padding: 4px; }
+.directions { display: block; border: 1px solid currentColor; padding: 3px 6px; text-align: center; font-size: 12px; line-height: 1.2; }
+.help { cursor: pointer; font-size: 10px; line-height: 1.2; text-decoration: underline; }
+@keyframes map-turn { from { transform: rotateY(-180deg); } to { transform: rotateY(0); } }
+@media (prefers-reduced-motion: reduce) { .back { animation: none; } .front { transition: none; } .open .front { transform: none; visibility: hidden; } }

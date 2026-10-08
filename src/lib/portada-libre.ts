@@ -103,28 +103,75 @@ export function getSafePortadaLinkUrl(value?: string): string | undefined {
   }
 }
 
-export function getGoogleMapsEmbedUrl(value?: string): string | undefined {
+/** Valida URLs, nunca HTML de insercion. Los enlaces cortos solo sirven para navegar. */
+export function getGoogleMapsLinkUrl(value?: string): string | undefined {
   if (!value?.trim()) return undefined;
   try {
     const url = new URL(value.trim());
     const host = url.hostname.toLowerCase();
-    const isGoogleMapsHost =
-      host === "google.com" || host.endsWith(".google.com") ||
-      host === "google.es" || host.endsWith(".google.es") ||
-      host === "maps.app.goo.gl" || host === "goo.gl";
-    if (!isGoogleMapsHost || !url.pathname.includes("/maps")) return undefined;
-    if (url.pathname.includes("/maps/embed")) {
-      url.protocol = "https:";
-      return url.href;
-    }
-
-    const placePath = url.pathname.match(/\/maps\/(?:place|search)\/([^/]+)/)?.[1];
-    const query = url.searchParams.get("q") ?? url.searchParams.get("query") ?? (placePath ? decodeURIComponent(placePath) : undefined);
-    if (!query) return undefined;
-    return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.port) return undefined;
+    const google = ["google.com", "www.google.com", "maps.google.com", "google.es", "www.google.es", "maps.google.es"].includes(host);
+    const path = /^\/maps(?:\/|$)/.test(url.pathname);
+    const short = (host === "maps.app.goo.gl" && /^\/[a-z0-9_-]+\/?$/i.test(url.pathname)) ||
+      (host === "goo.gl" && /^\/maps\/[a-z0-9_-]+\/?$/i.test(url.pathname));
+    if (!short && !(google && (path || (host.startsWith("maps.") && url.pathname === "/" && url.searchParams.has("q"))))) return undefined;
+    url.protocol = "https:";
+    return url.href;
   } catch {
     return undefined;
   }
+}
+
+export function getGoogleMapsEmbedUrl(value?: string): string | undefined {
+  const link = getGoogleMapsLinkUrl(value);
+  if (!link) return undefined;
+  const url = new URL(link);
+  if (!["google.com", "www.google.com", "maps.google.com", "google.es", "www.google.es", "maps.google.es"].includes(url.hostname)) return undefined;
+  if (url.pathname === "/maps/embed") {
+    const pb = url.searchParams.get("pb");
+    return pb && /^!1m\d+(?:!\d+[a-z][^!]*)+$/.test(pb) && !/[<>"\r\n]/.test(pb)
+      ? `https://www.google.com/maps/embed?pb=${encodeURIComponent(pb)}` : undefined;
+  }
+  const place = url.pathname.match(/\/maps\/(?:place|search)\/([^/]+)/)?.[1];
+  let query = url.searchParams.get("destination") ?? url.searchParams.get("q") ?? url.searchParams.get("query");
+  const coordinates = url.pathname.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  if (!query && coordinates) {
+    const lat = Number(coordinates[1]);
+    const lng = Number(coordinates[2]);
+    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) query = `${lat},${lng}`;
+  }
+  if (!query && place) {
+    try { query = decodeURIComponent(place).replace(/\+/g, " "); } catch { return undefined; }
+  }
+  if (!query?.trim()) return undefined;
+  const placeId = url.searchParams.get("query_place_id");
+  if (placeId) query = `place_id:${placeId}`;
+  return `https://www.google.com/maps?q=${encodeURIComponent(query.trim())}&output=embed`;
+}
+
+/** Normaliza los campos Maps del patch antes de persistirlo; devuelve un error visible al cliente. */
+export function normalizeMapsConfig(value: unknown, path = "config"): string | undefined {
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index++) {
+      const error = normalizeMapsConfig(value[index], `${path}[${index}]`);
+      if (error) return error;
+    }
+  } else if (typeof value === "object" && value !== null) {
+    for (const [key, entry] of Object.entries(value)) {
+      if (key === "enlaceMaps" || key === "enlaceMapsEmbed") {
+        if (typeof entry !== "string") return `${path}.${key}: debe ser una URL de Google Maps o estar vacio.`;
+        const normalized = key === "enlaceMaps" ? getGoogleMapsLinkUrl(entry) : getGoogleMapsEmbedUrl(entry);
+        if (entry.trim() && !normalized) return `${path}.${key}: URL de Google Maps ${key === "enlaceMapsEmbed" ? "embebible " : ""}no valida. No se admite HTML.`;
+        Object.assign(value, { [key]: normalized ?? "" });
+      } else if (key === "accionImagen") {
+        if (entry !== "enlace" && entry !== "mapa") return `${path}.${key}: accion de imagen no valida.`;
+      } else {
+        const error = normalizeMapsConfig(entry, `${path}.${key}`);
+        if (error) return error;
+      }
+    }
+  }
+  return undefined;
 }
 
 export function getElementoLayout(

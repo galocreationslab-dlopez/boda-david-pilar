@@ -10,6 +10,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { validateAdminCode } from "@/lib/admin-auth";
 import { getWeddingConfig } from "@/lib/wedding-config-server";
 import { weddingConfig } from "@/config/wedding.config";
+import { normalizeMapsConfig } from "@/lib/portada-libre";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -125,6 +126,8 @@ export async function POST(
   }
 
   const body: unknown = await req.json();
+  const mapsError = normalizeMapsConfig(body);
+  if (mapsError) return NextResponse.json({ error: mapsError }, { status: 400 });
   if (isRecord(body) && isRecord(body.diseno)) {
     const design = body.diseno;
     const margins = design.margenesPc;

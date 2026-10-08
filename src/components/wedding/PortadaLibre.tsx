@@ -1,7 +1,7 @@
 /**
  * components/wedding/PortadaLibre.tsx
  * Seccion "Portada" de formato libre: imagenes y textos colocados por porcentajes sobre un lienzo,
- * con layout independiente para PC y movil. Sin hooks: usable desde servidor y cliente.
+ * con layout independiente para PC y movil.
  */
 import type { CSSProperties } from "react";
 import type {
@@ -12,6 +12,7 @@ import type {
   TratamientoImagen,
 } from "@/config/wedding.config";
 import ImageTreatmentFrame from "@/components/media/ImageTreatmentFrame";
+import ImageMapFlip from "@/components/media/ImageMapFlip";
 import PortadaAspectRatioBox from "@/components/wedding/PortadaAspectRatioBox";
 import {
   PANTALLA_ASPECTO,
@@ -65,6 +66,7 @@ export function PortadaElementoContenido({
   roleColors,
   resolveSrc,
   imageTreatment,
+  mapsInteractive = true,
 }: {
   elemento: PortadaElemento;
   layout: PortadaElementoLayout;
@@ -72,6 +74,7 @@ export function PortadaElementoContenido({
   roleColors: RoleColors;
   resolveSrc?: (src?: string) => string;
   imageTreatment?: TratamientoImagen;
+  mapsInteractive?: boolean;
 }) {
   const color = resolvePortadaColor(layout.colorModo, layout.colorRol, layout.colorHex, roleColors);
 
@@ -165,6 +168,13 @@ export function PortadaElementoContenido({
     </ImageTreatmentFrame>
   );
   const enlaceUrl = getSafePortadaLinkUrl(elemento.enlaceUrl);
+  if (mapsInteractive && elemento.enlaceMaps && (elemento.accionImagen === "mapa" || (!elemento.accionImagen && !elemento.enlaceUrl))) {
+    return (
+      <ImageMapFlip link={elemento.enlaceMaps} embed={elemento.enlaceMapsEmbed} label={elemento.alt || elemento.nombre || "imagen"}>
+        {imagen}
+      </ImageMapFlip>
+    );
+  }
   if (enlaceUrl) {
     const nuevaPestana = enlaceUrl.startsWith("http:") || enlaceUrl.startsWith("https:");
     return (

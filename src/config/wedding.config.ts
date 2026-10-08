@@ -66,6 +66,8 @@ export type EventoTimeline = {
   imagen?: string;
   logoTamano?: TamanoLogoTimeline;
   logoAlineacion?: AlineacionLogoTimeline;
+  enlaceMaps?: string;
+  enlaceMapsEmbed?: string;
 };
 
 export type TrayectoTransporte = {
@@ -430,6 +432,7 @@ export type ItemSeccionDiseno = {
   logoTamano?: TamanoLogoTimeline;
   logoAlineacion?: AlineacionLogoTimeline;
   enlaceMaps?: string;
+  enlaceMapsEmbed?: string;
   filtrosImagen?: Array<"sepia" | "grayscale" | "blur">;
   botonLabel?: string;
 };
@@ -440,6 +443,9 @@ export type PortadaElemento = {
   nombre?: string;
   url?: string;
   enlaceUrl?: string;
+  enlaceMaps?: string;
+  enlaceMapsEmbed?: string;
+  accionImagen?: "enlace" | "mapa";
   texto?: string;
   alt?: string;
 };

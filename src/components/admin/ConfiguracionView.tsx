@@ -1439,7 +1439,7 @@ export default function ConfiguracionView({
 
   const timelineEventsForSection = (section: SeccionDiseno): Array<EventoTimeline & { enlaceMaps?: string }> => {
     if (!section.items || section.items.length === 0) {
-      return ic.timeline.map((item) => ({ ...item, enlaceMaps: "" }));
+      return ic.timeline;
     }
     return section.items.map((item) => ({
       id: item.id,
@@ -1447,7 +1447,8 @@ export default function ConfiguracionView({
       titulo: item.titulo,
       descripcion: item.descripcion,
       icono: (item.icono as EventoTimeline["icono"]) || "rings",
-      enlaceMaps: item.enlaceMaps || "",
+      enlaceMaps: item.enlaceMaps,
+      enlaceMapsEmbed: item.enlaceMapsEmbed,
       imagen: item.imagen || undefined,
       logoTamano: item.logoTamano,
       logoAlineacion: item.logoAlineacion,

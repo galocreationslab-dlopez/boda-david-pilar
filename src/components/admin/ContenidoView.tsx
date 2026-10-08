@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
 import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
 import EnvelopeTimelineControls from "@/components/admin/EnvelopeTimelineControls";
+import MapsFields from "@/components/admin/MapsFields";
 import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, ELEMENTOS_BARRA_POR_DEFECTO, normalizeIntroConfig } from "@/config/wedding.config";
@@ -423,7 +424,8 @@ function mapTimelineToItems(timeline: EventoTimeline[]) {
     imagen: item.imagen,
     logoTamano: item.logoTamano,
     logoAlineacion: item.logoAlineacion,
-    enlaceMaps: "",
+    enlaceMaps: item.enlaceMaps,
+    enlaceMapsEmbed: item.enlaceMapsEmbed,
   }));
 }
 
@@ -558,6 +560,8 @@ function mapTimelineItemsToConfig(items: SeccionDiseno["items"]): EventoTimeline
     imagen: item.imagen || undefined,
     logoTamano: item.logoTamano,
     logoAlineacion: item.logoAlineacion,
+    enlaceMaps: item.enlaceMaps,
+    enlaceMapsEmbed: item.enlaceMapsEmbed,
   }));
 }
 
@@ -2532,6 +2536,18 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                               <label className="label-field">Enlace al hacer clic (opcional)</label>
                               <input type="url" className="input-field" placeholder="https://..." value={elemento.enlaceUrl ?? ""} onChange={(e) => patchElemento(elemento.id, { enlaceUrl: e.target.value })} />
                             </div>
+                            <MapsFields value={elemento} label={elemento.alt || elemento.nombre || "imagen"} onChange={(patch) => patchElemento(elemento.id, patch)} />
+                            <label className="label-field">
+                              Acción al pulsar la imagen
+                              <select className="input-field" value={elemento.accionImagen ?? (elemento.enlaceUrl ? "enlace" : "mapa")} onChange={(event) => {
+                                const accionImagen = event.target.value;
+                                if (accionImagen === "enlace" || accionImagen === "mapa") patchElemento(elemento.id, { accionImagen });
+                              }}>
+                                <option value="enlace">Abrir enlace existente</option>
+                                <option value="mapa">Voltear y mostrar Maps</option>
+                              </select>
+                            </label>
+                            <p className="text-xs text-stone-500">Se conservan ambos enlaces. Si ya había un enlace, seguirá activo hasta que elijas Maps.</p>
                           </>
                         ) : (
                           <div>
@@ -2872,8 +2888,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                           <p className="text-[11px] text-stone-500">En movil, horizontal izquierda/derecha situa el logo a un lado del texto y centro lo coloca sobre el texto (vertical abajo lo pasa debajo).</p>
                         </div>
                         <div className="sm:col-span-2">
-                          <label className="label-field">Enlace Google Maps</label>
-                          <input className="input-field" value={item.enlaceMaps ?? ""} onChange={(e) => updateTimelineItem(item.id, "enlaceMaps", e.target.value)} />
+                          <MapsFields value={item} label={item.titulo || "evento"} onChange={(patch) => patchSelectedItems((items) => items.map((current) => current.id === item.id ? { ...current, ...patch } : current))} />
                         </div>
                       </div>
                     </div>

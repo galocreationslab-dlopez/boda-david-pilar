@@ -189,6 +189,8 @@ function asTimelineItem(item: SectionItemRow): WeddingConfig["timeline"][number]
     imagen: asString(payload.imagen) || undefined,
     logoTamano: normalizeTamanoLogoTimeline(payload.logoTamano),
     logoAlineacion: normalizeAlineacionLogoTimeline(payload.logoAlineacion),
+    enlaceMaps: typeof payload.enlaceMaps === "string" ? payload.enlaceMaps : undefined,
+    enlaceMapsEmbed: typeof payload.enlaceMapsEmbed === "string" ? payload.enlaceMapsEmbed : undefined,
   };
 }
 

@@ -22,6 +22,7 @@ import {
 } from "@/lib/portada-libre";
 import { getPortadaAspectCanvasRatio, getPortadaAspectLayout, type PortadaAspectRatio } from "@/lib/portada-aspect-ratio";
 import { useWeddingViewport } from "@/components/layout/WeddingViewport";
+import MapsFields from "@/components/admin/MapsFields";
 
 type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 type DragMode = Handle | "move";
@@ -438,6 +439,7 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
                     roleColors={roleColors}
                     resolveSrc={resolveSrc}
                     imageTreatment={imageTreatments[`portada:${el.id}`]}
+                    mapsInteractive={false}
                   />
                 </div>
                 {isSelected && HANDLES.map((handle) => (
@@ -468,6 +470,26 @@ export default function PortadaLibreEditor({ config, dispositivo, roles, roleCol
           <p className="text-xs font-semibold text-stone-700">
             {selected.tipo === "texto" ? "Texto" : selected.tipo === "imagen" ? "Imagen" : selected.tipo === "enlace" ? "Enlace" : "Mapa"}: {selected.nombre || selected.texto?.slice(0, 30) || selected.url?.slice(-30) || selected.id}
           </p>
+          {selected.tipo === "imagen" && (
+            <>
+              <MapsFields value={selected} label={selected.alt || selected.nombre || "imagen"} onChange={(patch) => {
+                const current = normalizadoRef.current;
+                onChangeRef.current({ ...current, elementos: current.elementos.map((elemento) => elemento.id === selected.id ? { ...elemento, ...patch } : elemento) });
+              }} />
+              <label className="label-field">
+                Acción al pulsar
+                <select className="input-field" value={selected.accionImagen ?? (selected.enlaceUrl ? "enlace" : "mapa")} onChange={(event) => {
+                  const accionImagen = event.target.value;
+                  if (accionImagen !== "enlace" && accionImagen !== "mapa") return;
+                  const current = normalizadoRef.current;
+                  onChangeRef.current({ ...current, elementos: current.elementos.map((elemento) => elemento.id === selected.id ? { ...elemento, accionImagen } : elemento) });
+                }}>
+                  <option value="enlace">Abrir enlace existente</option>
+                  <option value="mapa">Voltear y mostrar Maps</option>
+                </select>
+              </label>
+            </>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <NumberField label="X (%)" value={selectedLayout.x} step={0.5} onChange={(v) => patchLayout(selected.id, { x: v }, maxY)} />
             <NumberField label="Y (%)" value={selectedLayout.y} step={0.5} onChange={(v) => patchLayout(selected.id, { y: v }, maxY)} />
