@@ -63,6 +63,17 @@ supabase/
 
 ## Principios arquitectónicos
 
+### Botón de confirmación de asistencia
+
+En la web pública, «Confirmar asistencia» aparece cuando la URL contiene
+`inviteCode` (o `invitecode`) no vacío y no ha vencido el plazo de confirmación.
+No depende de que termine o tenga éxito la consulta de la invitación; el código
+se valida al acceder al formulario RSVP. El plazo incluye todo el día indicado
+y se calcula con la fecha local del dispositivo. Si no hay plazo, no caduca.
+La consulta sigue cargando el texto personalizado y, para invitaciones de
+administrador, cambia el botón a «Panel de administración», disponible también
+fuera de plazo.
+
 ### Versiones visuales (antes de migrar roles)
 
 Aplica primero `supabase/migrations/20261009_visual_versions.sql` en Supabase.

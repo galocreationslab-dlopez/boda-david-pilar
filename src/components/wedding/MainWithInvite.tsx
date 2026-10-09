@@ -80,8 +80,6 @@ export default function MainWithInvite({
   const router = useRouter();
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const hasInviteCode = Boolean(inviteCode && inviteCode.trim().length > 0);
-  const [valid, setValid] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [invitacion, setInvitacion] = useState<InvitacionAPI["invitacion"]>(null);
   const limiteConfirmacion = parseSpanishDate(config?.textos?.confirmacionLimite);
   const estaEnPlazo = !limiteConfirmacion || new Date() <= limiteConfirmacion;
@@ -97,20 +95,17 @@ export default function MainWithInvite({
   useEffect(() => {
     let isActive = true;
 
-    async function validate() {
+    async function loadInvitation() {
       if (!hasInviteCode) {
-        setValid(false);
-        setLoading(false);
         setInvitacion(null);
         return;
       }
-      setLoading(true);
       try {
         const res = await fetch(`/api/rsvp/${inviteCode}`);
         if (!isActive) return;
 
         if (!res.ok) {
-          setValid(false);
+          console.error("No se pudo cargar la invitación:", res.status);
           setInvitacion(null);
           return;
         }
@@ -118,19 +113,15 @@ export default function MainWithInvite({
         if (!isActive) return;
 
         setInvitacion(data.invitacion);
-        setValid(true);
-      } catch {
+      } catch (error) {
         if (!isActive) return;
 
-        setValid(false);
+        console.error("No se pudo cargar la invitación:", error);
         setInvitacion(null);
-      } finally {
-        if (!isActive) return;
-        setLoading(false);
       }
     }
 
-    validate();
+    loadInvitation();
 
     return () => {
       isActive = false;
@@ -148,8 +139,7 @@ export default function MainWithInvite({
     }
   };
 
-  const mostrarBoton =
-    hasInviteCode && !loading && valid && Boolean(invitacion) && (esAdmin || estaEnPlazo);
+  const mostrarBoton = hasInviteCode && (esAdmin || estaEnPlazo);
 
   const personalizedWelcome = invitacion?.texto_invitacion_personalizado?.trim();
   const heroConfig = personalizedWelcome
