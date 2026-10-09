@@ -63,6 +63,84 @@ supabase/
 
 ## Principios arquitectónicos
 
+### Versiones visuales (antes de migrar roles)
+
+Aplica primero `supabase/migrations/20261009_visual_versions.sql` en Supabase.
+Sin esta migración, las operaciones muestran un error y **no restauran ni
+publican nada**. No modifica el modelo de roles existente.
+
+En **Diseño → Versiones visuales persistentes**:
+
+- **Guardar versión sin publicar** captura el estilo del editor, incluidos
+  los borradores, con nombre y fecha del servidor. No modifica la web.
+- **Previsualizar y comparar** muestra las diferencias efectivas con la
+  configuración publicada y permite alternar **A/B** o verlas lado a lado,
+  en PC/móvil. Usa el mismo renderizador público, con contenido y geometría
+  actuales. La intro se repite sin alterar el registro de visitas.
+- **Aplicar versión explícitamente** requiere confirmación. Antes guarda el
+  estilo del borrador; el respaldo del estilo publicado y la aplicación se
+  ejecutan juntos en una transacción con bloqueo y control de concurrencia.
+  Si falla el respaldo, no se aplica. Si otro administrador ha modificado la
+  configuración desde la comparación, hay que previsualizar de nuevo.
+- Al seleccionar una versión, el panel carga su propuesta inmediatamente
+  en **B**; cambiar la selección no publica el diseño. **A** es el diseño
+  publicado. Alterna A/B o usa la vista lado a lado. **Actualizar
+  previsualización A/B** recarga ambas con el contenido y la geometría
+  actuales. No hace falta seleccionar la paleta por separado: el snapshot
+  incluye la paleta activa y todas las asignaciones.
+- **Eliminar versión** borra solo el snapshot elegido tras confirmación;
+  también se pueden eliminar copias recuperables (esta acción es irreversible)
+  y no altera el estilo que esté aplicado.
+- Las **copias recuperables** se previsualizan y aplican igual que una versión.
+  Aplicar una copia genera otro respaldo: permite volver al estado anterior.
+  **Restaurar valores por defecto** también restaura solo estilo y guarda copias.
+  **Guardar y publicar cambios** sigue siendo la publicación del editor,
+  distinta del guardado de una versión.
+
+Los snapshots independientes guardan paletas, colores/texturas, definiciones y
+etiquetas de roles, asignaciones de paleta/color/fuente a componentes, fuentes
+por referencia, tamaños de **texto**, bordes, tratamientos de imagen, fondos,
+tintes/recursos de separadores, lacre y acabado del sobre. Incluyen colores, opacidad, fuente,
+negrita/cursiva y tamaños de texto de los elementos de **Portada libre y pie**,
+por separado para PC/móvil, y colores/tamaño de texto de navegación.
+
+No guardan ni restauran invitados, RSVP, mensajes, textos, imágenes de contenido,
+orden/visibilidad/perfiles de secciones, geometría del sobre, márgenes, posiciones,
+dimensiones/alineación de lienzos/elementos, tamaños de gráficos ni animaciones.
+Es deliberado: un mismo estilo puede aplicarse sobre el contenido y la geometría
+vigentes. Las posiciones no vuelven atrás al recuperar una versión antigua.
+
+Se emparejan secciones por **ID y tipo**, elementos libres por **ID y dispositivo**.
+Una sección/componente eliminado o de otro tipo se omite con advertencia: nunca
+se recrea ni se reasigna por índice/nombre. Los nuevos elementos no incluidos en
+la versión conservan sus overrides; los mapas visuales de secciones existentes
+se reemplazan exactamente para no resucitar overrides antiguos.
+
+La tabla `visual_versions` no tiene acceso para `anon`/`authenticated`; la API,
+la previsualización, restauración y eliminación comprueban que el código es
+administrador de la boda. El RPC solo admite `service_role`. Las recargas
+recuperan versiones desde Supabase, no desde localStorage. El último estilo aplicado se guarda como el mapa aislado
+`config_json.visualSnapshot`, no como una copia de las secciones/contenidos
+normalizados. La eliminación requiere también
+`supabase/migrations/20261009b_visual_versions_delete.sql`.
+Cada snapshot identifica `schema: wedding-visual`, `schemaVersion: 1` y
+`rolesModel: legacy-v1`; esquemas desconocidos se rechazan hasta implementar
+una migración explícita al futuro modelo de roles.
+
+No se copian archivos ni fuentes. Se conservan URLs/rutas: se detectan recursos
+locales ausentes y archivos de Drive ausentes/inaccesibles; los fallos de permisos
+o conexión y URLs externas se marcan **sin verificar** (no se realizan peticiones
+a URLs arbitrarias desde el servidor). Aplicar con incidencias exige aceptación
+explícita, sin sustituir referencias. La disponibilidad futura de recursos externos
+no puede garantizarse: mantener las versiones no impide que alguien borre el archivo.
+
+Regresión: `node --test src/lib/visual-versions.test.mjs` cubre guardado, recarga,
+comparación sin publicación, A → B → copia A, aislamiento de contenido/geometría,
+autorización, recursos ausentes, eliminación de overrides y fallos de respaldo/
+concurrencia. Los handlers usan un doble de Supabase; valida también el flujo en
+tu Supabase después de desplegar la migración. Validación adicional:
+`npx tsc --noEmit` y `npm run build`.
+
 ### Geometría del sobre
 
 En **Contenido → Intro → Apertura de sobre**, PC y móvil guardan por separado

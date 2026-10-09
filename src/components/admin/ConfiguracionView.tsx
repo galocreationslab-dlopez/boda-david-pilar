@@ -7,6 +7,8 @@ import { SeccionColapsable, SectionChain, SectionChainDecoration } from "@/compo
 import { buildSectionGroups, canLeadSectionChain, getPieSectionForProfile, getSectionGroupsForProfile, normalizeSectionChains } from "@/lib/section-chains";
 import PortadaLibre from "@/components/wedding/PortadaLibre";
 import PortadaLibreEditor from "@/components/admin/PortadaLibreEditor";
+import VisualVersionsPanel from "@/components/admin/VisualVersionsPanel";
+import { applyVisualSnapshot, captureVisualSnapshot, type VisualSnapshot } from "@/lib/visual-versions";
 import WeddingViewport from "@/components/layout/WeddingViewport";
 import { normalizePageMargins } from "@/lib/wedding-viewport";
 import { PieDePagina } from "@/components/layout/PieDePagina";
@@ -15,7 +17,7 @@ import { SeccionTimeline, type TimelineComponentKey } from "@/components/wedding
 import { SeccionGaleria, type GaleriaComponentKey } from "@/components/wedding/SeccionGaleria";
 import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { OrnamentoDivisor, SeparadorSeccion } from "@/components/ui/OrnamentoDivisor";
-import { DEFAULT_TEXTO_INVITACION } from "@/config/wedding.config";
+import { DEFAULT_TEXTO_INVITACION, weddingConfig } from "@/config/wedding.config";
 import {
   ROLE_KEYS,
   buildPaletteSwatches,
@@ -619,6 +621,8 @@ export default function ConfiguracionView({
 }) {
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [versionListKey, setVersionListKey] = useState(0);
+  const [versionNavigation, setVersionNavigation] = useState(ic.diseno?.navegacion);
   const [msg, setMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
   const initialPaletas = useMemo(() => buildInitialPaletas(ic), [ic]);
@@ -1347,6 +1351,7 @@ export default function ConfiguracionView({
           separador,
           tratamientosImagenes,
           secciones: seccionesConPendientes,
+          navegacion: versionNavigation,
         },
         logo: logoUrl,
       };
@@ -1369,20 +1374,28 @@ export default function ConfiguracionView({
       setSectionDrafts({});
       setEditingSectionId(null);
       showMsg("ok", "Diseno guardado. Refresca la web publica para verlo aplicado.");
+      setVersionListKey((value) => value + 1);
     } catch (e) {
       showMsg("error", e instanceof Error ? e.message : "Error");
     } finally {
       setSaving(false);
     }
-  }, [fuentes, ic.textos, margenesPc, fondoPaginaColor, fondoPaginaImagen, fondoPaginaTexturaTamanoPx, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador, tratamientosImagenes]);
+  }, [fuentes, ic.textos, margenesPc, fondoPaginaColor, fondoPaginaImagen, fondoPaginaTexturaTamanoPx, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador, tratamientosImagenes, versionNavigation]);
 
   const handleReset = async () => {
-    if (!confirm("Restaurar todos los valores al diseno original? Esta accion no se puede deshacer.")) return;
+    if (!confirm("Restaurar solo el estilo por defecto? Se guardaran copias recuperables del estilo publicado y del borrador del editor. No se cambiaran contenido ni geometria.")) return;
     setResetting(true);
     try {
+      const draftCopy = await fetch(`/api/admin/${inviteCode}/visual-versions`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save", name: "Borrador antes de restaurar estilo por defecto", snapshot: captureVisualSnapshot(versionDraft) }),
+      });
+      if (!draftCopy.ok) throw new Error((await draftCopy.json()).error ?? "No se pudo crear la copia del borrador.");
       const res = await fetch(`/api/admin/${inviteCode}/config/reset`, { method: "DELETE" });
       if (!res.ok) throw new Error((await res.json()).error ?? "Error");
-      showMsg("ok", "Valores restaurados. Recarga para ver el diseno original.");
+      loadAppliedVisual(captureVisualSnapshot(weddingConfig));
+      setVersionListKey((value) => value + 1);
+      showMsg("ok", "Estilo restaurado. Puedes recuperar las copias desde Versiones visuales.");
     } catch (e) {
       showMsg("error", e instanceof Error ? e.message : "Error");
     } finally {
@@ -1669,12 +1682,34 @@ export default function ConfiguracionView({
     return spacing > 0 ? <div style={{ height: `${spacing}px` }} aria-hidden="true" /> : null;
   };
 
+  const versionDraft: WeddingConfig = {
+    ...ic,
+    tema: { colores: paletaActivaResolvedColors, fuentes, paletas, paletaActivaId },
+    diseno: { ...ic.diseno, navegacion: versionNavigation, margenesPc, fondoPaginaColor, fondoPaginaImagen, fondoPaginaTexturaTamanoPx, separador, tratamientosImagenes, secciones: seccionesEfectivas },
+  };
+  const loadAppliedVisual = (snapshot: VisualSnapshot) => {
+    const applied = applyVisualSnapshot(versionDraft, snapshot).config;
+    setPaletas(buildInitialPaletas(applied));
+    setPaletaActivaId(applied.tema.paletaActivaId ?? "");
+    setPaletaEditandoId(applied.tema.paletaActivaId ?? "");
+    setFuentes(applied.tema.fuentes);
+    setFondoPaginaColor(applied.diseno?.fondoPaginaColor ?? "");
+    setFondoPaginaImagen(applied.diseno?.fondoPaginaImagen ?? "");
+    setFondoPaginaTexturaTamanoPx(applied.diseno?.fondoPaginaTexturaTamanoPx ?? 0);
+    setTratamientosImagenes(applied.diseno?.tratamientosImagenes ?? {});
+    setSeparador(buildInitialSeparador(applied));
+    setVersionNavigation(applied.diseno?.navegacion);
+    setSecciones(applied.diseno?.secciones ?? []);
+    setSectionDrafts({});
+    setEditingSectionId(null);
+  };
+
   return (
     <div className="space-y-6 max-w-[1400px]">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold text-stone-800">Diseno de la web</h1>
-          <p className="mt-1 text-sm text-stone-500">Edita y previsualiza cambios en tiempo real. Se publican al guardar.</p>
+          <p className="mt-1 text-sm text-stone-500">Edita sin publicar. Guarda versiones independientes o publica explicitamente los cambios del editor.</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -1689,7 +1724,7 @@ export default function ConfiguracionView({
             disabled={saving}
             className="rounded-xl bg-amber-700 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:bg-amber-800"
           >
-            {saving ? "Guardando..." : "Guardar cambios"}
+            {saving ? "Guardando..." : "Guardar y publicar cambios"}
           </button>
         </div>
       </div>
@@ -1705,6 +1740,8 @@ export default function ConfiguracionView({
           {msg.text}
         </div>
       )}
+
+      <VisualVersionsPanel key={versionListKey} inviteCode={inviteCode} draft={versionDraft} onApplied={loadAppliedVisual} />
 
       <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
           <aside className="space-y-4 self-start lg:sticky lg:top-4">

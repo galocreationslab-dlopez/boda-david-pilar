@@ -16,7 +16,7 @@ const DEFAULT_DEVICE_CONFIG: IntroDeviceConfig = { tipo: "revealBook" };
 
 type Props = {
   config: IntroSeccionConfig;
-  storageKey: string;
+  storageKey?: string;
   themeStyle?: CSSProperties;
   introStyle?: CSSProperties;
   envelopeTexture?: EnvelopeTexture;
@@ -44,7 +44,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   const [unlocked, setUnlocked] = useState(false);
   const visitRecorded = useSyncExternalStore(
     () => () => undefined,
-    () => config.repetir === "primeraVez" && window.localStorage.getItem(storageKey) === "1",
+    () => Boolean(storageKey && config.repetir === "primeraVez" && window.localStorage.getItem(storageKey) === "1"),
     () => false,
   );
 
@@ -77,7 +77,7 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
     if (completedRef.current) return;
     completedRef.current = true;
     if (delayRef.current !== null) clearTimeout(delayRef.current);
-    window.localStorage.setItem(storageKey, "1");
+    if (storageKey) window.localStorage.setItem(storageKey, "1");
     setUnlocked(true);
   }, [storageKey]);
 

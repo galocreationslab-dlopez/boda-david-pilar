@@ -13,6 +13,7 @@ import { buildFontCssVars, buildFontFaceCss } from "@/lib/theme-fonts";
 import { normalizeAlineacionLogoTimeline, normalizeTamanoLogoTimeline } from "@/lib/timeline-logo-size";
 import { unstable_noStore as noStore } from "next/cache";
 import { normalizeSectionChains } from "@/lib/section-chains";
+import { applyVisualSnapshot, assertVisualSnapshot, captureVisualSnapshot, VisualSnapshotError } from "@/lib/visual-versions";
 
 type SectionRow = {
   id: string;
@@ -361,6 +362,26 @@ function deepMerge(
   return result;
 }
 
+export function resolveWeddingConfig(override: unknown): WeddingConfig {
+  let merged = isRecord(override) && Object.keys(override).length > 0
+    ? (deepMerge(weddingConfig as unknown as Record<string, unknown>, override) as WeddingConfig)
+    : structuredClone(weddingConfig);
+  // Applied versions replace visual maps exactly, including removal of old overrides.
+  if (isRecord(override) && override.visualSchema === "wedding-visual-v1") {
+    if (override.visualSnapshot !== undefined) {
+      assertVisualSnapshot(override.visualSnapshot);
+      merged = applyVisualSnapshot(merged, override.visualSnapshot).config;
+    } else {
+      // Read compatibility for configurations written by the early v1 deployment.
+      const stored = { ...merged, ...override } as WeddingConfig;
+      merged = applyVisualSnapshot(merged, captureVisualSnapshot(stored)).config;
+    }
+    delete (merged as unknown as Record<string, unknown>).visualSchema;
+    delete (merged as unknown as Record<string, unknown>).visualSnapshot;
+  }
+  return normalizeRsvpConfig(normalizeSecciones(merged));
+}
+
 export async function getWeddingConfig(): Promise<WeddingConfig> {
   // Evita servir una version cacheada cuando el admin cambia tema, fuentes o contenido.
   noStore();
@@ -374,13 +395,7 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
       .maybeSingle();
 
     const override = data?.config_json;
-    const merged = normalizeRsvpConfig(
-      normalizeSecciones(
-        isRecord(override) && Object.keys(override).length > 0
-          ? (deepMerge(weddingConfig as unknown as Record<string, unknown>, override) as WeddingConfig)
-          : weddingConfig,
-      ),
-    );
+    const merged = resolveWeddingConfig(override);
 
     const bodaId = asString(data?.id);
     if (!bodaId) return merged;
@@ -391,7 +406,8 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
       // Si las tablas nuevas no existen todavía, mantenemos el comportamiento actual.
       return merged;
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof VisualSnapshotError) throw error;
     return normalizeRsvpConfig(weddingConfig);
   }
 }

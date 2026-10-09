@@ -38,6 +38,7 @@ type NavegacionPublicaProps = {
   secciones?: SeccionMenuItem[];
   // Query string actual (sin el "?"), ej. "inviteCode=GALO-2603" — se preserva en todos los enlaces internos.
   queryString?: string;
+  homePath?: string;
 };
 
 const ZONAS: { posicion: PosicionElementoBarra; clases: string }[] = [
@@ -53,7 +54,7 @@ function normalizarElementos(elementos?: ElementoBarra[]): ElementoBarra[] {
   return [...validos, ...faltan];
 }
 
-export function NavegacionPublica({ config, comportamiento = "siempre_visible", banner, secciones = [], queryString = "" }: NavegacionPublicaProps) {
+export function NavegacionPublica({ config, comportamiento = "siempre_visible", banner, secciones = [], queryString = "", homePath = "/" }: NavegacionPublicaProps) {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -62,12 +63,12 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
     setMenuAbierto((prev) => !prev);
   };
 
-  const buildHomeHref = () => (queryString ? `/?${queryString}` : "/");
+  const buildHomeHref = () => (queryString ? `${homePath}?${queryString}` : homePath);
   const buildAnchorHref = (anchorId: string) => `${buildHomeHref()}#${anchorId}`;
   const buildSeccionHref = (anchorId: string) => {
     const params = new URLSearchParams(queryString);
     params.set("seccion", anchorId);
-    return `/?${params.toString()}`;
+    return `${homePath}?${params.toString()}`;
   };
 
   // Enlace a una seccion visible en la pagina principal: si ya esta en el DOM, la desplegamos
