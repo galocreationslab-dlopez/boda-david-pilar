@@ -783,6 +783,14 @@ export type WeddingConfig = {
   transporte: TrayectoTransporte[];
   drive: DriveConfig;
   rsvp?: RsvpConfig;
+  compartir?: CompartirConfig;
+};
+
+/** Vista previa al compartir el enlace (Open Graph / WhatsApp). Vacío = fallback. */
+export type CompartirConfig = {
+  titulo?: string;
+  descripcion?: string;
+  imagenUrl?: string;
 };
 
 // ─────────────────────────────────────────────────────────────

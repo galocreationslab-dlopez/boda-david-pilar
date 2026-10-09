@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Metadatos (og:*, twitter:*) siempre dentro del <head> del HTML inicial, para cualquier cliente
+  // (Next 16 solo lo garantiza para una lista de bots; con esto también para curl y otros previsualizadores).
+  htmlLimitedBots: /.*/,
+
   // Sin esto, Vercel no empaqueta public/LineAlive en la funciÃ³n serverless (path dinÃ¡mico no rastreable)
   outputFileTracingIncludes: {
     "/api/linealive/html": ["./public/LineAlive/**/*"],

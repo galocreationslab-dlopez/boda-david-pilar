@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   DEFAULT_RSVP_TEXTOS_CHAT,
@@ -10,6 +10,24 @@ import {
   type RsvpTextosFormulario,
   type WeddingConfig,
 } from "@/config/wedding.config";
+import { isDriveUrl } from "@/lib/drive-image";
+import { OG_IMAGE_MAX_BYTES, SITE_URL, resolveShareImageSource, unwrapPreviewSrc } from "@/lib/share-metadata";
+
+const COMPARTIR_FOLDER = "General";
+
+type ResourceItem = {
+  id: string;
+  nombre: string;
+  url_publica: string | null;
+};
+
+type ImageInfo = {
+  bytes: number;
+  width: number | null;
+  height: number | null;
+  tooHeavy: boolean;
+  isOgSize: boolean;
+};
 
 type DriveStatus = {
   configured: boolean;
@@ -128,6 +146,15 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
   const [cuposLimitantes, setCuposLimitantes] = useState(config.rsvp?.cuposLimitantes !== false);
   const [rsvpTextos, setRsvpTextos] = useState<RsvpTextosFormulario>(config.rsvp?.textos ?? {});
   const [chatTextos, setChatTextos] = useState<RsvpTextosChat>(config.rsvp?.chatTextos ?? {});
+  const [compartirTitulo, setCompartirTitulo] = useState(config.compartir?.titulo ?? "");
+  const [compartirDescripcion, setCompartirDescripcion] = useState(config.compartir?.descripcion ?? "");
+  const [compartirImagen, setCompartirImagen] = useState(config.compartir?.imagenUrl ?? "");
+  const [generalResources, setGeneralResources] = useState<ResourceItem[]>([]);
+  const [uploadingCompartir, setUploadingCompartir] = useState(false);
+  const [generatingOg, setGeneratingOg] = useState(false);
+  const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
+  const [imageInfoError, setImageInfoError] = useState<string | null>(null);
+  const compartirFallbackImagen = resolveShareImageSource({ ...config, compartir: undefined });
 
   const [ubicaciones, setUbicaciones] = useState<Array<Localizacion & { fechaHoraTexto?: string }>>(
     (config.localizaciones ?? []).map((loc) => ({
@@ -139,6 +166,90 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
   const showMsg = (type: "ok" | "error", text: string) => {
     setMsg({ type, text });
     setTimeout(() => setMsg(null), 5000);
+  };
+
+  useEffect(() => {
+    fetch(`/api/admin/${inviteCode}/resources?section=${encodeURIComponent(COMPARTIR_FOLDER)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { resources?: ResourceItem[] } | null) => setGeneralResources(Array.isArray(data?.resources) ? data.resources : []))
+      .catch(() => setGeneralResources([]));
+  }, [inviteCode]);
+
+  useEffect(() => {
+    const value = compartirImagen.trim();
+    setImageInfo(null);
+    setImageInfoError(null);
+    if (!value) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/api/admin/${inviteCode}/resources/og-image?mode=info&src=${encodeURIComponent(value)}`, { signal: controller.signal })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error((data as { error?: string }).error ?? "No se pudo comprobar la imagen");
+          setImageInfo(data as ImageInfo);
+        })
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) return;
+          setImageInfoError(error instanceof Error ? error.message : "No se pudo comprobar la imagen");
+        });
+    }, 600);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [compartirImagen, inviteCode]);
+
+  const adminImagePreviewSrc = useCallback((raw: string): string => {
+    const value = unwrapPreviewSrc(raw);
+    if (!value) return "";
+    if (isDriveUrl(value)) return `/api/admin/${encodeURIComponent(inviteCode)}/resources/preview?src=${encodeURIComponent(value)}`;
+    return value;
+  }, [inviteCode]);
+
+  const uploadToGeneral = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("section", COMPARTIR_FOLDER);
+    const res = await fetch(`/api/admin/${inviteCode}/resources`, { method: "POST", body: formData });
+    const data = (await res.json().catch(() => ({}))) as { error?: string; resource?: ResourceItem };
+    if (!res.ok) throw new Error(data.error ?? "No se pudo subir la imagen");
+    const resource = data.resource;
+    if (!resource?.url_publica) throw new Error("La subida no devolvió una URL pública");
+    setGeneralResources((prev) => [resource, ...prev]);
+    return resource.url_publica;
+  };
+
+  const handleCompartirUpload = async (file: File) => {
+    setUploadingCompartir(true);
+    try {
+      setCompartirImagen(await uploadToGeneral(file));
+      showMsg("ok", "Imagen subida a Recursos/General. Guarda los cambios para aplicarla.");
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error subiendo la imagen");
+    } finally {
+      setUploadingCompartir(false);
+    }
+  };
+
+  const generateOgPreview = async () => {
+    const source = compartirImagen.trim();
+    if (!source) return;
+    setGeneratingOg(true);
+    try {
+      const res = await fetch(`/api/admin/${inviteCode}/resources/og-image?src=${encodeURIComponent(source)}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error ?? "No se pudo generar la mini-preview");
+      }
+      const blob = await res.blob();
+      const file = new File([blob], `og-preview-${Date.now()}.jpg`, { type: "image/jpeg" });
+      setCompartirImagen(await uploadToGeneral(file));
+      showMsg("ok", "Mini-preview 1200×630 generada y guardada en Recursos/General. Guarda los cambios para aplicarla.");
+    } catch (error) {
+      showMsg("error", error instanceof Error ? error.message : "Error generando la mini-preview");
+    } finally {
+      setGeneratingOg(false);
+    }
   };
 
   const updateUbicacion = (id: string, patch: Partial<Localizacion & { fechaHoraTexto?: string }>) => {
@@ -209,6 +320,11 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
           cuposLimitantes,
           textos: rsvpTextos,
           chatTextos,
+        },
+        compartir: {
+          titulo: compartirTitulo,
+          descripcion: compartirDescripcion,
+          imagenUrl: compartirImagen.trim(),
         },
       };
 
@@ -289,6 +405,117 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
           </div>
           <div className="md:col-span-2 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
             El texto de invitacion se edita desde Diseño de la web, dentro de la sección Invitacion.
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-stone-700">Vista previa al compartir (WhatsApp)</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            Tarjeta que aparece al pegar el enlace de la web en WhatsApp u otras redes. WhatsApp puede tardar en refrescar una vista previa ya compartida.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="label-field">Título</label>
+            <input
+              className="input-field"
+              value={compartirTitulo}
+              onChange={(e) => setCompartirTitulo(e.target.value)}
+              placeholder={nombreConjunto || "Nombre conjunto"}
+            />
+            <p className="mt-1 text-xs text-stone-500">Vacío = se usa el nombre conjunto.</p>
+          </div>
+          <div>
+            <label className="label-field">Descripción</label>
+            <textarea
+              className="input-field min-h-[80px]"
+              value={compartirDescripcion}
+              onChange={(e) => setCompartirDescripcion(e.target.value)}
+              placeholder="Os invitamos a nuestra boda…"
+            />
+          </div>
+          <div className="md:col-span-2 space-y-2">
+            <label className="label-field">Imagen (recomendado 1200×630, máx. 300 KB)</label>
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <select
+                className="input-field"
+                value={generalResources.find((r) => r.url_publica && unwrapPreviewSrc(r.url_publica) === unwrapPreviewSrc(compartirImagen))?.id ?? ""}
+                onChange={(e) => {
+                  const resource = generalResources.find((r) => r.id === e.target.value);
+                  setCompartirImagen(resource?.url_publica ?? "");
+                }}
+              >
+                <option value="">Sin recurso (usar URL manual)</option>
+                {generalResources.map((resource) => (
+                  <option key={resource.id} value={resource.id}>{resource.nombre}</option>
+                ))}
+              </select>
+              <label className="inline-flex cursor-pointer items-center rounded-xl border border-stone-300 px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50">
+                {uploadingCompartir ? "Subiendo..." : "Subir archivo"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadingCompartir || !drive.recursosWeb.folderId.trim()}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleCompartirUpload(file);
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            <input
+              type="url"
+              className="input-field font-mono text-xs"
+              value={compartirImagen}
+              onChange={(e) => setCompartirImagen(e.target.value)}
+              placeholder="/images/foto.jpg o https://..."
+            />
+            <p className="text-xs text-stone-500">
+              Puedes subir una imagen (se guarda en Recursos/{COMPARTIR_FOLDER}), elegir un recurso de esa carpeta o pegar una URL. Vacío = se usa el logo de la portada.
+            </p>
+
+            {imageInfo?.tooHeavy && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <p>
+                  La imagen pesa {Math.round(imageInfo.bytes / 1024)} KB (máx. {Math.round(OG_IMAGE_MAX_BYTES / 1024)} KB). WhatsApp puede ignorarla y mostrar el enlace sin imagen.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void generateOgPreview()}
+                  disabled={generatingOg || !drive.recursosWeb.folderId.trim()}
+                  className="whitespace-nowrap rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                >
+                  {generatingOg ? "Generando..." : "Generar mini-preview 1200×630"}
+                </button>
+              </div>
+            )}
+            {imageInfo && !imageInfo.tooHeavy && (
+              <p className="text-xs text-stone-500">
+                {Math.round(imageInfo.bytes / 1024)} KB{imageInfo.width && imageInfo.height ? ` · ${imageInfo.width}×${imageInfo.height}px` : ""}
+                {imageInfo.isOgSize ? " · tamaño óptimo" : " · se ajustará a 1200×630 al compartir"}
+              </p>
+            )}
+            {imageInfoError && <p className="text-xs text-red-600">{imageInfoError}</p>}
+
+            {(compartirImagen.trim() || compartirFallbackImagen) && (
+              <div className="w-full max-w-sm overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={adminImagePreviewSrc(compartirImagen.trim() || compartirFallbackImagen)}
+                  alt="Vista previa de la imagen al compartir"
+                  className="aspect-[1200/630] w-full object-cover"
+                />
+                <div className="space-y-0.5 p-3">
+                  <p className="text-sm font-semibold text-stone-800">{compartirTitulo.trim() || nombreConjunto}</p>
+                  {compartirDescripcion.trim() && <p className="text-xs text-stone-500 line-clamp-2">{compartirDescripcion}</p>}
+                  <p className="text-[11px] text-stone-400">{new URL(SITE_URL).host}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>
