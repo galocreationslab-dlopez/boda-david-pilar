@@ -100,15 +100,22 @@ async function getInvitation(inviteCode: string) {
     .eq("invite_code", inviteCode)
     .maybeSingle();
 
-  if (error || !invitacion) {
-    return null;
+  if (error) {
+    console.error("Error al consultar la invitación RSVP:", error);
+    throw new Error("No se pudo cargar la invitación. Inténtalo de nuevo.");
   }
+  if (!invitacion) return null;
 
-  const { data: asistentes } = await supabase
+  const { data: asistentes, error: asistentesError } = await supabase
     .from("asistentes")
     .select("id, nombre, edad, tipo_persona, estado_asistencia, transporte, necesidades, comentarios")
     .eq("invitation_id", invitacion.id)
     .order("created_at", { ascending: true });
+
+  if (asistentesError) {
+    console.error("Error al consultar los asistentes RSVP:", asistentesError);
+    throw new Error("No se pudieron cargar los asistentes. Inténtalo de nuevo.");
+  }
 
   const personas = asistentes?.length
     ? asistentes.map((asistente: AsistenteRow) => ({

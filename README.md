@@ -86,6 +86,16 @@ La consulta sigue cargando el texto personalizado y, para invitaciones de
 administrador, cambia el botón a «Panel de administración», disponible también
 fuera de plazo.
 
+Las rutas RSVP solo devuelven «invitación no encontrada» si la consulta termina
+correctamente y no existe el código. Los fallos de base de datos se registran
+en el servidor; la API responde con 503 y el formulario muestra un aviso con
+**Reintentar**, que realiza una recarga completa. Si falla la lectura de los
+asistentes, no se muestra un formulario vacío ni se sustituyen los datos por
+personas nuevas. La consulta de portada no usa caché y los códigos se recortan
+y codifican al construir las URLs. El botón abre el formulario (o el panel de
+administración) con una navegación completa para no reutilizar errores previos
+de la caché de navegación del cliente.
+
 ### Versiones visuales (antes de migrar roles)
 
 Aplica primero `supabase/migrations/20261009_visual_versions.sql` en Supabase.

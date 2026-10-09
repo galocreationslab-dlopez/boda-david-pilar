@@ -19,6 +19,7 @@ function mount({ search = "?inviteCode=TEST", deadline = "6 de febrero de 2027",
   let effects = [];
   const errors = [];
   const routes = [];
+  const requests = [];
   const exports = {};
   const imports = {
     react: {
@@ -29,7 +30,6 @@ function mount({ search = "?inviteCode=TEST", deadline = "6 de febrero de 2027",
       },
       useEffect(effect) { effects.push(effect); },
     },
-    "next/navigation": { useRouter: () => ({ push: (route) => routes.push(route) }) },
     "./HeroPortada": { HeroPortada: "HeroPortada" },
     "react/jsx-runtime": { jsx: (type, props) => ({ type, props }) },
   };
@@ -47,11 +47,14 @@ function mount({ search = "?inviteCode=TEST", deadline = "6 de febrero de 2027",
     },
     URLSearchParams,
     window: {
-      location: { search },
+      location: { search, assign: (route) => routes.push(route) },
       requestAnimationFrame: (callback) => { callback(); return 1; },
       cancelAnimationFrame() {},
     },
-    fetch: () => fetchResult ?? new Promise(() => {}),
+    fetch: (...args) => {
+      requests.push(args);
+      return fetchResult ?? new Promise(() => {});
+    },
     console: { error: (...args) => errors.push(args) },
   });
   const render = () => {
@@ -65,7 +68,7 @@ function mount({ search = "?inviteCode=TEST", deadline = "6 de febrero de 2027",
   effects.forEach((effect) => effect());
   render();
   effects.forEach((effect) => effect());
-  return { render, errors, routes };
+  return { render, errors, routes, requests };
 }
 
 test("button appears while invitation request is still pending and navigates to RSVP", () => {
@@ -81,6 +84,17 @@ test("missing or blank invitation codes hide the button", () => {
     assert.equal(mount({ search }).render().mostrarBotonConfirmar, false);
   }
   assert.equal(mount({ search: "?invitecode=TEST" }).render().mostrarBotonConfirmar, true);
+});
+
+test("invitation codes are trimmed and encoded, and loading bypasses cached responses", () => {
+  const app = mount({ search: "?inviteCode=%20TEST%2F%3F%23%20" });
+  app.render().onConfirmarClick();
+  assert.equal(app.requests.length, 1);
+  assert.equal(app.requests[0][0], "/api/rsvp/TEST%2F%3F%23");
+  assert.equal(app.requests[0][1].cache, "no-store");
+  assert.deepEqual(app.routes, ["/rsvp/TEST%2F%3F%23"]);
+  const lowercase = mount({ search: "?inviteCode=%20&invitecode=TEST" });
+  assert.equal(lowercase.render().mostrarBotonConfirmar, true);
 });
 
 test("deadline includes the whole day, hides after expiry, and allows no deadline", () => {

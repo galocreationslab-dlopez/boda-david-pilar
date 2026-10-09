@@ -5,6 +5,8 @@ import { countRsvpPeople, exceedsRsvpLimits, getRsvpLimits, RSVP_PERSONA_TYPES }
 import type { PersonaTipo } from "@/types/rsvp";
 import { getWeddingConfig } from "@/lib/wedding-config-server";
 
+export const dynamic = "force-dynamic";
+
 type RSVPUpdateBody = {
   asistencia_estimada?: "si" | "no" | "pendiente";
   comentarios?: string | null;
@@ -51,8 +53,18 @@ export async function GET(
       .eq("invite_code", inviteCode)
       .maybeSingle();
 
-    if (error || !invitacion) {
-      return NextResponse.json({ error: "Invitación no encontrada" }, { status: 404 });
+    if (error) {
+      console.error("Error al consultar la invitación RSVP:", error);
+      return NextResponse.json(
+        { error: "No se pudo cargar la invitación. Inténtalo de nuevo." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    if (!invitacion) {
+      return NextResponse.json(
+        { error: "Invitación no encontrada" },
+        { status: 404, headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const { data: asistentes, error: asistentesError } = await supabase
@@ -62,7 +74,11 @@ export async function GET(
       .order("created_at", { ascending: true });
 
     if (asistentesError) {
-      return NextResponse.json({ error: asistentesError.message }, { status: 500 });
+      console.error("Error al consultar los asistentes RSVP:", asistentesError);
+      return NextResponse.json(
+        { error: "No se pudieron cargar los asistentes. Inténtalo de nuevo." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const personas = asistentes?.length
@@ -78,11 +94,12 @@ export async function GET(
         }))
       : [];
 
-    return NextResponse.json({ invitacion, personas });
+    return NextResponse.json({ invitacion, personas }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    console.error("Error inesperado al cargar RSVP:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Error inesperado" },
-      { status: 500 }
+      { error: "No se pudo cargar la invitación. Inténtalo de nuevo." },
+      { status: 503, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
@@ -102,7 +119,14 @@ export async function POST(
       .eq("invite_code", inviteCode)
       .maybeSingle();
 
-    if (invitacionError || !invitacion) {
+    if (invitacionError) {
+      console.error("Error al consultar la invitación para guardar RSVP:", invitacionError);
+      return NextResponse.json(
+        { error: "No se pudo comprobar la invitación. Inténtalo de nuevo." },
+        { status: 503 },
+      );
+    }
+    if (!invitacion) {
       return NextResponse.json({ error: "Invitación no encontrada" }, { status: 404 });
     }
 

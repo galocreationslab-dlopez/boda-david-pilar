@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { HeroPortada, type HeroComponentKey } from "./HeroPortada";
 import type { WeddingConfig } from "@/config/wedding.config";
 import type { CSSProperties } from "react";
@@ -77,7 +76,6 @@ export default function MainWithInvite({
   onEditNombreConjunto,
   onEditBienvenida,
 }: Props) {
-  const router = useRouter();
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const hasInviteCode = Boolean(inviteCode && inviteCode.trim().length > 0);
   const [invitacion, setInvitacion] = useState<InvitacionAPI["invitacion"]>(null);
@@ -87,7 +85,7 @@ export default function MainWithInvite({
   // Leer el código de la URL en el cliente, sin useSearchParams → no necesita Suspense
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get("inviteCode") || params.get("invitecode") || null;
+    const code = params.get("inviteCode")?.trim() || params.get("invitecode")?.trim() || null;
     const raf = window.requestAnimationFrame(() => setInviteCode(code));
     return () => window.cancelAnimationFrame(raf);
   }, []);
@@ -96,12 +94,12 @@ export default function MainWithInvite({
     let isActive = true;
 
     async function loadInvitation() {
-      if (!hasInviteCode) {
+      if (!inviteCode || !hasInviteCode) {
         setInvitacion(null);
         return;
       }
       try {
-        const res = await fetch(`/api/rsvp/${inviteCode}`);
+        const res = await fetch(`/api/rsvp/${encodeURIComponent(inviteCode)}`, { cache: "no-store" });
         if (!isActive) return;
 
         if (!res.ok) {
@@ -132,11 +130,8 @@ export default function MainWithInvite({
 
   const handleConfirmarClick = () => {
     if (!inviteCode) return;
-    if (esAdmin) {
-      router.push(`/admin/${inviteCode}`);
-    } else {
-      router.push(`/rsvp/${inviteCode}`);
-    }
+    // Pedir un documento nuevo evita reutilizar un error del Router Cache.
+    window.location.assign(`/${esAdmin ? "admin" : "rsvp"}/${encodeURIComponent(inviteCode)}`);
   };
 
   const mostrarBoton = hasInviteCode && (esAdmin || estaEnPlazo);
