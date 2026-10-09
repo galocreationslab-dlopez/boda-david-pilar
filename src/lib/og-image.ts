@@ -1,10 +1,11 @@
 /**
  * lib/og-image.ts
  * Carga y normaliza imágenes para la vista previa al compartir (1200x630, JPEG, ≤300 KB).
- * Solo servidor (usa sharp y el token de Drive).
+ * Solo servidor (usa sharp si está disponible, next/og como alternativa, y el token de Drive).
  */
 
-import sharp from "sharp";
+import { createElement } from "react";
+import type sharpType from "sharp";
 import { downloadDriveFile } from "@/lib/google-drive";
 import { isDriveUrl } from "@/lib/drive-image";
 import {
@@ -17,6 +18,20 @@ import {
 } from "@/lib/share-metadata";
 
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+
+type SharpFn = typeof sharpType;
+let sharpPromise: Promise<SharpFn | null> | null = null;
+
+/** Carga sharp bajo demanda: si el binario nativo no está disponible, devuelve null en vez de tumbar la ruta. */
+function loadSharp(): Promise<SharpFn | null> {
+  sharpPromise ??= import("sharp")
+    .then((mod) => (mod.default ?? mod) as SharpFn)
+    .catch((error) => {
+      console.error("[og-image] sharp no disponible", error);
+      return null;
+    });
+  return sharpPromise;
+}
 
 export type LoadedImage = { buffer: Buffer; contentType: string };
 
@@ -103,19 +118,22 @@ export type ImageInfo = {
 };
 
 export async function inspectImage(image: LoadedImage): Promise<ImageInfo> {
-  const meta = await sharp(image.buffer).metadata().catch(() => null);
+  const sharp = await loadSharp();
+  const meta = sharp ? await sharp(image.buffer).metadata().catch(() => null) : null;
+  const dims = meta ?? readImageDimensions(image.buffer);
   return {
     bytes: image.buffer.length,
-    width: meta?.width ?? null,
-    height: meta?.height ?? null,
+    width: dims?.width ?? null,
+    height: dims?.height ?? null,
     contentType: image.contentType,
   };
 }
 
 /**
- * Devuelve una imagen apta para og:image: 1200x630, JPEG y ≤300 KB.
+ * Devuelve una imagen apta para og:image: 1200x630 y ≤300 KB.
  * Si el original ya cumple (JPEG/PNG, 1200x630, ≤300 KB) se devuelve sin tocar.
- * Imágenes muy distintas de 1.91:1 (p. ej. un logo cuadrado) se encajan completas sobre un fondo difuminado.
+ * Imágenes muy distintas de 1.91:1 (p. ej. un logo cuadrado) se encajan completas sobre un fondo.
+ * Usa sharp (JPEG); si no está disponible en el entorno, recurre a next/og (PNG).
  */
 export async function buildOgImage(image: LoadedImage): Promise<LoadedImage> {
   const info = await inspectImage(image);
@@ -126,15 +144,25 @@ export async function buildOgImage(image: LoadedImage): Promise<LoadedImage> {
     && info.bytes <= OG_IMAGE_MAX_BYTES;
   if (alreadyOk) return image;
 
+  const sharp = await loadSharp();
+  if (sharp) {
+    try {
+      return await buildOgImageWithSharp(sharp, image, info);
+    } catch (error) {
+      console.error("[og-image] sharp no pudo procesar la imagen; se usa next/og", error);
+    }
+  }
+  return buildOgImageWithNextOg(image, info);
+}
+
+async function buildOgImageWithSharp(sharp: SharpFn, image: LoadedImage, info: ImageInfo): Promise<LoadedImage> {
   // SVG: densidad ajustada para rasterizar a ~2400px de lado (nítido sin superar el límite de píxeles)
   const maxSide = Math.max(info.width ?? 0, info.height ?? 0);
   const density = info.contentType === "image/svg+xml" && maxSide > 0
     ? Math.max(1, Math.min(300, Math.round((72 * 2400) / maxSide)))
     : 72;
   const input = () => sharp(image.buffer, { density, failOn: "none" }).rotate();
-  const targetRatio = OG_IMAGE_WIDTH / OG_IMAGE_HEIGHT;
-  const ratio = info.width && info.height ? info.width / info.height : targetRatio;
-  const fitsCover = ratio >= targetRatio * 0.8 && ratio <= targetRatio * 1.25;
+  const fitsCover = isNearOgRatio(info);
 
   let composed: Buffer;
   if (fitsCover) {
@@ -167,4 +195,60 @@ export async function buildOgImage(image: LoadedImage): Promise<LoadedImage> {
     if (output.length <= OG_IMAGE_MAX_BYTES) break;
   }
   return { buffer: output, contentType: "image/jpeg" };
+}
+
+async function buildOgImageWithNextOg(image: LoadedImage, info: ImageInfo): Promise<LoadedImage> {
+  const { ImageResponse } = await import("next/og");
+  const dataUrl = `data:${image.contentType};base64,${image.buffer.toString("base64")}`;
+  const cover = isNearOgRatio(info);
+  const element = createElement(
+    "div",
+    {
+      style: {
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f4efe6",
+      },
+    },
+    createElement("img", {
+      src: dataUrl,
+      width: cover ? OG_IMAGE_WIDTH : OG_IMAGE_WIDTH - 80,
+      height: cover ? OG_IMAGE_HEIGHT : OG_IMAGE_HEIGHT - 60,
+      style: { objectFit: cover ? "cover" : "contain", width: "100%", height: "100%", ...(cover ? {} : { padding: "30px 40px" }) },
+    }),
+  );
+  const response = new ImageResponse(element, { width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT });
+  return { buffer: Buffer.from(await response.arrayBuffer()), contentType: "image/png" };
+}
+
+function isNearOgRatio(info: ImageInfo): boolean {
+  const targetRatio = OG_IMAGE_WIDTH / OG_IMAGE_HEIGHT;
+  const ratio = info.width && info.height ? info.width / info.height : targetRatio;
+  return ratio >= targetRatio * 0.8 && ratio <= targetRatio * 1.25;
+}
+
+/** Dimensiones de PNG/JPEG/GIF leyendo la cabecera (sin sharp). */
+function readImageDimensions(buffer: Buffer): { width: number; height: number } | null {
+  if (buffer.length >= 24 && buffer.readUInt32BE(0) === 0x89504e47) {
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  }
+  if (buffer.length >= 10 && buffer.subarray(0, 3).toString("ascii") === "GIF") {
+    return { width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8) };
+  }
+  if (buffer.length >= 4 && buffer[0] === 0xff && buffer[1] === 0xd8) {
+    let offset = 2;
+    while (offset + 9 < buffer.length) {
+      if (buffer[offset] !== 0xff) { offset += 1; continue; }
+      const marker = buffer[offset + 1];
+      const length = buffer.readUInt16BE(offset + 2);
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { height: buffer.readUInt16BE(offset + 5), width: buffer.readUInt16BE(offset + 7) };
+      }
+      offset += 2 + length;
+    }
+  }
+  return null;
 }

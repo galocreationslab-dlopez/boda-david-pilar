@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   // Sin esto, Vercel no empaqueta public/LineAlive en la funciÃ³n serverless (path dinÃ¡mico no rastreable)
   outputFileTracingIncludes: {
     "/api/linealive/html": ["./public/LineAlive/**/*"],
+    // sharp carga libvips (.so) de forma nativa y el trazado no lo detecta: sin esto, las rutas que usan sharp fallan en Vercel.
+    "/api/resources/preview": ["./node_modules/sharp/**/*", "./node_modules/@img/**/*"],
+    "/api/admin/**/resources/**": ["./node_modules/sharp/**/*", "./node_modules/@img/**/*"],
   },
 
   // Permite imÃ¡genes desde Google Drive y dominios externos
