@@ -767,6 +767,7 @@ export type WeddingConfig = {
   };
 
   diseno?: {
+    usarPieFallback?: boolean; // Por defecto true; solo se aplica sin un pie personalizado visible.
     separador?: SeparadorDiseno;
     margenesPc?: { izquierdo: number; derecho: number };
     fondoPaginaColor?: string;

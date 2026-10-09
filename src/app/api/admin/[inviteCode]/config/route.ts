@@ -130,6 +130,9 @@ export async function POST(
   if (mapsError) return NextResponse.json({ error: mapsError }, { status: 400 });
   if (isRecord(body) && isRecord(body.diseno)) {
     const design = body.diseno;
+    if (design.usarPieFallback !== undefined && typeof design.usarPieFallback !== "boolean") {
+      return NextResponse.json({ error: "La opcion de usar el pie de pagina por defecto debe ser un booleano." }, { status: 400 });
+    }
     const margins = design.margenesPc;
     if (margins !== undefined && (
       !isRecord(margins) ||

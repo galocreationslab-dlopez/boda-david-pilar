@@ -63,6 +63,18 @@ supabase/
 
 ## Principios arquitectónicos
 
+### Pie de página opcional
+
+En **Contenido / Estructura**, la casilla **Usar pie de página por defecto**
+controla el fallback cuando no hay un pie personalizado visible para el perfil.
+Desmárcala y pulsa **Guardar cambios** para dejar la página sin pie en ese caso.
+Un pie personalizado visible sigue teniendo prioridad. La web pública y la
+previsualización de Diseño respetan esta opción.
+
+Se guarda como `diseno.usarPieFallback`: `false` desactiva el fallback;
+`true` o la ausencia del campo mantienen el comportamiento anterior.
+Esta opción de estructura no se modifica al aplicar versiones visuales.
+
 ### Botón de confirmación de asistencia
 
 En la web pública, «Confirmar asistencia» aparece cuando la URL contiene

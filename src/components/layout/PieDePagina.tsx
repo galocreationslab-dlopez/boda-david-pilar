@@ -3,7 +3,7 @@
  * ─────────────────────────────────────────────────────────────
  * Pie de página elegante para las páginas públicas.
  * Si la configuración trae una sección tipo "pie" (formato libre, como portadaLibre), se
- * renderiza esa en su lugar reutilizando <PortadaLibre>; el pie de fábrica queda de fallback.
+ * renderiza esa en su lugar reutilizando <PortadaLibre>; el pie de fábrica es un fallback opcional.
  */
 
 import type { CSSProperties } from "react";
@@ -13,7 +13,7 @@ import PortadaLibre from "@/components/wedding/PortadaLibre";
 import type { PortadaDispositivo } from "@/lib/portada-libre";
 
 type PieDePaginaProps = {
-  config: Pick<WeddingConfig, "iniciales" | "novia" | "novio" | "fechaFormateada">;
+  config: Pick<WeddingConfig, "iniciales" | "novia" | "novio" | "fechaFormateada" | "diseno">;
   seccionPie?: SeccionDiseno;
   roleColors?: Record<string, string | undefined>;
   resolveSrc?: (src?: string) => string;
@@ -30,6 +30,8 @@ export function PieDePagina({ config, seccionPie, roleColors = {}, resolveSrc, i
       </footer>
     );
   }
+
+  if (config.diseno?.usarPieFallback === false) return null;
 
   return (
     <footer

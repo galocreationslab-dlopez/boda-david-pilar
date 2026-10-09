@@ -571,6 +571,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [sections, setSections] = useState<SeccionDiseno[]>(initialSections);
+  const [usarPieFallback, setUsarPieFallback] = useState(config.diseno?.usarPieFallback !== false);
   const [navegacionComportamiento, setNavegacionComportamiento] = useState<ComportamientoBarraNavegacion>(
     config.diseno?.navegacion?.comportamiento ?? "siempre_visible",
   );
@@ -1070,6 +1071,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
         body: JSON.stringify({
           diseno: {
             ...(config.diseno ?? {}),
+            usarPieFallback,
             secciones: normalizeSectionChains(sections),
             navegacion: {
               comportamiento: navegacionComportamiento,
@@ -1151,6 +1153,20 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
         <aside className="space-y-4 self-start lg:sticky lg:top-4">
           <section className="rounded-2xl border border-stone-200 bg-white p-4 space-y-3">
             <h2 className="text-sm font-semibold text-stone-700">Estructura</h2>
+            <div className="space-y-1">
+              <label className="flex items-center gap-2 text-sm text-stone-700">
+                <input
+                  type="checkbox"
+                  checked={usarPieFallback}
+                  onChange={(event) => setUsarPieFallback(event.target.checked)}
+                  className="accent-amber-700"
+                />
+                Usar pie de página por defecto
+              </label>
+              <p className="text-xs text-stone-500">
+                Se muestra solo si no hay un pie personalizado visible. Desactívalo para dejar la página sin pie en ese caso.
+              </p>
+            </div>
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <select className="input-field" value={newSectionType} onChange={(e) => setNewSectionType(e.target.value as TipoSeccionDiseno)}>
                 {SECTION_TYPES.filter((option) => option.value !== "pie" || !hasPieSection(sections)).map((option) => (
