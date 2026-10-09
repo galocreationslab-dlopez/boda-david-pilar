@@ -472,7 +472,7 @@ export function SeccionTimeline({
 
                   {/* Tarjeta de contenido */}
                   <div
-                    className="tex-white w-full"
+                    className="tex-white w-full text-center"
                     style={styleFor("timeline.card", {
                       backgroundColor: "var(--white)",
                       border: "1px solid var(--cream-dark)",

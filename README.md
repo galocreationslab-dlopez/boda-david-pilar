@@ -190,6 +190,12 @@ Las regresiones de geometría y serialización se ejecutan con
 
 ### Imágenes y logos con Google Maps
 
+Los controles del carrusel (anterior, siguiente y puntos) usan el rol asignado
+a **Controles del carrusel** en Diseño, tanto en la web pública como en las
+previsualizaciones de Diseño. En **El gran día**, los títulos y las
+descripciones de las entradas están centrados en ordenador; la disposición
+móvil no cambia.
+
 En **Contenido**, las imágenes de **Portada (formato libre)** y los eventos del
 timeline permiten asignar/quitar **Enlace de Google Maps**, añadir una URL
 embebible opcional y previsualizarla. En Diseño también están disponibles los

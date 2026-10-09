@@ -1050,6 +1050,7 @@ export default function ConfiguracionView({
       case "historia.titulo":
       case "historia.descripcion":
       case "historia.navegacion":
+      case "carrusel.navegacion":
       case "timeline.fecha":
       case "timeline.tituloSeccion":
       case "timeline.hora":
