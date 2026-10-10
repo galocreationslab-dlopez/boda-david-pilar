@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { downloadDriveFile } from "@/lib/google-drive";
 import { buildOgImage, detectImageContentType, extractDriveId, loadImageSource, type LoadedImage } from "@/lib/og-image";
 import { isLocalImagePath, unwrapPreviewSrc } from "@/lib/share-metadata";
+import { isPublicBlobUrl } from "@/lib/resource-publication";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
 
   let source: LoadedImage;
   try {
-    if (og && isLocalImagePath(src)) {
+    if (og && (isLocalImagePath(src) || isPublicBlobUrl(src))) {
       source = await loadImageSource(src, url.origin);
     } else {
       const fileId = extractDriveId(src);

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import WeddingPage from "@/components/wedding/WeddingPage";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
 import { buildCssOverrides } from "@/lib/wedding-config-server";
+import { withPublishedResources } from "@/lib/resource-publication-server";
 import { applyVisualSnapshot } from "@/lib/visual-versions";
 import { loadVisualContext, loadVisualVersion, VisualVersionError } from "@/lib/visual-versions-server";
 
@@ -22,8 +23,8 @@ export default async function VisualPreviewPage({
     throw error;
   });
   if (revision !== context.revision) return <p role="alert">La configuracion ha cambiado. Vuelve a previsualizar desde el panel.</p>;
-  const config = versionId === "current" ? context.config
-    : applyVisualSnapshot(context.config, (await loadVisualVersion(context, versionId)).snapshot).config;
+  const config = await withPublishedResources(versionId === "current" ? context.config
+    : applyVisualSnapshot(context.config, (await loadVisualVersion(context, versionId)).snapshot).config);
   const galleryMedia = await getFeaturedGalleryMedia();
   return (
     <>

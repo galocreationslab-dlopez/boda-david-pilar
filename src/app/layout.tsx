@@ -5,7 +5,7 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import "@/styles/globals.css";
-import { getWeddingConfig, buildCssOverrides } from "@/lib/wedding-config-server";
+import { getPublishedWeddingConfig as getWeddingConfig, buildCssOverrides } from "@/lib/wedding-config-server";
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, SITE_URL, resolveShareData } from "@/lib/share-metadata";
 
 // Una sola lectura de configuración por petición, compartida entre metadatos y layout.

@@ -29,6 +29,8 @@ type DriveFile = {
   size?: string;
   parents?: string[];
   driveId?: string;
+  modifiedTime?: string;
+  md5Checksum?: string;
 };
 
 type DriveListResponse = {
@@ -579,15 +581,17 @@ export async function downloadDriveFile(fileId: string): Promise<{ buffer: Buffe
   return result;
 }
 
-export async function getDriveFileMetadata(fileId: string): Promise<DriveFile> {
+export async function getDriveFileMetadata(fileId: string, signal?: AbortSignal): Promise<DriveFile> {
   const token = await getAccessToken();
   const url = new URL(`${GOOGLE_DRIVE_FILES_URL}/${encodeURIComponent(fileId)}`);
-  url.searchParams.set("fields", "id,name,mimeType,parents,driveId,size");
+  url.searchParams.set("fields", "id,name,mimeType,parents,driveId,size,modifiedTime,md5Checksum");
   url.searchParams.set("supportsAllDrives", "true");
 
   const response = await fetch(url, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+    signal,
   });
 
   if (!response.ok) {
@@ -596,6 +600,20 @@ export async function getDriveFileMetadata(fileId: string): Promise<DriveFile> {
   }
 
   return (await response.json()) as DriveFile;
+}
+
+/** Descarga fresca para publicar originales; no usa la cache de previews en memoria. */
+export async function streamDriveFile(fileId: string, signal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+  const token = await getAccessToken();
+  const response = await fetch(`${GOOGLE_DRIVE_FILES_URL}/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+    signal,
+  });
+  if (!response.ok || !response.body) {
+    throw new Error(`No se pudo descargar el original de Drive: ${response.status}`);
+  }
+  return response.body;
 }
 
 export async function listDriveFilesForFolder(input: {

@@ -1,4 +1,4 @@
-import { getWeddingConfig } from "@/lib/wedding-config-server";
+import { getPublishedWeddingConfig as getWeddingConfig } from "@/lib/wedding-config-server";
 import { getFeaturedGalleryMedia } from "@/lib/wedding-gallery-server";
 import WeddingPage from "@/components/wedding/WeddingPage";
 

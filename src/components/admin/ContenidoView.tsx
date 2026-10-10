@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import LineAliveEmbed from "@/components/media/LineAliveEmbed";
+import ResourcePublicationPanel from "@/components/admin/ResourcePublicationPanel";
 import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
 import EnvelopeTimelineControls from "@/components/admin/EnvelopeTimelineControls";
 import EnvelopeGeometryControls from "@/components/admin/EnvelopeGeometryControls";
@@ -575,6 +576,7 @@ function mapTimelineItemsToConfig(items: SeccionDiseno["items"]): EventoTimeline
 export default function ContenidoView({ inviteCode, config }: { inviteCode: string; config: WeddingConfig }) {
   const initialSections = useMemo(() => buildInitialSections(config), [config]);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [sections, setSections] = useState<SeccionDiseno[]>(initialSections);
   const [usarPieFallback, setUsarPieFallback] = useState(config.diseno?.usarPieFallback !== false);
@@ -1116,8 +1118,10 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
       }
 
       showMsg("ok", "Estructura y contenido guardados");
+      return true;
     } catch (error) {
       showMsg("error", error instanceof Error ? error.message : "Error al guardar");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -1134,12 +1138,15 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
         </div>
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || publishing}
           className="rounded-xl bg-amber-700 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60 hover:bg-amber-800"
         >
           {saving ? "Guardando..." : "Guardar cambios"}
         </button>
       </div>
+
+      <ResourcePublicationPanel inviteCode={inviteCode} disabled={saving}
+        beforePublish={handleSave} onBusyChange={setPublishing} />
 
       {msg && (
         <div
@@ -1159,7 +1166,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
+      <fieldset disabled={saving || publishing} className="grid min-w-0 gap-4 lg:grid-cols-[340px_1fr]">
         <aside className="space-y-4 self-start lg:sticky lg:top-4">
           <section className="rounded-2xl border border-stone-200 bg-white p-4 space-y-3">
             <h2 className="text-sm font-semibold text-stone-700">Estructura</h2>
@@ -3054,7 +3061,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
             </>
           )}
         </section>
-      </div>
+      </fieldset>
     </div>
   );
 }

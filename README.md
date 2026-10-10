@@ -106,6 +106,59 @@ de secciones. Los originales grandes siguen siendo grandes: la precarga total
 consume mas datos que la carga por proximidad, aunque el usuario no baje por
 la pagina; no sustituye las futuras versiones web.
 
+### Publicar recursos en Vercel Blob
+
+En **Contenido**, **Guardar recursos en servidor** guarda primero el contenido
+actual y publica las imagenes referenciadas en la configuracion guardada:
+intro, PC y movil, carrusel, historia, timeline, sellos, fondos, metadatos y
+texturas de las paletas. Incluye recursos configurados en secciones ocultas o
+paletas inactivas; no copia toda la biblioteca de Drive ni las fotos privadas
+de invitados. Los archivos locales y externos que no son de Drive se conservan
+como estaban. HTML de LineAlive y fuentes no forman parte de esta operacion.
+
+Preparacion necesaria:
+
+1. Ejecutar `supabase/migrations/20261010_resource_publications.sql` en el
+   SQL Editor de Supabase. La tabla y su RPC solo admiten acceso de servidor.
+2. Crear un almacen **publico** en Vercel Blob y configurar su
+   `BLOB_READ_WRITE_TOKEN` en los entornos de Vercel donde se vaya a probar
+   (Preview y/o Production). Para pruebas locales, anadirlo a `.env.local`.
+   No incluir tokens en el repositorio ni en variables `NEXT_PUBLIC_*`.
+3. Desplegar de nuevo o reiniciar el servidor local para cargar la variable.
+
+Las copias son publicas para quien conozca la URL, aunque la invitacion tenga
+control de acceso. Publicar supone costes de almacenamiento y transferencia;
+no reduce el peso de los originales.
+
+Cada archivo se procesa en una peticion independiente (maximo 300 segundos):
+descarga fresca desde Drive, subida multipart por streams y verificacion de
+tamano, MD5 del original y SHA-256 de la copia leida desde Blob. No se recodifica
+ninguna imagen: se mantienen bytes, perfiles ICC, profundidad de color y
+transparencia. Si Drive cambia durante la operacion, se informa del fallo.
+
+Solo despues de verificar y registrar la copia se activa su URL en la web,
+las texturas, las previsualizaciones visuales y la imagen de compartir. El
+editor y las versiones guardadas conservan las referencias de Drive. Un fallo
+mantiene el enlace anterior; la interfaz muestra el recurso fallido y permite
+reintentar. El estado por recurso queda en Supabase y sobrevive al cierre del
+panel; cerrar el navegador interrumpe la cola, no deshace copias ya publicadas.
+Repetir el boton comprueba la version actual de Drive y reutiliza las copias
+existentes sin volver a descargar sus bytes.
+
+Se usan URLs nuevas y cacheables al actualizar un original. No se eliminan
+copias anteriores automaticamente, para no romper URLs ya usadas. Los bloqueos
+por recurso evitan publicaciones simultaneas y caducan si una funcion se corta.
+Antes de aplicar la migracion la web sigue con Drive y registra una advertencia;
+el panel muestra el error de preparacion, sin simular una publicacion correcta.
+
+Validacion: `node --test tests/resource-publication.test.mjs` cubre seleccion,
+resolucion, identidad de bytes, cambios de Drive, reutilizacion, errores,
+copias borradas, concurrencia y autorizacion con dobles de almacenamiento.
+En el entorno configurado, publicar y comprobar en Network que los recursos
+usan `*.public.blob.vercel-storage.com`, manteniendo las exclusiones PC/movil.
+Repetir el boton debe reutilizarlos; cambiar un original debe publicar una
+URL nueva. Verificar tambien texturas, SVG, enlaces Maps y vista previa al compartir.
+
 ### Formato compartido del timeline
 
 En **Contenido → Timeline** o en la previsualización de **Diseño → Editar diseño**,

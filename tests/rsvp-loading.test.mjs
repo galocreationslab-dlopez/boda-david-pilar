@@ -36,7 +36,10 @@ function load(relativePath, results = []) {
         json: (body, init = {}) => ({ body, status: init.status ?? 200, headers: init.headers }),
       },
     },
-    "@/lib/wedding-config-server": { getWeddingConfig: async () => ({ diseno: {}, rsvp: {} }) },
+    "@/lib/wedding-config-server": {
+      getWeddingConfig: async () => ({ diseno: {}, rsvp: {} }),
+      getPublishedWeddingConfig: async () => ({ diseno: {}, rsvp: {} }),
+    },
     "@/components/wedding/InviteRsvpForm": { InviteRsvpForm: "Form" },
     "@/components/layout/WeddingViewport": { default: "Viewport" },
     "@/lib/rsvp-status": { computeInvitacionEstado() {} },

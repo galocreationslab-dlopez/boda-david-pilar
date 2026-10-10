@@ -8,6 +8,7 @@ import { createElement } from "react";
 import type sharpType from "sharp";
 import { downloadDriveFile } from "@/lib/google-drive";
 import { isDriveUrl } from "@/lib/drive-image";
+import { isPublicBlobUrl } from "@/lib/resource-publication";
 import {
   OG_IMAGE_HEIGHT,
   OG_IMAGE_MAX_BYTES,
@@ -71,13 +72,13 @@ export function detectImageContentType(buffer: Buffer, declared?: string | null)
   return header || "application/octet-stream";
 }
 
-async function fetchImage(url: URL): Promise<LoadedImage> {
+async function fetchImage(url: URL, maxBytes = MAX_SOURCE_BYTES): Promise<LoadedImage> {
   const response = await fetch(url, { redirect: "follow", cache: "no-store" });
   if (!response.ok) throw new Error(`No se pudo descargar la imagen: ${response.status}`);
   const declaredLength = Number(response.headers.get("content-length") ?? 0);
-  if (declaredLength > MAX_SOURCE_BYTES) throw new Error("La imagen es demasiado grande");
+  if (declaredLength > maxBytes) throw new Error("La imagen es demasiado grande");
   const buffer = Buffer.from(await response.arrayBuffer());
-  if (buffer.length > MAX_SOURCE_BYTES) throw new Error("La imagen es demasiado grande");
+  if (buffer.length > maxBytes) throw new Error("La imagen es demasiado grande");
   return { buffer, contentType: detectImageContentType(buffer, response.headers.get("content-type")) };
 }
 
@@ -95,6 +96,9 @@ export async function loadImageSource(
 
   if (isLocalImagePath(src)) {
     return fetchImage(new URL(src, origin));
+  }
+  if (isPublicBlobUrl(src)) {
+    return fetchImage(new URL(src), 64 * 1024 * 1024);
   }
 
   const driveId = isDriveUrl(src) || /^[a-zA-Z0-9_-]{20,}$/.test(src) ? extractDriveId(src) : "";

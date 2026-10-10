@@ -6,6 +6,7 @@
 
 import type { WeddingConfig } from "@/config/wedding.config";
 import { isDriveUrl } from "@/lib/drive-image";
+import { isPublicBlobUrl } from "@/lib/resource-publication";
 
 export const SITE_URL = "https://boda-pilar-david.vercel.app";
 export const OG_IMAGE_WIDTH = 1200;
@@ -71,7 +72,7 @@ export function resolveShareImageSource(config: WeddingConfig): string {
  */
 export function resolveShareImageUrl(config: WeddingConfig): string {
   const source = resolveShareImageSource(config);
-  if (isDriveUrl(source) || isLocalImagePath(source)) {
+  if (isDriveUrl(source) || isLocalImagePath(source) || isPublicBlobUrl(source)) {
     return `${PREVIEW_PREFIX}?src=${encodeURIComponent(source)}&og=1`;
   }
   return source;

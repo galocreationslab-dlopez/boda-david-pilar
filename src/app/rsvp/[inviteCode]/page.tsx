@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { InviteRsvpForm } from "@/components/wedding/InviteRsvpForm";
-import { getWeddingConfig } from "@/lib/wedding-config-server";
+import { getPublishedWeddingConfig as getWeddingConfig } from "@/lib/wedding-config-server";
 import WeddingViewport from "@/components/layout/WeddingViewport";
 
 export const dynamic = "force-dynamic";

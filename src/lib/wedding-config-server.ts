@@ -414,6 +414,12 @@ export async function getWeddingConfig(): Promise<WeddingConfig> {
   }
 }
 
+/** Public rendering uses verified copies; admin and saved snapshots keep Drive references. */
+export async function getPublishedWeddingConfig(): Promise<WeddingConfig> {
+  const { withPublishedResources } = await import("@/lib/resource-publication-server");
+  return withPublishedResources(await getWeddingConfig());
+}
+
 /** CSS variables a inyectar en :root a partir de tema.colores y tema.fuentes */
 export function buildCssOverrides(config: WeddingConfig): string {
   const activePalette = config.tema.paletas?.find((p) => p.id === config.tema.paletaActivaId);
