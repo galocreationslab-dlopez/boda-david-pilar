@@ -53,7 +53,9 @@ function mount({ search = "?inviteCode=TEST", deadline = "6 de febrero de 2027",
     },
     fetch: (...args) => {
       requests.push(args);
-      return fetchResult ?? new Promise(() => {});
+      return typeof fetchResult === "function"
+        ? fetchResult(...args)
+        : fetchResult ?? new Promise(() => {});
     },
     console: { error: (...args) => errors.push(args) },
   });
@@ -76,7 +78,7 @@ test("button appears while invitation request is still pending and navigates to 
   const hero = app.render();
   assert.equal(hero.mostrarBotonConfirmar, true);
   hero.onConfirmarClick();
-  assert.deepEqual(app.routes, ["/rsvp/TEST"]);
+  assert.deepEqual(app.routes, ["/rsvp/TEST?rsvpVersion=2"]);
 });
 
 test("missing or blank invitation codes hide the button", () => {
@@ -90,11 +92,39 @@ test("invitation codes are trimmed and encoded, and loading bypasses cached resp
   const app = mount({ search: "?inviteCode=%20TEST%2F%3F%23%20" });
   app.render().onConfirmarClick();
   assert.equal(app.requests.length, 1);
-  assert.equal(app.requests[0][0], "/api/rsvp/TEST%2F%3F%23");
+  assert.equal(app.requests[0][0], "/api/rsvp/TEST%2F%3F%23?rsvpVersion=2");
   assert.equal(app.requests[0][1].cache, "no-store");
-  assert.deepEqual(app.routes, ["/rsvp/TEST%2F%3F%23"]);
+  assert.deepEqual(app.routes, ["/rsvp/TEST%2F%3F%23?rsvpVersion=2"]);
   const lowercase = mount({ search: "?inviteCode=%20&invitecode=TEST" });
   assert.equal(lowercase.render().mostrarBotonConfirmar, true);
+});
+
+test("previously cached 404 URLs are bypassed for both invitation loading and navigation", async () => {
+  const code = "pilar-y-davi-xh0i";
+  const oldApiUrl = `/api/rsvp/${code}`;
+  const oldFormUrl = `/rsvp/${code}`;
+  const app = mount({
+    search: `?inviteCode=${code}`,
+    fetchResult: async (url) => url === oldApiUrl
+      ? { ok: false, status: 404 }
+      : {
+          ok: true,
+          json: async () => ({
+            invitacion: {
+              tipo_invitacion: "pareja",
+              texto_invitacion_personalizado: "Bienvenidos",
+            },
+          }),
+        },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const hero = app.render();
+  assert.equal(app.errors.length, 0);
+  assert.equal(hero.config.textos.bienvenida, "Bienvenidos");
+  hero.onConfirmarClick();
+  assert.notEqual(app.requests[0][0], oldApiUrl);
+  assert.notEqual(app.routes[0], oldFormUrl);
+  assert.deepEqual(app.routes, [`${oldFormUrl}?rsvpVersion=2`]);
 });
 
 test("deadline includes the whole day, hides after expiry, and allows no deadline", () => {

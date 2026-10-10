@@ -96,6 +96,14 @@ y codifican al construir las URLs. El botón abre el formulario (o el panel de
 administración) con una navegación completa para no reutilizar errores previos
 de la caché de navegación del cliente.
 
+La consulta de portada y el enlace al formulario incluyen `rsvpVersion=2`.
+Esto cambia la clave de caché para evitar los 404 guardados antes de corregir
+las respuestas; `no-store` por sí solo no elimina respuestas ya almacenadas.
+El parámetro no cambia el código de invitación ni los datos guardados. Es una
+versión fija, no un identificador aleatorio por visita. Los enlaces antiguos
+siguen siendo válidos en el servidor, pero si un navegador conserva su 404,
+se puede abrir `/rsvp/<inviteCode>?rsvpVersion=2` directamente.
+
 ### Versiones visuales (antes de migrar roles)
 
 Aplica primero `supabase/migrations/20261009_visual_versions.sql` en Supabase.

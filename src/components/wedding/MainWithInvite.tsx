@@ -5,6 +5,9 @@ import { HeroPortada, type HeroComponentKey } from "./HeroPortada";
 import type { WeddingConfig } from "@/config/wedding.config";
 import type { CSSProperties } from "react";
 
+// Las cabeceras nuevas no invalidan los 404 guardados con las URLs anteriores.
+const RSVP_CACHE_VERSION = "2";
+
 type InvitacionAPI = {
   invitacion: {
     tipo_invitacion?: string;
@@ -99,7 +102,10 @@ export default function MainWithInvite({
         return;
       }
       try {
-        const res = await fetch(`/api/rsvp/${encodeURIComponent(inviteCode)}`, { cache: "no-store" });
+        const res = await fetch(
+          `/api/rsvp/${encodeURIComponent(inviteCode)}?rsvpVersion=${RSVP_CACHE_VERSION}`,
+          { cache: "no-store" },
+        );
         if (!isActive) return;
 
         if (!res.ok) {
@@ -130,8 +136,10 @@ export default function MainWithInvite({
 
   const handleConfirmarClick = () => {
     if (!inviteCode) return;
-    // Pedir un documento nuevo evita reutilizar un error del Router Cache.
-    window.location.assign(`/${esAdmin ? "admin" : "rsvp"}/${encodeURIComponent(inviteCode)}`);
+    const path = esAdmin
+      ? `/admin/${encodeURIComponent(inviteCode)}`
+      : `/rsvp/${encodeURIComponent(inviteCode)}?rsvpVersion=${RSVP_CACHE_VERSION}`;
+    window.location.assign(path);
   };
 
   const mostrarBoton = hasInviteCode && (esAdmin || estaEnPlazo);
