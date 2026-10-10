@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import * as XLSX from "xlsx";
+import { computeInvitacionEstado } from "@/lib/rsvp-status";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Nec = {
@@ -198,13 +199,27 @@ function NuevoAsistente({ adminCode, invitacionId, onCreated, onCancel }: { admi
 }
 
 // ── Fila de invitacion ─────────────────────────────────────────────────────────
-function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted, unreadMessages }: { inv: Invitacion; adminCode: string; selected: boolean; onSelect: (id: string) => void; onDeleted: (id: string) => void; unreadMessages: number }) {
-  const [inv, setInv] = useState(initInv);
+function invToForm(inv: Invitacion) {
+  return { nombre_visible: inv.nombre_visible, tipo_invitacion: inv.tipo_invitacion, estado: inv.estado, nombre1: inv.nombre1 ?? "", nombre2: inv.nombre2 ?? "", texto_invitacion_personalizado: inv.texto_invitacion_personalizado ?? "", adultos_estimados: inv.adultos_estimados, ninos_estimados: inv.ninos_estimados, bebes_estimados: inv.bebes_estimados, adolescentes_estimados: inv.adolescentes_estimados };
+}
+
+// Misma regla que aplica el servidor (syncInvitacionEstado) al crear/editar/borrar asistentes.
+function withAsistentes(inv: Invitacion, asistentes: Asistente[]): Invitacion {
+  return { ...inv, asistentes, estado: computeInvitacionEstado(asistentes.map((a) => a.estado_asistencia)) };
+}
+
+function InvitacionRow({ inv, adminCode, selected, onSelect, onDeleted, onChange, unreadMessages }: { inv: Invitacion; adminCode: string; selected: boolean; onSelect: (id: string) => void; onDeleted: (id: string) => void; onChange: (id: string, updater: (inv: Invitacion) => Invitacion) => void; unreadMessages: number }) {
+  const setInv = (updater: (inv: Invitacion) => Invitacion) => onChange(inv.id, updater);
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ nombre_visible: inv.nombre_visible, tipo_invitacion: inv.tipo_invitacion, estado: inv.estado, nombre1: inv.nombre1 ?? "", nombre2: inv.nombre2 ?? "", texto_invitacion_personalizado: inv.texto_invitacion_personalizado ?? "", adultos_estimados: inv.adultos_estimados, ninos_estimados: inv.ninos_estimados, bebes_estimados: inv.bebes_estimados, adolescentes_estimados: inv.adolescentes_estimados });
+  const [form, setForm] = useState(() => invToForm(inv));
   const [savingInv, setSavingInv] = useState(false);
   const [addingA, setAddingA] = useState(false);
+
+  const toggleEditing = () => {
+    if (!editing) setForm(invToForm(inv));
+    setEditing((e) => !e);
+  };
 
   const saveInv = async () => {
     setSavingInv(true);
@@ -215,15 +230,16 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted,
     const res = await fetch(`/api/admin/${adminCode}/invitaciones/${inv.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     setSavingInv(false);
     if (res.ok) { setInv((i) => ({ ...i, ...payload })); setEditing(false); }
+    else { const d = await res.json().catch(() => ({})); alert(d.error ?? "No se pudo guardar la invitación"); }
   };
   const delInv = async () => {
     if (!confirm(`Eliminar invitacion &quot;${inv.nombre_visible}&quot; y todos sus asistentes?`)) return;
     const res = await fetch(`/api/admin/${adminCode}/invitaciones/${inv.id}`, { method: "DELETE" });
     if (res.ok) onDeleted(inv.id);
   };
-  const updateAsist = (a: Asistente) => setInv((i) => ({ ...i, asistentes: i.asistentes.map((x) => (x.id === a.id ? a : x)) }));
-  const delAsist = (id: string) => setInv((i) => ({ ...i, asistentes: i.asistentes.filter((x) => x.id !== id) }));
-  const addAsist = (a: Asistente) => { setInv((i) => ({ ...i, asistentes: [...i.asistentes, a] })); setAddingA(false); };
+  const updateAsist = (a: Asistente) => setInv((i) => withAsistentes(i, i.asistentes.map((x) => (x.id === a.id ? a : x))));
+  const delAsist = (id: string) => setInv((i) => withAsistentes(i, i.asistentes.filter((x) => x.id !== id)));
+  const addAsist = (a: Asistente) => { setInv((i) => withAsistentes(i, [...i.asistentes, a])); setAddingA(false); };
 
   const confirmados = inv.asistentes.filter((a) => a.estado_asistencia === "si").length;
   const total = inv.adultos_estimados + inv.ninos_estimados + inv.bebes_estimados + inv.adolescentes_estimados;
@@ -250,7 +266,7 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted,
           </div>
           <div className="flex items-center gap-3">
             <CopyLinkButton code={inv.invite_code} />
-            <button onClick={() => setEditing((e) => !e)} className="hidden text-xs text-amber-600 hover:text-amber-800 sm:inline">Editar</button>
+            <button onClick={toggleEditing} className="hidden text-xs text-amber-600 hover:text-amber-800 sm:inline">Editar</button>
             <button onClick={delInv} className="hidden text-xs text-red-400 hover:text-red-600 sm:inline">Eliminar</button>
           </div>
         </div>
@@ -299,7 +315,7 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted,
           }
           <p className="text-xs text-stone-400 mt-2 break-all">Enlace: <span className="font-mono">{buildInviteUrl(inv.invite_code)}</span></p>
           <div className="flex gap-4 pt-1 sm:hidden">
-            <button onClick={() => setEditing((e) => !e)} className="text-xs text-amber-600 hover:text-amber-800">Editar invitación</button>
+            <button onClick={toggleEditing} className="text-xs text-amber-600 hover:text-amber-800">Editar invitación</button>
             <button onClick={delInv} className="text-xs text-red-400 hover:text-red-600">Eliminar invitación</button>
           </div>
         </div>
@@ -424,6 +440,7 @@ export default function InvitacionesView({ inviteCode, invitaciones: init, unrea
     setSelected(new Set(filtradas.map((i) => i.invite_code)));
   };
   const handleDeleted = (id: string) => setInvitaciones((p) => p.filter((i) => i.id!==id));
+  const handleChanged = (id: string, updater: (inv: Invitacion) => Invitacion) => setInvitaciones((p) => p.map((i) => (i.id === id ? updater(i) : i)));
 
   const totales = { total: invitaciones.length, confirmadas: invitaciones.filter((i) => i.estado==="confirmada").length, pendientes: invitaciones.filter((i) => i.estado.startsWith("pendiente")).length, rechazadas: invitaciones.filter((i) => i.estado==="rechazada").length, sin_respuesta: invitaciones.filter((i) => i.asistentes.length===0).length };
   const totalUnreadChats = invitaciones.reduce((acc, inv) => acc + (unreadByInvitationId[inv.id] ?? 0), 0);
@@ -486,7 +503,7 @@ export default function InvitacionesView({ inviteCode, invitaciones: init, unrea
       {/* Lista */}
       <div className="space-y-2">
         {filtradas.map((inv) => (
-          <InvitacionRow key={inv.id} inv={inv} adminCode={inviteCode} selected={selected.has(inv.invite_code)} onSelect={toggleSelect} onDeleted={handleDeleted} unreadMessages={unreadByInvitationId[inv.id] ?? 0} />
+          <InvitacionRow key={inv.id} inv={inv} adminCode={inviteCode} selected={selected.has(inv.invite_code)} onSelect={toggleSelect} onDeleted={handleDeleted} onChange={handleChanged} unreadMessages={unreadByInvitationId[inv.id] ?? 0} />
         ))}
         {filtradas.length===0 && <p className="py-12 text-center text-sm text-stone-400">No hay invitaciones con estos criterios.</p>}
       </div>
