@@ -28,6 +28,63 @@ const TEMPLATE_CSV = `NombreVisible;TipoInvitacion;Adultos;Adolescentes;Ninos;Be
 Juan y Maria Garcia;pareja;2;0;1;0;Juan;Maria
 Carlos Lopez;soltero;1;0;0;0;Carlos;`;
 
+// ── Enlace de invitacion ─────────────────────────────────────────────────────
+function buildInviteUrl(code: string) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return `${origin}/?inviteCode=${encodeURIComponent(code)}`;
+}
+
+function normalize(s: string) {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* fallback abajo */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "0";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+function CopyLinkButton({ code, className = "" }: { code: string; className?: string }) {
+  const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
+  const onClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = buildInviteUrl(code);
+    const ok = await copyToClipboard(url);
+    if (!ok) window.prompt("Copia el enlace:", url);
+    setStatus(ok ? "ok" : "error");
+    setTimeout(() => setStatus("idle"), 2000);
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${status === "ok" ? "bg-emerald-700 text-white" : "bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800"} ${className}`}
+    >
+      {status === "ok" ? "✓ ¡Copiado!" : "🔗 Copiar enlace"}
+    </button>
+  );
+}
+
 // ── Row de edicion de asistente ──────────────────────────────────────────────
 function AsistenteEditRow({ a, adminCode, onSaved, onDeleted }: { a: Asistente; adminCode: string; onSaved: (a: Asistente) => void; onDeleted: () => void }) {
   const [editing, setEditing] = useState(false);
@@ -174,23 +231,28 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted,
   return (
     <div className={`overflow-hidden rounded-2xl border transition-colors ${selected ? "border-amber-300 bg-amber-50/30" : "border-stone-200 bg-white"}`}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <input type="checkbox" checked={selected} onChange={() => onSelect(inv.invite_code)} className="h-4 w-4 rounded flex-shrink-0" />
-        <button onClick={() => setExpanded((e) => !e)} className="text-stone-400 flex-shrink-0 text-xs">{expanded ? "▼" : "▶"}</button>
-        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpanded((e) => !e)}>
-          <p className="font-semibold text-stone-800 truncate text-sm">{inv.nombre_visible}</p>
-          <p className="text-xs text-stone-400 font-mono">{inv.invite_code}</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-3 sm:flex-nowrap sm:px-4">
+        <div className="flex min-w-0 flex-1 basis-full items-center gap-3 sm:basis-auto">
+          <input type="checkbox" checked={selected} onChange={() => onSelect(inv.invite_code)} className="hidden h-4 w-4 flex-shrink-0 rounded sm:block" />
+          <button onClick={() => setExpanded((e) => !e)} className="text-stone-400 flex-shrink-0 text-xs" aria-label={expanded ? "Contraer" : "Expandir"}>{expanded ? "▼" : "▶"}</button>
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpanded((e) => !e)}>
+            <p className="font-semibold text-stone-800 truncate text-sm">{inv.nombre_visible}</p>
+            <p className="text-xs text-stone-400 font-mono truncate">{inv.invite_code}</p>
+          </div>
+          <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium flex-shrink-0 ${ESTADO_BADGE[inv.estado] ?? "bg-stone-100 text-stone-500 border-stone-200"}`}>{inv.estado.replace("_"," ")}</span>
+          <span className="text-xs text-stone-400 hidden md:block flex-shrink-0">{inv.tipo_invitacion}</span>
         </div>
-        <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium flex-shrink-0 ${ESTADO_BADGE[inv.estado] ?? "bg-stone-100 text-stone-500 border-stone-200"}`}>{inv.estado.replace("_"," ")}</span>
-        <span className="text-xs text-stone-400 hidden md:block flex-shrink-0">{inv.tipo_invitacion}</span>
-        <div className="flex items-center gap-3 text-xs text-stone-500 flex-shrink-0">
-          <span title="Estimados">📋 {total}</span>
-          <span title="Confirmados" className={confirmados>0?"text-emerald-600 font-semibold":""}>✓ {confirmados}</span>
-          <span title="Chats sin leer" className={unreadMessages > 0 ? "text-amber-700 font-semibold" : "text-stone-300"}>💡 {unreadMessages}</span>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <button onClick={() => setEditing((e) => !e)} className="text-xs text-amber-600 hover:text-amber-800">Editar</button>
-          <button onClick={delInv} className="text-xs text-red-400 hover:text-red-600">Eliminar</button>
+        <div className="flex w-full items-center justify-between gap-3 pl-6 sm:w-auto sm:flex-shrink-0 sm:justify-end sm:pl-0">
+          <div className="flex items-center gap-3 text-xs text-stone-500">
+            <span title="Estimados">📋 {total}</span>
+            <span title="Confirmados" className={confirmados>0?"text-emerald-600 font-semibold":""}>✓ {confirmados}</span>
+            <span title="Chats sin leer" className={unreadMessages > 0 ? "text-amber-700 font-semibold" : "text-stone-300"}>💡 {unreadMessages}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <CopyLinkButton code={inv.invite_code} />
+            <button onClick={() => setEditing((e) => !e)} className="hidden text-xs text-amber-600 hover:text-amber-800 sm:inline">Editar</button>
+            <button onClick={delInv} className="hidden text-xs text-red-400 hover:text-red-600 sm:inline">Eliminar</button>
+          </div>
         </div>
       </div>
 
@@ -235,7 +297,11 @@ function InvitacionRow({ inv: initInv, adminCode, selected, onSelect, onDeleted,
             ? <NuevoAsistente adminCode={adminCode} invitacionId={inv.id} onCreated={addAsist} onCancel={() => setAddingA(false)} />
             : <button onClick={() => setAddingA(true)} className="mt-1 rounded-lg border border-dashed border-stone-300 px-3 py-1.5 text-xs text-stone-500 hover:border-amber-400 hover:text-amber-600">+ Anadir asistente</button>
           }
-          <p className="text-xs text-stone-400 mt-2">Enlace: <span className="font-mono">/?inviteCode={inv.invite_code}</span></p>
+          <p className="text-xs text-stone-400 mt-2 break-all">Enlace: <span className="font-mono">{buildInviteUrl(inv.invite_code)}</span></p>
+          <div className="flex gap-4 pt-1 sm:hidden">
+            <button onClick={() => setEditing((e) => !e)} className="text-xs text-amber-600 hover:text-amber-800">Editar invitación</button>
+            <button onClick={delInv} className="text-xs text-red-400 hover:text-red-600">Eliminar invitación</button>
+          </div>
         </div>
       )}
     </div>
@@ -341,7 +407,11 @@ export default function InvitacionesView({ inviteCode, invitaciones: init, unrea
       if (filtro!=="todos") return i.estado===filtro;
       return true;
     })
-    .filter((i) => !busqueda.trim() || i.nombre_visible.toLowerCase().includes(busqueda.toLowerCase()) || i.invite_code.toLowerCase().includes(busqueda.toLowerCase()));
+    .filter((i) => {
+      const q = normalize(busqueda);
+      if (!q) return true;
+      return normalize(i.nombre_visible).includes(q) || normalize(i.invite_code).includes(q) || i.asistentes.some((a) => normalize(a.nombre ?? "").includes(q));
+    });
 
   const selectionForExport = filtradas.filter((i) => selected.size===0 || selected.has(i.invite_code));
 
@@ -365,7 +435,7 @@ export default function InvitacionesView({ inviteCode, invitaciones: init, unrea
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-stone-800">Invitaciones</h1>
+          <h1 className="text-xl font-semibold text-stone-800 sm:text-2xl">Invitaciones</h1>
           <p className="mt-1 text-sm text-stone-500">{invitaciones.length} invitaciones · {totalConf} confirmados · 💡 {totalUnreadChats} chats sin leer</p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -386,30 +456,33 @@ export default function InvitacionesView({ inviteCode, invitaciones: init, unrea
       </div>
 
       {/* Resumen */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
         {[{l:"Total",v:totales.total,c:"bg-stone-100"},{l:"Confirmadas",v:totales.confirmadas,c:"bg-emerald-50"},{l:"Pendientes",v:totales.pendientes,c:"bg-amber-50"},{l:"Rechazadas",v:totales.rechazadas,c:"bg-red-50"},{l:"Sin respuesta",v:totales.sin_respuesta,c:"bg-stone-50 border border-stone-200"}].map(({l,v,c}) => (
-          <div key={l} className={`rounded-xl p-4 ${c}`}><p className="text-2xl font-semibold text-stone-800">{v}</p><p className="text-xs text-stone-500 mt-0.5">{l}</p></div>
+          <div key={l} className={`rounded-xl p-2.5 sm:p-4 ${c}`}><p className="text-lg font-semibold text-stone-800 sm:text-2xl">{v}</p><p className="text-[11px] text-stone-500 mt-0.5 sm:text-xs">{l}</p></div>
         ))}
       </div>
 
       {/* Filtros + busqueda */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex gap-1.5 flex-wrap">
+      <div className="sticky top-0 z-20 -mx-4 flex flex-col gap-3 bg-stone-50/95 px-4 py-2 backdrop-blur sm:static sm:mx-0 sm:flex-row-reverse sm:items-center sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+        <div className="relative w-full sm:ml-auto sm:w-64">
+          <input type="search" inputMode="search" placeholder="Buscar por nombre o codigo..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-base sm:py-2 sm:text-sm" />
+        </div>
+        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:mr-auto sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
           {([["todos","Todas"],["confirmada","Confirmadas"],["pendiente","Pendientes"],["rechazada","Rechazadas"],["sin_respuesta","Sin respuesta"]] as const).map(([v,l]) => (
-            <button key={v} onClick={() => setFiltro(v)} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${filtro===v?"bg-stone-800 text-white":"border border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>{l}</button>
+            <button key={v} onClick={() => setFiltro(v)} className={`flex-shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${filtro===v?"bg-stone-800 text-white":"border border-stone-200 bg-white text-stone-600 hover:bg-stone-50"}`}>{l}</button>
           ))}
         </div>
-        <input type="search" placeholder="Buscar por nombre o codigo..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="ml-auto w-full sm:w-64 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm" />
       </div>
 
       {/* Header tabla */}
       {filtradas.length > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 text-xs text-stone-500">
+        <div className="hidden items-center gap-3 px-4 py-2 text-xs text-stone-500 sm:flex">
           <input type="checkbox" checked={selected.size===filtradas.length && filtradas.length>0} onChange={toggleAll} className="h-4 w-4 rounded" />
           <span>Seleccionar todo ({filtradas.length})</span>
           {selected.size > 0 && <span className="text-amber-700 font-medium">{selected.size} seleccionadas</span>}
         </div>
       )}
+      {filtradas.length > 0 && <p className="px-1 text-xs text-stone-500 sm:hidden">{filtradas.length} invitaciones</p>}
       {/* Lista */}
       <div className="space-y-2">
         {filtradas.map((inv) => (
