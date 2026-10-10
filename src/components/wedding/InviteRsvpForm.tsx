@@ -212,22 +212,22 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
     });
   };
 
-  const addAcompanante = (base?: Partial<PersonaForm>) => {
+  const addAcompanante = () => {
     setPersonasState((prev) => [
       ...prev,
       {
         id: undefined,
-        nombre: base?.nombre || "Acompañante",
-        apellidos: base?.apellidos || "",
+        nombre: "",
+        apellidos: "",
         edad: "",
-        tipo_persona: base?.tipo_persona || "adulto",
+        tipo_persona: "adulto",
         asistira: "si",
         alergias: "",
         necesidades_alimentarias: "",
-        alojamiento: base?.alojamiento || "",
-        transporte_g_to_b: base?.transporte_g_to_b || false,
-        transporte_b_to_t: base?.transporte_b_to_t || false,
-        transporte_t_to_g: base?.transporte_t_to_g || false,
+        alojamiento: "",
+        transporte_g_to_b: false,
+        transporte_b_to_t: false,
+        transporte_t_to_g: false,
         come_con_padres: false,
         menu_adulto: false,
         necesita_trona: false,
@@ -241,7 +241,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
       ...prev,
       {
         id: undefined,
-        nombre: "Niño",
+        nombre: "",
         apellidos: "",
         edad: "",
         tipo_persona: "nino",
@@ -252,7 +252,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
         transporte_g_to_b: false,
         transporte_b_to_t: false,
         transporte_t_to_g: false,
-        come_con_padres: true,
+        come_con_padres: false,
         menu_adulto: false,
         necesita_trona: false,
         necesita_ayuda: false,
@@ -401,7 +401,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button type="button" disabled={!canAdd("adulto")} onClick={() => addAcompanante({ alojamiento: personasState[0]?.alojamiento, transporte_g_to_b: personasState[0]?.transporte_g_to_b, transporte_b_to_t: personasState[0]?.transporte_b_to_t, transporte_t_to_g: personasState[0]?.transporte_t_to_g })} className="rounded-full bg-slate-100 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" disabled={!canAdd("adulto")} onClick={addAcompanante} className="rounded-full bg-slate-100 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50">
               {invitacion.tipo_invitacion === "soltero" ? t.addAcompananteLabel : t.addAdultoLabel}{mostrarCupos && ` (${countByType("adulto")}/${limits.adulto})`}
             </button>
             <button type="button" disabled={!canAdd("nino")} onClick={addNino} className="rounded-full bg-slate-100 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50">
