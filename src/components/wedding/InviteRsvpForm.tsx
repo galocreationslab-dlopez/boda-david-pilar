@@ -311,7 +311,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
   };
 
   return (
-    <main className="min-h-screen bg-stone-50 px-4 py-10 text-stone-800 sm:px-6 sm:py-16">
+    <main className="tex-cream min-h-screen px-4 py-10 text-stone-800 sm:px-6 sm:py-16" style={{ backgroundColor: "var(--role-fondo-principal)" }}>
       <div className="mx-auto flex max-w-4xl flex-col gap-6 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:gap-8 sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
