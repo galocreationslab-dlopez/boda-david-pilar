@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 
 type Props = {
   src: string;
@@ -15,18 +15,10 @@ type Props = {
 
 export default function AspectRatioImage({ src, alt, width, height, mantenerAspecto, fijar = "ancho", alineacion = "centroVertical", filter }: Props) {
   const [loadedRatio, setLoadedRatio] = useState<{ src: string; value: number }>();
-  useEffect(() => {
-    const image = new Image();
-    let disposed = false;
-    image.onload = () => {
-      if (!disposed && image.naturalWidth > 0 && image.naturalHeight > 0) setLoadedRatio({ src, value: image.naturalWidth / image.naturalHeight });
-    };
-    image.src = src;
-    return () => {
-      disposed = true;
-      image.onload = null;
-    };
-  }, [src]);
+  const onLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const image = event.currentTarget;
+    if (image.naturalWidth > 0 && image.naturalHeight > 0) setLoadedRatio({ src, value: image.naturalWidth / image.naturalHeight });
+  };
 
   const validWidth = Number.isFinite(width) && width > 0 ? width : 40;
   const validHeight = Number.isFinite(height) && height > 0 ? height : 40;
@@ -39,10 +31,10 @@ export default function AspectRatioImage({ src, alt, width, height, mantenerAspe
   const imageStyle: CSSProperties = mantenerAspecto
     ? { width: calculatedWidth, height: calculatedHeight, maxWidth: "none", maxHeight: "none", objectFit: "contain", filter }
     : { width: width || "auto", height: height || (width ? "auto" : 40), maxWidth: width ? undefined : "14rem", filter };
-  if (!mantenerAspecto) return <img src={src} alt={alt} className="block object-contain" style={imageStyle} />;
+  if (!mantenerAspecto) return <img src={src} alt={alt} onLoad={onLoad} className="block object-contain" style={imageStyle} />;
   return (
     <div style={frameStyle}>
-      <img src={src} alt={alt} className="block object-contain" style={imageStyle} />
+      <img src={src} alt={alt} onLoad={onLoad} className="block object-contain" style={imageStyle} />
     </div>
   );
 }

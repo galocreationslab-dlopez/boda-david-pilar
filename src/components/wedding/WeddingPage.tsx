@@ -694,28 +694,29 @@ export default function WeddingPage({
     ? { url: resolveDriveMediaSrc(sobreTexture.url), sizePx: sobreTexture.sizePx, color: sobreTexture.color }
     : undefined;
   const envelopeImageSrcs = normalizedIntro?.activo
-    ? [...new Set([normalizedIntro.pc, normalizedIntro.movil].flatMap((device) => {
+    ? [normalizedIntro.pc, normalizedIntro.movil].flatMap((device, index) => {
         if (device?.tipo !== "envelope") return [];
         const resources = getEnvelopeResources(device.envelope ?? {}, envelopeTexture);
-        return [resources.texture?.url, resources.image, resources.exterior].filter((src): src is string => Boolean(src));
-      }))]
+        return [...new Set([resources.texture?.url, resources.image, resources.exterior].filter((src): src is string => Boolean(src)))]
+          .map((src) => ({ src, media: index === 0 ? "(min-width: 768px)" : "(max-width: 767.98px)" }));
+      })
     : [];
   const envelopeStampSrcs = normalizedIntro?.activo
-    ? [...new Set([normalizedIntro.pc, normalizedIntro.movil].flatMap((device) => {
+    ? [normalizedIntro.pc, normalizedIntro.movil].flatMap((device, index) => {
         if (device?.tipo !== "envelope") return [];
         const src = getEnvelopeResources(device.envelope ?? {}, envelopeTexture).dryStamp;
-        return src && !src.trim().startsWith("<") ? [src] : [];
-      }))]
+        return src && !src.trim().startsWith("<") ? [{ src, media: index === 0 ? "(min-width: 768px)" : "(max-width: 767.98px)" }] : [];
+      })
     : [];
 
   const contentWithIntro = introSection?.intro ? (
     <>
       {lacreSrc && !lacreSrc.trim().startsWith("<") ? <link rel="preload" href={lacreSrc} as="fetch" crossOrigin="anonymous" fetchPriority="high" /> : null}
-      {envelopeStampSrcs.map((src) => (
-        <link key={src} rel="preload" href={src} as="fetch" crossOrigin="anonymous" fetchPriority="high" />
+      {envelopeStampSrcs.map(({ src, media }) => (
+        <link key={`${media}:${src}`} rel="preload" href={src} media={media} as="fetch" crossOrigin="anonymous" fetchPriority="high" />
       ))}
-      {envelopeImageSrcs.map((src) => (
-        <link key={src} rel="preload" href={src} as="image" fetchPriority="high" />
+      {envelopeImageSrcs.map(({ src, media }) => (
+        <link key={`${media}:${src}`} rel="preload" href={src} media={media} as="image" fetchPriority="high" />
       ))}
       <IntroReveal
         config={preview ? { ...introSection.intro, repetir: "siempre" } : introSection.intro}

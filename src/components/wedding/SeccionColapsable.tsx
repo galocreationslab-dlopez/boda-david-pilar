@@ -80,6 +80,7 @@ export function SeccionColapsable({
   const [abiertaLocal, setAbiertaLocal] = useState(abiertaPorDefecto);
   const abierta = chain?.abierta ?? abiertaLocal;
   const setAbierta = chain?.setAbierta ?? setAbiertaLocal;
+  const [mounted, setMounted] = useState(abierta);
   const esContinuacion = Boolean(chain && chain.ids[0] !== id);
   const anchorAliasesKey = anchorAliases.join("\n");
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -88,6 +89,9 @@ export function SeccionColapsable({
   useEffect(() => {
     setAbiertaLocal(abiertaPorDefecto);
   }, [abiertaPorDefecto]);
+
+  // Montar al abrir por primera vez; conservar formularios, mapas y posicion al cerrar.
+  if (abierta && !mounted) setMounted(true);
 
   // Enlaces del menu de navegacion deben desplegar la seccion antes de saltar a ella.
   // El evento "seccion:abrir" cubre la navegacion in-app (Next no dispara "hashchange" via pushState);
@@ -218,8 +222,8 @@ export function SeccionColapsable({
         }}
       >
         <div className="min-h-0 overflow-hidden">
-          {children}
-          {afterContent}
+          {mounted ? children : null}
+          {mounted ? afterContent : null}
         </div>
       </div>
     </section>

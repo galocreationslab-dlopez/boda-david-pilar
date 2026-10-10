@@ -16,7 +16,7 @@ function load(relativePath) {
   modules.set(relativePath, loadedModule);
   const source = readFileSync(new URL(`../${relativePath}`, import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2017, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   new Function("require", "exports", compiled)((name) => {
     if (name === "next/link") return { default: ({ children, ...props }) => React.createElement("a", props, children) };
@@ -80,4 +80,26 @@ test("normal visits and design previews retain the configured intro", () => {
     const tree = page(params, preview);
     assert.ok(tree.some((element) => element.type === "@/components/motion/IntroReveal:default"));
   }
+});
+
+test("envelope preloads are restricted to the device that uses each original", () => {
+  const config = structuredClone(weddingConfig);
+  config.diseno.secciones = [{
+    id: "intro", tipo: "intro", nombre: "Intro", visible: true,
+    intro: {
+      activo: true, repetir: "siempre", lacreUrl: "/seal.png",
+      pc: { tipo: "envelope", envelope: { acabadoPaleta: "personalizado", modoFondo: "svgPersonalizado", imagenUrl: "/pc.png", selloSecoUrl: "/pc-stamp.png" } },
+      movil: { tipo: "envelope", envelope: { acabadoPaleta: "personalizado", modoFondo: "svgPersonalizado", imagenUrl: "/mobile.png", selloSecoUrl: "/mobile-stamp.png" } },
+    },
+  }];
+  const preloads = elements(WeddingPage({ config, galleryMedia: [] })).filter((e) => e.type === "link" && e.props.rel === "preload");
+  for (const href of ["/pc.png", "/pc-stamp.png"]) {
+    const preload = preloads.find((e) => e.props.href === href);
+    assert.ok(preload, JSON.stringify(preloads.map((e) => e.props)));
+    assert.equal(preload.props.media, "(min-width: 768px)");
+  }
+  for (const href of ["/mobile.png", "/mobile-stamp.png"]) {
+    assert.equal(preloads.find((e) => e.props.href === href).props.media, "(max-width: 767.98px)");
+  }
+  assert.equal(preloads.find((e) => e.props.href === "/seal.png").props.fetchPriority, "high");
 });

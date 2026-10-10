@@ -63,6 +63,32 @@ supabase/
 
 ## Principios arquitectónicos
 
+### Carga de imagenes: fase 1, sin modificar originales
+
+La portada libre y el pie personalizado montan solo el lienzo del dispositivo
+actual (PC desde 768 px); las vistas previas pueden forzar PC o movil. Cambiar
+el ancho de la ventana cambia el lienzo. No se descargan las pinturas del
+dispositivo oculto.
+
+Las imagenes y mascaras de estos lienzos se activan al acercarse a 300 px de
+la ventana. Sus dimensiones se calculan a partir de la imagen ya renderizada,
+sin descargar el original mediante `new Image()` para medirlo. Se mantienen
+los ajustes de proporcion, filtros, colores, transparencias y enlaces Maps.
+Las secciones cerradas montan su contenido al abrirse por primera vez y lo
+conservan despues, para no reiniciar formularios, mapas o el carrusel.
+El carrusel monta imagenes solo para la foto actual y sus vecinas.
+
+El lacre sigue teniendo prioridad alta. Las precargas de textura y sello seco
+del sobre llevan una condicion de dispositivo. No se alteran archivos, URLs
+guardadas, resoluciones, perfiles ICC, formatos ni compresion.
+
+Para validar, usar la pestaña Network con cache desactivada en movil y PC:
+comprobar que no se solicita la pintura del otro dispositivo, que las imagenes
+lejanas aparecen al desplazarse y que el carrusel no descarga todas las fotos
+al abrirlo. Revisar proporciones, mascaras, mapas, cambio de ancho y reapertura
+de secciones. Los originales grandes siguen siendo grandes: esta fase evita
+transferencias innecesarias, pero no sustituye las futuras versiones web.
+
 ### Formato compartido del timeline
 
 En **Contenido → Timeline** o en la previsualización de **Diseño → Editar diseño**,

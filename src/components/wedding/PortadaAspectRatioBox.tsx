@@ -40,28 +40,18 @@ export default function PortadaAspectRatioBox({
     return () => { observer.disconnect(); measure.remove(); };
   }, [modo, layout.mantenerAspecto, viewport.inset]);
 
-  useEffect(() => {
-    if (!layout.mantenerAspecto || !imageSrc) return;
-    const image = new Image();
-    let disposed = false;
-    image.onload = () => {
-      if (!disposed && image.naturalWidth > 0 && image.naturalHeight > 0) setLoadedRatio({ src: imageSrc, ratio: { width: image.naturalWidth, height: image.naturalHeight } });
-    };
-    image.onerror = () => undefined;
-    image.src = imageSrc;
-    return () => {
-      disposed = true;
-      image.onload = null;
-      image.onerror = null;
-    };
-  }, [imageSrc, layout.mantenerAspecto]);
-
   const ratio = loadedRatio && loadedRatio.src === imageSrc ? loadedRatio.ratio : undefined;
   const effective = getPortadaAspectLayout(layout, ratio, viewport.inset ? screenRatio ?? referenceRatio : referenceRatio);
   const vertical = (value: number) => modo === "pantallas" ? `calc(${value} * var(--wedding-svh, 1svh))` : `${value}%`;
   return (
     <div
       ref={ref}
+      onLoadCapture={(event) => {
+        const image = event.target;
+        if (layout.mantenerAspecto && imageSrc && image instanceof HTMLImageElement && image.naturalWidth > 0 && image.naturalHeight > 0) {
+          setLoadedRatio({ src: imageSrc, ratio: { width: image.naturalWidth, height: image.naturalHeight } });
+        }
+      }}
       style={{
         position: "absolute",
         left: `${effective.x}%`,

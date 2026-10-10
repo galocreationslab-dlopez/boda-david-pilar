@@ -16,34 +16,51 @@ export default function ImageTreatmentFrame({
   children: ReactNode;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
+  const [nearViewport, setNearViewport] = useState(false);
   const [bounds, setBounds] = useState<{ src: string; width: number; height: number } | null>(null);
+  const visible = nearViewport;
 
   useEffect(() => {
     const frame = frameRef.current;
-    if (!frame || fit !== "contain") return;
-    const image = new Image();
-    let disposed = false;
+    if (!frame || visible) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setNearViewport(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "300px" });
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [visible]);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame || !visible || fit !== "contain") return;
     const measure = () => {
-      if (disposed || !image.naturalWidth || !image.naturalHeight) return;
+      const image = frame.querySelector("img");
+      if (!image?.naturalWidth || !image.naturalHeight) return;
       const scale = Math.min(frame.clientWidth / image.naturalWidth, frame.clientHeight / image.naturalHeight);
       setBounds({ src, width: image.naturalWidth * scale, height: image.naturalHeight * scale });
     };
-    image.onload = measure;
-    image.src = src;
+    frame.addEventListener("load", measure, true);
     const observer = new ResizeObserver(measure);
     observer.observe(frame);
     measure();
     return () => {
-      disposed = true;
-      image.onload = null;
+      frame.removeEventListener("load", measure, true);
       observer.disconnect();
     };
-  }, [src, fit]);
+  }, [src, fit, visible]);
 
   const visibleBounds = fit === "contain" && bounds?.src === src ? bounds : null;
 
   return (
-    <div ref={frameRef} style={{ position: "relative", width: "100%", height: "100%" }}>
+    <div
+      ref={frameRef}
+      data-media-state={visible ? "active" : "deferred"}
+      onErrorCapture={() => console.error("[Media] No se pudo cargar la imagen", src)}
+      style={{ position: "relative", width: "100%", height: "100%" }}
+    >
       <div
         className="content-texture-media"
         style={{
@@ -56,7 +73,7 @@ export default function ImageTreatmentFrame({
           ...getImageTreatmentStyle(treatment),
         }}
       >
-        {children}
+        {visible ? children : null}
       </div>
     </div>
   );

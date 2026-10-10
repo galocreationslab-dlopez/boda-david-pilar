@@ -14,6 +14,7 @@ import type {
 import ImageTreatmentFrame from "@/components/media/ImageTreatmentFrame";
 import ImageMapFlip from "@/components/media/ImageMapFlip";
 import PortadaAspectRatioBox from "@/components/wedding/PortadaAspectRatioBox";
+import DeviceContent from "@/components/layout/DeviceContent";
 import {
   PANTALLA_ASPECTO,
   TEXTO_ANCHO_REFERENCIA,
@@ -136,6 +137,10 @@ export function PortadaElementoContenido({
   if (!src) return null;
   const ajuste = layout.ajuste ?? "contain";
   const visual = color ? (
+    <>
+    {/* lazy evita precargar la imagen de medicion antes de activar la mascara. */}
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src={src} alt="" aria-hidden="true" loading="lazy" style={{ position: "absolute", width: "100%", height: "100%", opacity: 0, pointerEvents: "none" }} />
     <div
       role="img"
       aria-label={elemento.alt ?? ""}
@@ -153,6 +158,7 @@ export function PortadaElementoContenido({
         maskSize: ajuste,
       }}
     />
+    </>
   ) : (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -226,11 +232,11 @@ function PortadaLienzo({
   };
 
   return (
-    <div className={className} style={style}>
+    <div className={className} data-portada-device={dispositivo} style={style}>
       {config.elementos.map((elemento, index) => {
         const layout = getElementoLayout(config, dispositivo, elemento, index);
         if (layout.oculto) return null;
-        const imageSrc = elemento.tipo === "imagen" && resolveSrc ? resolveSrc(elemento.url) : undefined;
+        const imageSrc = elemento.tipo === "imagen" ? (resolveSrc ? resolveSrc(elemento.url) : elemento.url) : undefined;
         return (
           <PortadaAspectRatioBox
             key={elemento.id}
@@ -272,9 +278,9 @@ export default function PortadaLibre({
     return <PortadaLienzo config={normalizado} dispositivo={forzarDispositivo} roleColors={roleColors} resolveSrc={resolveSrc} imageTreatments={imageTreatments} />;
   }
   return (
-    <>
-      <PortadaLienzo config={normalizado} dispositivo="pc" roleColors={roleColors} resolveSrc={resolveSrc} imageTreatments={imageTreatments} className="hidden md:block" />
-      <PortadaLienzo config={normalizado} dispositivo="movil" roleColors={roleColors} resolveSrc={resolveSrc} imageTreatments={imageTreatments} className="md:hidden" />
-    </>
+    <DeviceContent
+      pc={<PortadaLienzo config={normalizado} dispositivo="pc" roleColors={roleColors} resolveSrc={resolveSrc} imageTreatments={imageTreatments} />}
+      movil={<PortadaLienzo config={normalizado} dispositivo="movil" roleColors={roleColors} resolveSrc={resolveSrc} imageTreatments={imageTreatments} />}
+    />
   );
 }
