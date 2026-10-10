@@ -104,7 +104,7 @@ export function HeroPortada({
           <div style={styleFor("portada.logo")}>
             {selloSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={selloSrc} alt="Sello de boda" width={selloSize} height={selloSize} style={{ width: selloSize, height: selloSize, objectFit: "contain" }} />
+              <img src={selloSrc} alt="Sello de boda" loading="lazy" width={selloSize} height={selloSize} style={{ width: selloSize, height: selloSize, objectFit: "contain" }} />
             ) : (
               <SelloNupcial size={selloSize} color={selloColor} />
             )}

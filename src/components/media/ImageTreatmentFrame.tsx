@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { TratamientoImagen } from "@/config/wedding.config";
 import { getImageTreatmentStyle } from "@/lib/image-treatment";
+import { useImageLoading } from "@/components/media/ImageLoadingProvider";
 
 export default function ImageTreatmentFrame({
   src,
@@ -16,22 +17,9 @@ export default function ImageTreatmentFrame({
   children: ReactNode;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [nearViewport, setNearViewport] = useState(false);
   const [bounds, setBounds] = useState<{ src: string; width: number; height: number } | null>(null);
-  const visible = nearViewport;
-
-  useEffect(() => {
-    const frame = frameRef.current;
-    if (!frame || visible) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        setNearViewport(true);
-        observer.disconnect();
-      }
-    }, { rootMargin: "300px" });
-    observer.observe(frame);
-    return () => observer.disconnect();
-  }, [visible]);
+  const loading = useImageLoading();
+  const visible = !loading || (loading.planned.has(src) ? loading.loaded.has(src) : loading.ready);
 
   useEffect(() => {
     const frame = frameRef.current;

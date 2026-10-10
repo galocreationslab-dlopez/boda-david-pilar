@@ -70,24 +70,41 @@ actual (PC desde 768 px); las vistas previas pueden forzar PC o movil. Cambiar
 el ancho de la ventana cambia el lienzo. No se descargan las pinturas del
 dispositivo oculto.
 
-Las imagenes y mascaras de estos lienzos se activan al acercarse a 300 px de
-la ventana. Sus dimensiones se calculan a partir de la imagen ya renderizada,
-sin descargar el original mediante `new Image()` para medirlo. Se mantienen
-los ajustes de proporcion, filtros, colores, transparencias y enlaces Maps.
-Las secciones cerradas montan su contenido al abrirse por primera vez y lo
-conservan despues, para no reiniciar formularios, mapas o el carrusel.
-El carrusel monta imagenes solo para la foto actual y sus vecinas.
+Las imagenes se precargan sin depender del scroll ni de la apertura del sobre:
+primero se prepara la intro (textura, lacre y sello seco); cuando el sobre esta
+listo comienza pinturas -> ramas -> carrusel -> informacion util. Cada grupo
+espera a que terminen las descargas y la decodificacion del anterior, con un
+maximo de dos descargas simultaneas y prioridad baja para el contenido.
+El usuario puede abrir el sobre o navegar sin esperar a la secuencia completa.
+Sin intro, la secuencia comienza al identificar el dispositivo.
+
+`weddingImageLoadingOrder` en `src/config/wedding.config.ts` enlaza los IDs de
+las pinturas y ramas actuales, no sus nombres ni URLs. Si se sustituyen los
+archivos conservando los elementos, no cambia el orden. Si se eliminan y
+recrean elementos, hay que actualizar estos IDs. Las otras imagenes de portada
+libre o pie se cargan al final, y las fotos siguen el orden del carrusel.
+Solo se incluyen secciones accesibles en la pagina actual y elementos no
+ocultos en el dispositivo. El otro dispositivo no se precarga.
+
+Las dimensiones se calculan a partir de la imagen renderizada, sin sondeos
+auxiliares para medirla. Se mantienen proporcion, filtros, colores,
+transparencias y enlaces Maps. Las secciones cerradas montan su contenido al
+abrirse por primera vez y lo conservan despues; sus originales ya se precargan
+en segundo plano. Una imagen fallida se registra y se muestra un aviso con
+Reintentar, sin bloquear indefinidamente los grupos posteriores.
 
 El lacre sigue teniendo prioridad alta. Las precargas de textura y sello seco
 del sobre llevan una condicion de dispositivo. No se alteran archivos, URLs
 guardadas, resoluciones, perfiles ICC, formatos ni compresion.
 
 Para validar, usar la pestaña Network con cache desactivada en movil y PC:
-comprobar que no se solicita la pintura del otro dispositivo, que las imagenes
-lejanas aparecen al desplazarse y que el carrusel no descarga todas las fotos
-al abrirlo. Revisar proporciones, mascaras, mapas, cambio de ancho y reapertura
-de secciones. Los originales grandes siguen siendo grandes: esta fase evita
-transferencias innecesarias, pero no sustituye las futuras versiones web.
+comprobar que no se solicita la pintura del otro dispositivo. Dejar el sobre
+cerrado y verificar el orden de descargas en Network. El atributo
+`data-image-loading-group` indica intro, pinturas, ramas, carrusel, informacion
+o complete. Revisar proporciones, mascaras, mapas, cambio de ancho y reapertura
+de secciones. Los originales grandes siguen siendo grandes: la precarga total
+consume mas datos que la carga por proximidad, aunque el usuario no baje por
+la pagina; no sustituye las futuras versiones web.
 
 ### Formato compartido del timeline
 

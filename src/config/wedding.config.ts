@@ -829,6 +829,12 @@ export type CompartirConfig = {
 // ─────────────────────────────────────────────────────────────
 // CONFIGURACIÓN DE LA BODA — editar aquí todos los datos
 // ─────────────────────────────────────────────────────────────
+// Orden fijo de los elementos actuales; las URLs se obtienen de la configuracion guardada.
+export const weddingImageLoadingOrder = {
+  pinturas: ["pel-9f6fj9qbrk5", "pel-nfzzvuqxmeo", "pel-a5wmexkbf9n"],
+  ramas: ["pel-mmqprygzur", "pel-17qbdt5fxi5"],
+};
+
 export const weddingConfig: WeddingConfig = {
   weddingId: "boda-001",
   slug: "pilar-y-david",

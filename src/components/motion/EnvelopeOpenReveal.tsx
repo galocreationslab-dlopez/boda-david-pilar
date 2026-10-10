@@ -6,6 +6,7 @@ import { getEnvelopeResources, type EnvelopeTexture } from "@/lib/intro-envelope
 import { useIntroImages, useIntroReducedMotion } from "@/components/motion/useIntroResources";
 import EnvelopeDryStamp from "@/components/motion/EnvelopeDryStamp";
 import { getEnvelopeGeometry } from "@/lib/envelope-geometry";
+import { useImageLoading } from "@/components/media/ImageLoadingProvider";
 
 export type { EnvelopeTexture } from "@/lib/intro-envelope-resources";
 
@@ -160,6 +161,11 @@ export default function EnvelopeOpenReveal({ config: rawConfig, texture, fondo, 
   const stampReady = !dryStampSrc || stampStatus?.src === dryStampSrc;
   const stampFailed = Boolean(dryStampSrc && stampStatus?.src === dryStampSrc && stampStatus.failed);
   const ready = viewport.width > 0 && viewport.height > 0 && sealReady && resources.ready && stampReady;
+  const loading = useImageLoading();
+  const markIntroReady = loading?.markIntroReady;
+  useEffect(() => {
+    if (ready) markIntroReady?.();
+  }, [ready, markIntroReady]);
   const colorSombraApertura = config.colorSombraApertura || "rgba(0,0,0,0.55)";
   const intensidadSombraApertura = Math.min(100, Math.max(0, config.intensidadSombraAperturaPorcentaje ?? 45)) / 100;
   const colorGrosorPapel = config.colorGrosorPapel || "rgba(0,0,0,0.4)";

@@ -74,18 +74,16 @@ export function SeccionCarrusel({ items, resolveSrc = resolveDriveMediaSrc, navi
                 {failed[`${photo.id}:${photo.imagen}`] ? (
                   <p className="flex h-full items-center justify-center p-6 text-center text-sm text-brown-mid">No se pudo cargar esta foto.</p>
                 ) : (
-                  Math.abs(index - current) <= 1 ? (
                   <ImageTreatmentFrame src={resolveSrc(photo.imagen!)} fit="contain" treatment={imageTreatments?.[`carrusel:${photo.id}`]}>
                   <img
                     src={resolveSrc(photo.imagen!)}
                     alt={photo.titulo || `Foto ${index + 1}`}
                     className="h-full w-full object-contain"
-                    loading={index === 0 ? "eager" : "lazy"}
+                    loading="lazy"
                     draggable={false}
                     onError={() => setFailed((previous) => ({ ...previous, [`${photo.id}:${photo.imagen}`]: true }))}
                   />
                   </ImageTreatmentFrame>
-                  ) : null
                 )}
               </div>
             ))}

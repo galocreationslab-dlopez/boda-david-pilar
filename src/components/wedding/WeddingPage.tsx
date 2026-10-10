@@ -28,6 +28,8 @@ import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import type { CSSProperties } from "react";
 import WeddingViewport from "@/components/layout/WeddingViewport";
 import { getEnvelopeResources } from "@/lib/intro-envelope-resources";
+import ImageLoadingProvider from "@/components/media/ImageLoadingProvider";
+import { getImageLoadingGroups } from "@/lib/image-loading";
 
 const DEFAULT_SEPARATOR_IMAGE_MAX_WIDTH_PX = 252;
 const DEFAULT_SEPARATOR_IMAGE_MAX_HEIGHT_PX = 16;
@@ -263,6 +265,7 @@ function renderSeparador(separadorInput: SeparadorDiseno | undefined, roleColors
         <img
           src={src}
           alt=""
+          loading="lazy"
           className="mx-auto block h-auto w-auto object-contain"
           style={{
             maxWidth: `${maxWidthPx}px`,
@@ -730,5 +733,19 @@ export default function WeddingPage({
     </>
   ) : pageContent;
 
-  return <WeddingViewport design={config.diseno}>{contentWithIntro}</WeddingViewport>;
+  const loadingSections = [
+    ...orderedGroups.flatMap((group) => group.flatMap((section) => section.source ? [section.source] : [])),
+    ...(pieSection ? [pieSection] : []),
+  ];
+  return (
+    <WeddingViewport design={config.diseno}>
+      <ImageLoadingProvider
+        pc={getImageLoadingGroups(loadingSections, "pc")}
+        movil={getImageLoadingGroups(loadingSections, "movil")}
+        waitForIntro={Boolean(normalizedIntro?.activo)}
+      >
+        {contentWithIntro}
+      </ImageLoadingProvider>
+    </WeddingViewport>
+  );
 }

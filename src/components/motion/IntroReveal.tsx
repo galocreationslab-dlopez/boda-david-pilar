@@ -10,6 +10,7 @@ import { INTRO_RESOURCE_TIMEOUT_MS, useIntroReducedMotion } from "@/components/m
 import { useIntroArtwork } from "@/components/motion/useIntroArtwork";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import { normalizeIntroConfig, type IntroDeviceConfig, type IntroSeccionConfig } from "@/config/wedding.config";
+import { useImageLoading } from "@/components/media/ImageLoadingProvider";
 
 const DEFAULT_LACRE = "/images/Sello.svg";
 const DEFAULT_DEVICE_CONFIG: IntroDeviceConfig = { tipo: "revealBook" };
@@ -55,6 +56,11 @@ export default function IntroReveal({ config: rawConfig, storageKey, themeStyle,
   const lacreKind = preparedLacreSrc && failedRenderSrc === preparedLacreSrc ? "failed" : detectedLacreKind;
   const markLacreReady = useCallback(() => setRenderedLacreSrc(preparedLacreSrc), [preparedLacreSrc]);
   const lacreReady = lacreKind === "failed" || lacreKind === "image" || (lacreKind !== "loading" && renderedLacreSrc === preparedLacreSrc);
+  const loading = useImageLoading();
+  const markIntroReady = loading?.markIntroReady;
+  useEffect(() => {
+    if (!config.activo || unlocked || visitRecorded || (!isEnvelopeMode && lacreReady)) markIntroReady?.();
+  }, [config.activo, unlocked, visitRecorded, isEnvelopeMode, lacreReady, markIntroReady]);
   useEffect(() => {
     if (!preparedLacreSrc || lacreReady) return;
     const timer = window.setTimeout(() => {

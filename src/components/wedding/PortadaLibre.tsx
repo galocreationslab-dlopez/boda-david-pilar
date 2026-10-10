@@ -138,7 +138,7 @@ export function PortadaElementoContenido({
   const ajuste = layout.ajuste ?? "contain";
   const visual = color ? (
     <>
-    {/* lazy evita precargar la imagen de medicion antes de activar la mascara. */}
+    {/* lazy impide que React precargue ambos lienzos desde el HTML del servidor. */}
     {/* eslint-disable-next-line @next/next/no-img-element */}
     <img src={src} alt="" aria-hidden="true" loading="lazy" style={{ position: "absolute", width: "100%", height: "100%", opacity: 0, pointerEvents: "none" }} />
     <div

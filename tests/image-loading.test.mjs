@@ -107,12 +107,10 @@ test("forced editor canvases retain original URLs, visibility, masks and map lin
   assert.match(mobile, /aria-hidden="true" loading="lazy"/);
 });
 
-test("frames do not render image sources until near the viewport and measure the rendered image", () => {
-  let intersection;
-  let observed;
+test("frames follow the background queue, not scroll, and measure the rendered image", () => {
   let measure;
   let load;
-  let disconnected = false;
+  const loading = { ready: false, planned: new Set(["/original.png", "/other.png"]), loaded: new Set() };
   const image = { naturalWidth: 200, naturalHeight: 100 };
   const frame = {
     clientWidth: 100, clientHeight: 100,
@@ -124,14 +122,11 @@ test("frames do not render image sources until near the viewport and measure the
   const Frame = loadModule("../src/components/media/ImageTreatmentFrame.tsx", {
     react: harness.react,
     "@/lib/image-treatment": { getImageTreatmentStyle: () => ({ filter: "sepia(1)" }) },
+    "@/components/media/ImageLoadingProvider": { useImageLoading: () => loading },
   }, {
     console,
     Image: class { constructor() { throw new Error("An auxiliary download was started"); } },
-    IntersectionObserver: class {
-      constructor(callback, options) { intersection = callback; assert.equal(options.rootMargin, "300px"); }
-      observe(target) { observed = target; }
-      disconnect() { disconnected = true; }
-    },
+    IntersectionObserver: class { constructor() { throw new Error("Scroll must not control loading"); } },
     ResizeObserver: class { constructor(callback) { measure = callback; } observe() {} disconnect() {} },
   }).default;
   const props = { src: "/original.png", fit: "contain", children: react.createElement("img", { src: "/original.png", loading: "lazy" }) };
@@ -139,11 +134,9 @@ test("frames do not render image sources until near the viewport and measure the
   assert.equal(tree.props["data-media-state"], "deferred");
   assert.equal(elements(tree).filter((e) => e.type === "img").length, 0);
   harness.effects.forEach((effect) => effect());
-  assert.equal(observed, frame);
-  intersection([{ isIntersecting: false }]);
+  loading.ready = true;
   assert.equal(harness.render(Frame, props).props["data-media-state"], "deferred");
-  intersection([{ isIntersecting: true }]);
-  assert.equal(disconnected, true);
+  loading.loaded.add("/original.png");
   tree = harness.render(Frame, props);
   assert.equal(elements(tree).filter((e) => e.type === "img").length, 1);
   harness.effects.forEach((effect) => effect());
@@ -197,7 +190,7 @@ test("closed sections do not mount media and retain state after the first openin
   assert.equal(elements(tree).find((e) => e.props.id === "contenido-photos").props.inert, true);
 });
 
-test("carousel loads only the current photo and neighbours, preserving every slide and control", () => {
+test("carousel exposes all queued photos without changing its slides, controls or errors", () => {
   const harness = hooks(null);
   const { SeccionCarrusel } = loadModule("../src/components/wedding/SeccionCarrusel.tsx", {
     react: harness.react,
@@ -206,11 +199,11 @@ test("carousel loads only the current photo and neighbours, preserving every sli
   });
   const props = { items: Array.from({ length: 9 }, (_, i) => ({ id: String(i), imagen: `/photo-${i}.png` })) };
   let tree = harness.render(SeccionCarrusel, props);
-  assert.deepEqual(elements(tree).filter((e) => e.type === "img").map((e) => e.props.src), ["/photo-0.png", "/photo-1.png"]);
+  assert.equal(elements(tree).filter((e) => e.type === "img").length, 9);
   assert.equal(elements(tree).filter((e) => e.props["aria-roledescription"] === "diapositiva").length, 9);
   elements(tree).find((e) => e.props.onScroll).props.onScroll({ currentTarget: { clientWidth: 100, scrollLeft: 400 } });
   tree = harness.render(SeccionCarrusel, props);
-  assert.deepEqual(elements(tree).filter((e) => e.type === "img").map((e) => e.props.src), ["/photo-3.png", "/photo-4.png", "/photo-5.png"]);
+  assert.equal(elements(tree).filter((e) => e.type === "img").length, 9);
   assert.equal(elements(tree).filter((e) => e.props["aria-label"]?.startsWith("Ir a foto")).length, 9);
   const photo = elements(tree).find((e) => e.type === "img");
   photo.props.onError();
