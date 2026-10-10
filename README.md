@@ -86,6 +86,11 @@ La consulta sigue cargando el texto personalizado y, para invitaciones de
 administrador, cambia el botón a «Panel de administración», disponible también
 fuera de plazo.
 
+El enlace «Volver a la web» del RSVP conserva `inviteCode` y añade
+`skipIntro=1` para mostrar directamente la invitación, sin repetir la intro.
+Este parámetro se conserva en los enlaces internos y no afecta a la
+previsualización de Diseño ni a las visitas normales sin el parámetro.
+
 Las rutas RSVP solo devuelven «invitación no encontrada» si la consulta termina
 correctamente y no existe el código. Los fallos de base de datos se registran
 en el servidor; la API responde con 503 y el formulario muestra un aviso con

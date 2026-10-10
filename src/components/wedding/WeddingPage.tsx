@@ -318,6 +318,7 @@ export default function WeddingPage({
   homePath?: string;
 }) {
   const seccionFoco = typeof rawSearchParams.seccion === "string" ? rawSearchParams.seccion : undefined;
+  const skipIntro = !preview && rawSearchParams.skipIntro === "1";
 
   // El resto de parametros (ej. inviteCode) deben persistir en todos los enlaces internos.
   const preservedParams = new URLSearchParams();
@@ -417,7 +418,7 @@ export default function WeddingPage({
     ? [seccionEnfocada]
     : publicGroups.filter((group) => group.head.visible);
 
-  const introSection = seccionEnfocada ? undefined : visibleGroups.find((group) => group.head.tipo === "intro" && group.head.intro)?.head;
+  const introSection = seccionEnfocada || skipIntro ? undefined : visibleGroups.find((group) => group.head.tipo === "intro" && group.head.intro)?.head;
   const contentGroups = visibleGroups.filter((group) => group.head.tipo !== "intro" && group.head.tipo !== "pie");
 
   const fallbackSections: Array<{ id: string; tipo: TipoSeccionDiseno; titulo: string; source?: SeccionDiseno }> = [

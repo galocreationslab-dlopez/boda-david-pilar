@@ -321,7 +321,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
           </div>
 
           <Link
-            href={`/?inviteCode=${encodeURIComponent(inviteCode)}`}
+            href={`/?inviteCode=${encodeURIComponent(inviteCode)}&skipIntro=1`}
             className="text-sm text-stone-500 transition-colors hover:text-stone-800"
           >
             {t.volverLabel}
