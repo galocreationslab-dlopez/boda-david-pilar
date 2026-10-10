@@ -651,6 +651,9 @@ export default function WeddingPage({
                   <SeccionTimeline
                     localizaciones={config.localizaciones}
                     timeline={getTimelineForSection(section.source)}
+                    plantilla={section.source?.timelinePlantilla}
+                    roleColors={sectionRoleColors ?? {}}
+                    roleTextures={sectionPalette ? resolvePaletteRoleTextures(sectionPalette) : {}}
                     legacyLogoSize={section.source?.componentSizes?.["timeline.icono"]}
                     componentStyles={componentStyles}
                     headerDivider={renderSeparador(sectionInternalSeparator, sectionRoleColors, `${section.id}-divider`)}

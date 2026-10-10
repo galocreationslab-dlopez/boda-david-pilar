@@ -7,6 +7,7 @@ import { SeccionColapsable, SectionChain, SectionChainDecoration } from "@/compo
 import { buildSectionGroups, canLeadSectionChain, getPieSectionForProfile, getSectionGroupsForProfile, normalizeSectionChains } from "@/lib/section-chains";
 import PortadaLibre from "@/components/wedding/PortadaLibre";
 import PortadaLibreEditor from "@/components/admin/PortadaLibreEditor";
+import TimelinePlantillaEditor from "@/components/admin/TimelinePlantillaEditor";
 import VisualVersionsPanel from "@/components/admin/VisualVersionsPanel";
 import { applyVisualSnapshot, captureVisualSnapshot, type VisualSnapshot } from "@/lib/visual-versions";
 import WeddingViewport from "@/components/layout/WeddingViewport";
@@ -1122,6 +1123,9 @@ export default function ConfiguracionView({
     () => editingComponentOptions.find((option) => option.key === activeSelectedDesignComponentKey) ?? editingComponentOptions[0] ?? null,
     [activeSelectedDesignComponentKey, editingComponentOptions],
   );
+  const selectedTemplateComponent = Boolean(editingSectionDraft?.tipo === "timeline" &&
+    editingSectionDraft.timelinePlantilla?.activa && selectedComponentOption &&
+    ["timeline.card", "timeline.icono", "timeline.hora", "timeline.titulo", "timeline.descripcion", "timeline.mapa"].includes(selectedComponentOption.key));
 
   const editingPalette = useMemo(
     () => (editingSectionDraft ? getPaletteBySection(editingSectionDraft) : null),
@@ -1624,6 +1628,10 @@ export default function ConfiguracionView({
               <SeccionTimeline
                 localizaciones={ic.localizaciones}
                 timeline={timelineEventsForSection(section)}
+                plantilla={section.timelinePlantilla}
+                roleColors={sectionRoleColors ?? {}}
+                roleTextures={sectionPalette ? resolvePaletteRoleTextures(sectionPalette) : {}}
+                resolveSrc={resolveAdminPreviewSrc}
                 viewport={editorViewport}
                 editable={false}
                 designMode={designMode}
@@ -2474,6 +2482,13 @@ export default function ConfiguracionView({
                       <p className="mt-1 text-[11px] text-stone-500">Se añade después de esta sección y no se muestra si está cerrada o es la última visible.</p>
                     </div>
 
+                    {editingSectionDraft.tipo === "timeline" && <TimelinePlantillaEditor
+                      value={editingSectionDraft.timelinePlantilla}
+                      device={editorViewport === "movil" ? "movil" : "pc"}
+                      roles={availableRoleKeys.map((key) => ({ key, label: getRoleLabelForUI(key) }))}
+                      onChange={(timelinePlantilla) => patchEditingSectionDraft({ timelinePlantilla })}
+                    />}
+
                     <div className="rounded border border-stone-200 bg-stone-50 p-2">
                       <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-600">Componentes gráficos</p>
                       <div className="flex flex-wrap gap-1">
@@ -2656,7 +2671,10 @@ export default function ConfiguracionView({
                       )}
                     </div>
 
-                    {selectedComponentRole && editingPalette && (
+                    {selectedTemplateComponent && <p className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                      Este componente usa el formato compartido de entradas. Edítalo en la plantilla de arriba; sus ajustes antiguos se conservan para cuando la desactives.
+                    </p>}
+                    {!selectedTemplateComponent && selectedComponentRole && editingPalette && (
                       <div className="grid gap-2 sm:grid-cols-[1fr_1fr]">
                         <div className="rounded border border-stone-200 bg-white p-2">
                           <label className="mb-1 block text-[11px] font-semibold text-stone-600">Rol del componente</label>
@@ -2692,7 +2710,7 @@ export default function ConfiguracionView({
                       </div>
                     )}
 
-                    {selectedComponentOption && getComponentSizeKind(selectedComponentOption.key) === "font" && (
+                    {!selectedTemplateComponent && selectedComponentOption && getComponentSizeKind(selectedComponentOption.key) === "font" && (
                       <div className="rounded border border-stone-200 bg-white p-2">
                         <label className="mb-1 block text-[11px] font-semibold text-stone-600">Rol de fuente</label>
                         <select
@@ -2710,7 +2728,7 @@ export default function ConfiguracionView({
                       </div>
                     )}
 
-                    {selectedComponentOption && BORDER_TOGGLE_KEYS.has(selectedComponentOption.key) && (
+                    {!selectedTemplateComponent && selectedComponentOption && BORDER_TOGGLE_KEYS.has(selectedComponentOption.key) && (
                       <label className="flex items-center gap-2 rounded border border-stone-200 bg-white p-2 text-[11px] font-semibold text-stone-600">
                         <input
                           type="checkbox"
@@ -2721,7 +2739,7 @@ export default function ConfiguracionView({
                       </label>
                     )}
 
-                    {selectedComponentOption && getComponentSizeKind(selectedComponentOption.key) && (() => {
+                    {!selectedTemplateComponent && selectedComponentOption && getComponentSizeKind(selectedComponentOption.key) && (() => {
                       const sizeKind = getComponentSizeKind(selectedComponentOption.key)!;
                       const range = COMPONENT_SIZE_RANGE[sizeKind];
                       const currentSize = editingSectionDraft?.componentSizes?.[selectedComponentOption.key]
@@ -3000,6 +3018,10 @@ export default function ConfiguracionView({
                             <SeccionTimeline
                               localizaciones={ic.localizaciones}
                               timeline={timelineEventsForSection(sec)}
+                              plantilla={sec.timelinePlantilla}
+                              roleColors={sectionRoleColors ?? {}}
+                              roleTextures={sectionPalette ? resolvePaletteRoleTextures(sectionPalette) : {}}
+                              resolveSrc={resolveAdminPreviewSrc}
                               viewport={editorViewport}
                               editable={false}
                               designMode={designMode}

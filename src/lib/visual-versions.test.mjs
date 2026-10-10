@@ -8,8 +8,12 @@ const compile = (source) => ts.transpileModule(source, { compilerOptions: { modu
 const source = async (file) => readFile(new URL(file, import.meta.url), "utf8");
 const sizeUrl = moduleUrl(compile(await source("./component-size.ts")));
 const configUrl = moduleUrl(compile(await source("../config/wedding.config.ts")));
-const visualUrl = moduleUrl(compile((await source("./visual-versions.ts")).replace('from "@/lib/component-size"', `from "${sizeUrl}"`)));
+const timelineUrl = moduleUrl(compile(await source("./timeline-layout.ts")));
+const visualUrl = moduleUrl(compile((await source("./visual-versions.ts"))
+  .replace('from "@/lib/component-size"', `from "${sizeUrl}"`)
+  .replace('from "@/lib/timeline-layout"', `from "${timelineUrl}"`)));
 const { weddingConfig } = await import(configUrl);
+const { normalizeTimelinePlantilla } = await import(timelineUrl);
 const { captureVisualSnapshot: capture, applyVisualSnapshot: apply, assertVisualSnapshot: validate, compareVisualSnapshots: compare, collectVisualResources: resources, mergeVisualIntoStoredConfig } = await import(visualUrl);
 
 const stubs = {
@@ -29,6 +33,7 @@ function substitute(text, modules) {
 }
 const modules = Object.fromEntries(Object.entries(stubs).map(([name, code]) => [name, moduleUrl(code)]));
 modules["@/config/wedding.config"] = configUrl;
+modules["@/lib/timeline-layout"] = timelineUrl;
 modules["@/lib/visual-versions"] = visualUrl;
 const resolverUrl = moduleUrl(compile(substitute(await source("./wedding-config-server.ts"), modules)));
 modules["@/lib/wedding-config-server"] = resolverUrl;
@@ -40,6 +45,46 @@ const route = await import(moduleUrl(compile(substitute(await source("../app/api
 const resetRoute = await import(moduleUrl(compile(substitute(await source("../app/api/admin/[inviteCode]/config/reset/route.ts"), modules))));
 const params = { params: Promise.resolve({ inviteCode: "fixture-admin" }) };
 test.beforeEach((context) => { context.mock.method(console, "error", () => {}); });
+
+test("timeline versions restore colors, font roles and text sizes while retaining layout, logo sizes and content", () => {
+  const original = fixture();
+  const section = original.diseno.secciones[0];
+  section.tipo = "timeline";
+  section.timelinePlantilla = normalizeTimelinePlantilla({ activa: true, pc: { zonas: { logo: { tamano: 90 } } } });
+  section.items = [{ id: "ceremony", hora: "12:00", titulo: "Ceremony", descripcion: "Church", enlaceMaps: "https://maps.google.com/?q=Church", logoTamano: { pc: 200, movil: 20 } }];
+  const snapshot = capture(original);
+  validate(snapshot);
+  assert.equal(snapshot.sections[0].style.timelinePlantilla.pc.zonas.logo.tamano, undefined);
+  const current = structuredClone(original);
+  const template = current.diseno.secciones[0].timelinePlantilla;
+  template.pc.ancho = 480;
+  template.pc.orden.reverse();
+  template.pc.zonas.logo.tamano = 150;
+  template.pc.zonas.titulo.tamano = 60;
+  template.pc.zonas.titulo.colorRol = "custom";
+  template.pc.zonas.descripcion.fuenteRol = "nombres";
+  template.pc.marcoVisible = false;
+  template.activa = false;
+  const restored = apply(current, snapshot).config.diseno.secciones[0];
+  assert.equal(restored.timelinePlantilla.pc.ancho, 480);
+  assert.deepEqual(restored.timelinePlantilla.pc.orden, template.pc.orden);
+  assert.equal(restored.timelinePlantilla.pc.zonas.logo.tamano, 150);
+  assert.equal(restored.timelinePlantilla.activa, false);
+  assert.equal(restored.timelinePlantilla.pc.marcoVisible, true);
+  assert.equal(restored.timelinePlantilla.pc.zonas.titulo.tamano, 24);
+  assert.equal(restored.timelinePlantilla.pc.zonas.titulo.colorRol, "titulo");
+  assert.equal(restored.timelinePlantilla.pc.zonas.descripcion.fuenteRol, "textos");
+  assert.deepEqual(restored.items, section.items);
+  const oldSnapshot = structuredClone(snapshot);
+  delete oldSnapshot.sections[0].style.timelinePlantilla;
+  validate(oldSnapshot);
+  assert.deepEqual(apply(current, oldSnapshot).config.diseno.secciones[0].timelinePlantilla, template);
+  const reloaded = resolveWeddingConfig({ ...current, visualSchema: "wedding-visual-v1", visualSnapshot: oldSnapshot });
+  assert.deepEqual(reloaded.diseno.secciones[0].timelinePlantilla, template);
+  const invalid = structuredClone(snapshot);
+  invalid.sections[0].style.timelinePlantilla.pc.ancho = 999;
+  assert.throws(() => validate(invalid));
+});
 
 function fixture() {
   const config = structuredClone(weddingConfig);

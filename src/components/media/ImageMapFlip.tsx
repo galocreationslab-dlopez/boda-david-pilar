@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { getGoogleMapsEmbedUrl, getGoogleMapsLinkUrl } from "@/lib/portada-libre";
 import styles from "./ImageMapFlip.module.css";
 
-export function MapBack({ link, embed, label, onClose }: { link: string; embed?: string; label: string; onClose: () => void }) {
+export function MapBack({ link, embed, label, onClose, showHelp = true }: { link: string; embed?: string; label: string; onClose: () => void; showHelp?: boolean }) {
   const src = getGoogleMapsEmbedUrl(embed || link);
   const href = getGoogleMapsLinkUrl(link);
   const [failed, setFailed] = useState(false);
@@ -40,13 +40,13 @@ export function MapBack({ link, embed, label, onClose }: { link: string; embed?:
       </div>
       <div className={styles.footer}>
         {href && <a href={href} target="_blank" rel="noopener noreferrer" className={styles.directions}>Cómo llegar</a>}
-        {src && !failed && !loading && <button type="button" className={styles.help} onClick={() => setFailed(true)}>¿No ves el mapa?</button>}
+        {showHelp && src && !failed && !loading && <button type="button" className={styles.help} onClick={() => setFailed(true)}>¿No ves el mapa?</button>}
       </div>
     </section>
   );
 }
 
-export default function ImageMapFlip({ children, link, embed, label, enabled = true, contentSized = false, className = "", frontClassName = "" }: {
+export default function ImageMapFlip({ children, link, embed, label, enabled = true, contentSized = false, className = "", frontClassName = "", frontStyle, showMapHelp = true, closeOnFocusOutside = false }: {
   children: ReactNode;
   link?: string;
   embed?: string;
@@ -55,24 +55,39 @@ export default function ImageMapFlip({ children, link, embed, label, enabled = t
   contentSized?: boolean;
   className?: string;
   frontClassName?: string;
+  frontStyle?: CSSProperties;
+  showMapHelp?: boolean;
+  closeOnFocusOutside?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [requestedOpen, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const restoreFocus = useRef(false);
   const id = useId();
-  const interactive = enabled && Boolean(link);
+  const interactive = enabled && Boolean(getGoogleMapsLinkUrl(link));
+  const open = requestedOpen && interactive;
   useEffect(() => {
     if (!open) return;
+    const boundary = rootRef.current?.closest("[data-map-frame]") ?? rootRef.current;
     const outsideClick = (event: MouseEvent) => {
-      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
+      if (event.target instanceof Node && !boundary?.contains(event.target)) {
         restoreFocus.current = Boolean(rootRef.current?.contains(document.activeElement));
         setOpen(false);
       }
     };
+    const outsideFocus = (event: FocusEvent) => {
+      if (closeOnFocusOutside && event.target instanceof Node && !boundary?.contains(event.target)) {
+        restoreFocus.current = false;
+        setOpen(false);
+      }
+    };
     document.addEventListener("click", outsideClick, true);
-    return () => document.removeEventListener("click", outsideClick, true);
-  }, [open]);
+    document.addEventListener("focusin", outsideFocus, true);
+    return () => {
+      document.removeEventListener("click", outsideClick, true);
+      document.removeEventListener("focusin", outsideFocus, true);
+    };
+  }, [open, closeOnFocusOutside]);
   useLayoutEffect(() => {
     if (!open && restoreFocus.current) {
       triggerRef.current?.focus({ preventScroll: true });
@@ -83,13 +98,14 @@ export default function ImageMapFlip({ children, link, embed, label, enabled = t
     restoreFocus.current = true;
     setOpen(false);
   };
-  const back = open && link ? <MapBack key={`${link}:${embed}`} link={link} embed={embed} label={label} onClose={close} /> : null;
+  const back = open && interactive && link ? <MapBack key={`${link}:${embed}`} link={link} embed={embed} label={label} onClose={close} showHelp={showMapHelp} /> : null;
   return (
     <div ref={rootRef} className={`${styles.root} ${open ? styles.open : ""} ${className}`} style={contentSized ? undefined : { width: "100%", height: "100%" }}>
       <div
         ref={triggerRef}
         role={interactive ? "button" : undefined}
         className={`${styles.front} ${contentSized ? styles.contentSized : ""} ${frontClassName}`}
+        style={frontStyle}
         aria-label={interactive ? `Mostrar mapa de ${label}` : undefined}
         aria-expanded={interactive ? open : undefined}
         aria-controls={interactive ? id : undefined}

@@ -6,6 +6,11 @@ import PolygonRegionEditor from "@/components/admin/PolygonRegionEditor";
 import EnvelopeTimelineControls from "@/components/admin/EnvelopeTimelineControls";
 import EnvelopeGeometryControls from "@/components/admin/EnvelopeGeometryControls";
 import MapsFields from "@/components/admin/MapsFields";
+import TimelinePlantillaEditor from "@/components/admin/TimelinePlantillaEditor";
+import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
+import { normalizeTimelinePlantilla } from "@/lib/timeline-layout";
+import { getPaletteRoleKeys, getRoleLabel, resolvePaletteRoleColors, resolvePaletteRoleTextures } from "@/lib/theme-roles";
+import { buildFontCssVars } from "@/lib/theme-fonts";
 import { SeccionCarrusel } from "@/components/wedding/SeccionCarrusel";
 import { isLikelyLineAliveHtmlUrl } from "@/lib/linealive/utils";
 import { DEFAULT_TEXTO_INVITACION, ELEMENTOS_BARRA_POR_DEFECTO, normalizeIntroConfig } from "@/config/wedding.config";
@@ -510,6 +515,7 @@ function buildInitialSections(config: WeddingConfig): SeccionDiseno[] {
     return {
       ...section,
       tipo: tipoNormalizado,
+      timelinePlantilla: section.timelinePlantilla ? normalizeTimelinePlantilla(section.timelinePlantilla) : undefined,
       nombre: section.nombre || sectionNameByType(tipoNormalizado),
       titulo: section.titulo || sectionTitleByType(tipoNormalizado),
       paletaId: section.paletaId || paletaId,
@@ -612,6 +618,10 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
     () => sections.find((section) => section.id === selectedSectionId) ?? sections[0],
     [sections, selectedSectionId],
   );
+  const globalPalette = config.tema.paletas?.find((palette) => palette.id === config.tema.paletaActivaId) ?? config.tema.paletas?.[0];
+  const timelinePalette = selectedSection?.usarPaletaGlobal === false
+    ? config.tema.paletas?.find((palette) => palette.id === selectedSection.paletaId) ?? globalPalette
+    : globalPalette;
 
   const introConfig = useMemo(
     () => (selectedSection?.tipo === "intro" ? normalizeIntroConfig(selectedSection.intro) ?? buildDefaultIntroConfig() : undefined),
@@ -2773,6 +2783,24 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
               {selectedSection.tipo === "timeline" && (
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold text-stone-700">Timeline</h3>
+                  <TimelinePlantillaEditor
+                    value={selectedSection.timelinePlantilla}
+                    roles={getPaletteRoleKeys(timelinePalette).map((key) => ({ key, label: getRoleLabel(key, timelinePalette) }))}
+                    onChange={(timelinePlantilla) => patchSection(selectedSection.id, { timelinePlantilla })}
+                    renderPreview={(device) => (
+                      <div style={buildFontCssVars(config.tema.fuentes)}>
+                        <SeccionTimeline
+                          localizaciones={config.localizaciones}
+                          timeline={mapTimelineItemsToConfig(selectedSection.items)}
+                          plantilla={selectedSection.timelinePlantilla}
+                          viewport={device === "pc" ? "desktop" : "movil"}
+                          roleColors={timelinePalette ? resolvePaletteRoleColors(timelinePalette) : {}}
+                          roleTextures={timelinePalette ? resolvePaletteRoleTextures(timelinePalette) : {}}
+                          legacyLogoSize={selectedSection.componentSizes?.["timeline.icono"]}
+                        />
+                      </div>
+                    )}
+                  />
                   {selectedSection.items.map((item, index) => (
                     <div key={item.id} className="rounded-2xl border border-stone-200 p-4 space-y-3">
                       <div className="flex items-center justify-between gap-3">
@@ -2836,6 +2864,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         </div>
                         <div className="sm:col-span-2 rounded-xl border border-stone-200 bg-stone-50 p-3 space-y-2">
                           <p className="text-xs font-semibold text-stone-600">Tamano del logo (px, mantiene proporciones)</p>
+                          {selectedSection.timelinePlantilla?.activa && <p className="text-xs text-amber-800">Valores del diseño antiguo: conservados, pero el formato compartido tiene prioridad mientras esté activo.</p>}
                           <div className="grid gap-3 sm:grid-cols-2">
                             {(["movil", "pc"] as const).map((device) => {
                               const range = TIMELINE_LOGO_RANGE[device];

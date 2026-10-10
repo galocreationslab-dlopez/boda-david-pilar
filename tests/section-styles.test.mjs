@@ -92,6 +92,10 @@ const { SeccionTimeline } = loadModule("../src/components/wedding/SeccionTimelin
   },
   "@/lib/portada-libre": { getGoogleMapsLinkUrl: (src) => src },
   "@/lib/timeline-logo-size": loadModule("../src/lib/timeline-logo-size.ts"),
+  "@/lib/timeline-layout": loadModule("../src/lib/timeline-layout.ts"),
+  "@/components/wedding/PortadaLibre": { resolvePortadaColor: (_mode, role, _hex, colors) => colors[role] },
+  "@/lib/theme-roles": { withTextureStyle: (_key, style) => style },
+  "./TimelinePlantilla.module.css": { default: {} },
 });
 
 test("desktop timeline centers each title and description without changing mobile layout", () => {

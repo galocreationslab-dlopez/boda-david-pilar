@@ -1,8 +1,10 @@
 import type {
   WeddingConfig, SeccionDiseno, PortadaLibreConfig, PortadaElementoLayout,
   PortadaDispositivoConfig, IntroEnvelopeConfig, NavegacionDiseno,
+  TimelineDispositivoConfig, TimelineZona, TimelinePlantillaConfig,
 } from "@/config/wedding.config";
 import { getComponentSizeKind } from "@/lib/component-size";
+import { normalizeTimelinePlantilla } from "@/lib/timeline-layout";
 
 export const VISUAL_SCHEMA = "wedding-visual" as const;
 export const VISUAL_SCHEMA_VERSION = 1 as const;
@@ -10,6 +12,8 @@ const designKeys = ["fondoPaginaColor", "fondoPaginaImagen", "fondoPaginaTextura
 const sectionKeys = ["paletaId", "usarPaletaGlobal", "componentRoles", "componentBorders", "componentFonts", "fondos", "selloUrl"] as const;
 const layoutKeys = ["opacidad", "colorModo", "colorRol", "colorHex", "fuenteRol", "tamano", "negrita", "cursiva"] as const;
 const canvasKeys = ["fondoModo", "fondoRol", "fondoHex"] as const;
+const timelineKeys = ["marcoVisible", "fondoRol", "bordeRol"] as const;
+const timelineZoneKeys = ["colorRol", "fuenteRol"] as const;
 const separatorKeys = ["imagenUrl", "tintMode", "imagenColorRole"] as const;
 const navigationKeys = ["logoUrl", "logoColor", "textoColor", "textoTamanoPx", "fondoColor"] as const satisfies readonly (keyof NavegacionDiseno)[];
 const envelopeKeys = [
@@ -25,11 +29,15 @@ type CanvasStyle = Partial<Pick<PortadaDispositivoConfig, typeof canvasKeys[numb
   layout: Record<string, LayoutStyle>;
 };
 type FreeStyle = { pc: CanvasStyle; movil: CanvasStyle };
+type TimelineStyle = Record<"pc" | "movil", Partial<Pick<TimelineDispositivoConfig, typeof timelineKeys[number]>> & {
+  zonas: Record<string, Partial<Pick<TimelineZona, "colorRol" | "fuenteRol" | "tamano">>>;
+}>;
 type SectionStyle = Partial<Pick<SeccionDiseno, typeof sectionKeys[number]>> & {
   componentSizes: Record<string, number>;
   separadorInterno?: Partial<Pick<NonNullable<SeccionDiseno["separadorInterno"]>, typeof separatorKeys[number]>>;
   portadaLibre?: FreeStyle;
   pie?: FreeStyle;
+  timelinePlantilla?: TimelineStyle;
   intro?: {
     lacreUrl?: string;
     pc?: Partial<Pick<IntroEnvelopeConfig, typeof envelopeKeys[number]>>;
@@ -70,6 +78,17 @@ function freeStyle(config: PortadaLibreConfig): FreeStyle {
   return { pc: device("pc"), movil: device("movil") };
 }
 
+function timelineStyle(config: TimelinePlantillaConfig): TimelineStyle {
+  const normalized = normalizeTimelinePlantilla(config);
+  const device = (name: "pc" | "movil") => ({
+    ...pick(normalized[name], timelineKeys),
+    zonas: Object.fromEntries(Object.entries(normalized[name].zonas).map(([key, zone]) => [
+      key, { ...pick(zone, timelineZoneKeys), ...(key !== "logo" ? { tamano: zone.tamano } : {}) },
+    ])),
+  });
+  return { pc: device("pc"), movil: device("movil") };
+}
+
 export function captureVisualSnapshot(config: WeddingConfig): VisualSnapshot {
   const snapshot: VisualSnapshot = {
     schema: VISUAL_SCHEMA, schemaVersion: VISUAL_SCHEMA_VERSION, rolesModel: "legacy-v1",
@@ -88,6 +107,7 @@ export function captureVisualSnapshot(config: WeddingConfig): VisualSnapshot {
         ...(section.separadorInterno ? { separadorInterno: pick(section.separadorInterno, separatorKeys) } : {}),
         ...(section.portadaLibre ? { portadaLibre: freeStyle(section.portadaLibre) } : {}),
         ...(section.pie ? { pie: freeStyle(section.pie) } : {}),
+        ...(section.timelinePlantilla ? { timelinePlantilla: timelineStyle(section.timelinePlantilla) } : {}),
         ...(section.intro ? { intro: {
           ...(section.intro.lacreUrl !== undefined ? { lacreUrl: section.intro.lacreUrl } : {}),
           ...(section.intro.pc?.envelope ? { pc: pick(section.intro.pc.envelope, envelopeKeys) } : {}),
@@ -158,7 +178,19 @@ export function applyVisualSnapshot(current: WeddingConfig, snapshot: VisualSnap
       if (saved.style[key] && section[key]) section[key] = restoreFree(section[key], saved.style[key], warnings, `${saved.id}/${key}`);
       else if (saved.style[key]) warnings.push(`${saved.id}/${key}: lienzo ausente; no se recrea.`);
     }
+    if (section.timelinePlantilla && saved.style.timelinePlantilla) {
+      section.timelinePlantilla = normalizeTimelinePlantilla(section.timelinePlantilla);
+    }
     for (const device of ["pc", "movil"] as const) {
+      const template = section.timelinePlantilla?.[device];
+      const templateStyle = saved.style.timelinePlantilla?.[device];
+      if (template && templateStyle) {
+        Object.assign(template, pick(templateStyle, timelineKeys));
+        for (const key of ["logo", "hora", "titulo", "descripcion"] as const) {
+          const zoneStyle = templateStyle.zonas[key];
+          if (zoneStyle) Object.assign(template.zonas[key], pick(zoneStyle, key === "logo" ? timelineZoneKeys : [...timelineZoneKeys, "tamano"]));
+        }
+      } else if (templateStyle) warnings.push(`${saved.id}/timeline/${device}: plantilla ausente; no se recrea.`);
       const envelope = section.intro?.[device]?.envelope;
       if (envelope) section.intro![device]!.envelope = replaceKeys(envelope, saved.style.intro?.[device] ?? {}, envelopeKeys);
       else if (saved.style.intro?.[device]) warnings.push(`${saved.id}/intro/${device}: sobre ausente; no se recrea.`);
@@ -226,6 +258,19 @@ function validFree(value: unknown): boolean {
   });
 }
 
+function validTimelineStyle(value: unknown): boolean {
+  if (!allowedFields(value, ["pc", "movil"]) || !isRecord(value)) return false;
+  return ["pc", "movil"].every((device) => {
+    const config = value[device];
+    if (!allowedFields(config, [...timelineKeys, "zonas"]) || !isRecord(config) ||
+      !typedScalars(pick(config, timelineKeys), ["fondoRol", "bordeRol"], [], ["marcoVisible"]) ||
+      !allowedFields(config.zonas, ["logo", "hora", "titulo", "descripcion"]) || !isRecord(config.zonas)) return false;
+    return Object.entries(config.zonas).every(([key, zone]) =>
+      typedScalars(zone, timelineZoneKeys, key === "logo" ? [] : ["tamano"]) && isRecord(zone) &&
+      (zone.fuenteRol === undefined || ["nombres", "titulos", "textos"].includes(String(zone.fuenteRol))));
+  });
+}
+
 export function assertVisualSnapshot(value: unknown): asserts value is VisualSnapshot {
   const fail = () => { throw new VisualSnapshotError("Version visual invalida o esquema no compatible (wedding-visual v1)."); };
   if (!allowedFields(value, ["schema", "schemaVersion", "rolesModel", "theme", "design", "sections"]) || !isRecord(value) ||
@@ -243,7 +288,7 @@ export function assertVisualSnapshot(value: unknown): asserts value is VisualSna
   for (const section of value.sections) {
     if (!allowedFields(section, ["id", "type", "style"]) || !isRecord(section) || typeof section.id !== "string" || ids.has(section.id) ||
       !["intro", "invitacion", "portada", "portadaLibre", "historia", "timeline", "galeria", "carrusel", "pie"].includes(String(section.type)) ||
-      !allowedFields(section.style, [...sectionKeys, "componentSizes", "separadorInterno", "portadaLibre", "pie", "intro"])) return fail();
+      !allowedFields(section.style, [...sectionKeys, "componentSizes", "separadorInterno", "portadaLibre", "pie", "intro", "timelinePlantilla"])) return fail();
     ids.add(section.id);
     const style = section.style as Record<string, unknown>;
     if (style.paletaId !== undefined && typeof style.paletaId !== "string") return fail();
@@ -256,6 +301,7 @@ export function assertVisualSnapshot(value: unknown): asserts value is VisualSna
     if (!isRecord(style.componentSizes) || !Object.entries(style.componentSizes).every(([key, v]) => getComponentSizeKind(key) === "font" && typeof v === "number" && Number.isFinite(v) && v > 0)) return fail();
     if (style.separadorInterno !== undefined && !validSeparator(style.separadorInterno)) return fail();
     for (const key of ["portadaLibre", "pie"]) if (style[key] !== undefined && !validFree(style[key])) return fail();
+    if (style.timelinePlantilla !== undefined && !validTimelineStyle(style.timelinePlantilla)) return fail();
     if (style.intro !== undefined && (!allowedFields(style.intro, ["lacreUrl", "pc", "movil"]) ||
       (isRecord(style.intro) && style.intro.lacreUrl !== undefined && typeof style.intro.lacreUrl !== "string") ||
       !Object.entries(style.intro as Record<string, unknown>).filter(([key]) => key !== "lacreUrl").every(([, v]) => validEnvelope(v)))) return fail();

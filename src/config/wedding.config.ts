@@ -518,11 +518,43 @@ export type DistanciaSiguienteSeccion = {
   pc?: number;
 };
 
+export type TimelineElemento = "logo" | "hora" | "titulo" | "descripcion";
+
+export type TimelineZona = {
+  alineacion: "left" | "center" | "right";
+  colorRol: TemaColorRole;
+  fuenteRol: FuenteRol;
+  tamano: number; // px; para el logo, lado mayor conservando proporciones.
+};
+
+export type TimelineDispositivoConfig = {
+  marcoVisible: boolean;
+  fondoRol: TemaColorRole;
+  bordeRol: TemaColorRole;
+  ancho: number; // px, limitado al espacio disponible.
+  alturaMinima: number; // px; crece con el contenido y se iguala entre entradas.
+  margenExterior: number; // px, fuera del marco.
+  rellenoInterior: number; // px, entre marco y contenido.
+  separacion: number; // px, entre zonas.
+  grosorBorde: number; // px.
+  redondeo: number; // px.
+  alineacionVertical: "start" | "center" | "end";
+  orden: TimelineElemento[];
+  zonas: Record<TimelineElemento, TimelineZona>;
+};
+
+export type TimelinePlantillaConfig = {
+  activa: boolean;
+  pc: TimelineDispositivoConfig;
+  movil: TimelineDispositivoConfig;
+};
+
 export type SeccionDiseno = {
   id: string;
   nombre: string;
   titulo: string;
   portadaLibre?: PortadaLibreConfig;
+  timelinePlantilla?: TimelinePlantillaConfig;
   // Config del pie de pagina personalizado (solo aplica cuando tipo === "pie"); reutiliza el modelo de PortadaLibreConfig.
   pie?: PortadaLibreConfig;
   subtituloInterno?: string;

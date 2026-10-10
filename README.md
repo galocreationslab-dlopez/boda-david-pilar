@@ -63,6 +63,40 @@ supabase/
 
 ## Principios arquitectónicos
 
+### Formato compartido del timeline
+
+En **Contenido → Timeline** o en la previsualización de **Diseño → Editar diseño**,
+activa **Usar formato compartido de entradas**. Se guarda en
+`diseno.secciones[].timelinePlantilla`, con ajustes independientes `pc` y `movil`.
+Las secciones antiguas mantienen su diseño hasta activarlo.
+
+Las zonas logo, hora, título y descripción se reordenan y alinean sin posiciones
+absolutas: los textos largos crecen sin solaparse. Todos los tamaños se expresan
+en px. El ancho se limita al espacio disponible; la altura mínima crece hasta
+igualar todas las entradas al contenido más alto. PC concatena horizontalmente
+con desplazamiento cuando es necesario; móvil concatena verticalmente.
+Margen exterior, relleno interior y separación entre zonas son controles distintos.
+En pantallas estrechas se limitan margen y relleno para reservar espacio al mapa.
+Ocultar el marco elimina fondo y borde, pero conserva dimensiones y espacio.
+
+Al activar la plantilla, el tamaño y alineación compartidos del logo prevalecen
+sobre `logoTamano`, `logoAlineacion` y el tamaño global antiguo. Esos valores no
+se borran y vuelven a aplicarse al desactivar la plantilla. Las proporciones de
+cada logo se conservan. Colores y fuentes siguen usando los roles actuales de
+la paleta de la sección y los roles de fuente; no hay una migración de roles.
+La hora, contenido y enlaces Maps siguen perteneciendo a cada entrada.
+Las versiones visuales incluyen colores, roles de fuente y tamaños de texto
+de la plantilla; conservan su activación, distribución, dimensiones y tamaño
+del logo. Las versiones antiguas sin plantilla no cambian estos ajustes.
+
+Pulsar el interior muestra un único mapa con **Cómo llegar** debajo; el marco
+no gira. Pulsar fuera, Escape o mover el foco fuera devuelve el frontal.
+Enter/Espacio abre por teclado. Interactuar con el mapa no gira la tarjeta.
+Sin Maps válido no hay giro; si el mapa falla se muestra un aviso y el enlace
+**Cómo llegar**, sin botones adicionales. Movimiento reducido cambia de cara
+sin animación. La plantilla reserva al menos 320 px de altura para evitar
+mapas diminutos, y la normalización se aplica al guardar y al cargar.
+
 ### Pie de página opcional
 
 En **Contenido / Estructura**, la casilla **Usar pie de página por defecto**

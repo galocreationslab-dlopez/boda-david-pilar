@@ -58,7 +58,7 @@ type Props = {
   onChangeImageTreatment: (key: string, patch: Partial<TratamientoImagen>) => void;
 };
 
-function NumberField({ label, value, onChange, step = 1, min, max, disabled = false }: { label: string; value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; disabled?: boolean }) {
+export function NumberField({ label, value, onChange, step = 1, min, max, disabled = false }: { label: string; value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; disabled?: boolean }) {
   return (
     <label className="block text-[11px] text-stone-600">
       {label}

@@ -11,6 +11,7 @@ import { validateAdminCode } from "@/lib/admin-auth";
 import { getWeddingConfig } from "@/lib/wedding-config-server";
 import { weddingConfig } from "@/config/wedding.config";
 import { normalizeMapsConfig } from "@/lib/portada-libre";
+import { normalizeTimelineTemplates } from "@/lib/timeline-layout";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -172,6 +173,18 @@ export async function POST(
 
   const existing = isRecord(boda.config_json) ? boda.config_json : {};
   const newConfigJson = deepMerge(existing, body);
+  normalizeTimelineTemplates(newConfigJson.diseno);
+  // Una edicion explicita de la plantilla sustituye el estilo de una version aplicada.
+  if (isRecord(body) && isRecord(body.diseno) && Array.isArray(body.diseno.secciones) &&
+    isRecord(newConfigJson.visualSnapshot) && Array.isArray(newConfigJson.visualSnapshot.sections)) {
+    const editedIds = new Set(body.diseno.secciones.filter((section) =>
+      isRecord(section) && section.timelinePlantilla !== undefined).map((section) => section.id));
+    for (const section of newConfigJson.visualSnapshot.sections) {
+      if (isRecord(section) && editedIds.has(section.id) && isRecord(section.style)) {
+        delete section.style.timelinePlantilla;
+      }
+    }
+  }
 
   const { error } = await supabase
     .from("bodas")

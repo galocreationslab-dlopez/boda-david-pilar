@@ -7,12 +7,16 @@
  */
 
 import { OrnamentoDivisor } from "@/components/ui/OrnamentoDivisor";
-import type { AlineacionLogoTimeline, Localizacion, TamanoLogoTimeline } from "@/config/wedding.config";
+import type { AlineacionLogoTimeline, Localizacion, TamanoLogoTimeline, TimelinePlantillaConfig } from "@/config/wedding.config";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
 import ImageMapFlip from "@/components/media/ImageMapFlip";
 import { getGoogleMapsLinkUrl } from "@/lib/portada-libre";
 import { resolveTimelineLogoAlign, resolveTimelineLogoSize, type TimelineLogoDevice } from "@/lib/timeline-logo-size";
-import { useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { normalizeTimelinePlantilla } from "@/lib/timeline-layout";
+import { resolvePortadaColor } from "@/components/wedding/PortadaLibre";
+import { withTextureStyle, type PaletteTexture } from "@/lib/theme-roles";
+import templateStyles from "./TimelinePlantilla.module.css";
+import { useEffect, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 
 export type TimelineComponentKey =
   | "timeline.fecha"
@@ -28,6 +32,10 @@ type Props = {
   timeline: Array<{ id: string; hora: string; titulo: string; descripcion: string; icono: string; imagen?: string; enlaceMaps?: string; enlaceMapsEmbed?: string; logoTamano?: TamanoLogoTimeline; logoAlineacion?: AlineacionLogoTimeline }>;
   // Valor del antiguo slider global de "timeline.icono"; solo se usa si el evento no tiene tamano propio.
   legacyLogoSize?: number;
+  plantilla?: TimelinePlantillaConfig;
+  roleColors?: Record<string, string | undefined>;
+  roleTextures?: Record<string, PaletteTexture>;
+  resolveSrc?: (src: string) => string;
   viewport?: "desktop" | "movil";
   editable?: boolean;
   designMode?: boolean;
@@ -144,6 +152,8 @@ function LogoTimeline({
   style,
   className,
   onClick,
+  sharedSize,
+  resolveSrc = resolveDriveMediaSrc,
 }: {
   punto: PuntoTimeline;
   device: TimelineLogoDevice;
@@ -151,10 +161,14 @@ function LogoTimeline({
   style: CSSProperties;
   className?: string;
   onClick: (event: MouseEvent<HTMLDivElement>) => void;
+  sharedSize?: number;
+  resolveSrc?: (src: string) => string;
 }) {
-  const src = punto.iconoUrl ? resolveDriveMediaSrc(punto.iconoUrl) : "";
+  const src = punto.iconoUrl ? resolveSrc(punto.iconoUrl) : "";
   const ratio = useImageRatio(src);
-  const { size, configured } = resolveTimelineLogoSize(punto.logoTamano, device, Boolean(src), legacyLogoSize);
+  const { size, configured } = sharedSize !== undefined
+    ? { size: sharedSize, configured: true }
+    : resolveTimelineLogoSize(punto.logoTamano, device, Boolean(src), legacyLogoSize);
   const boxWidth = ratio >= 1 ? size : size * ratio;
   const boxHeight = ratio >= 1 ? size / ratio : size;
   const minSlot = configured ? 0 : TIMELINE_LOGO_DEFAULT_SLOT_PX;
@@ -171,8 +185,8 @@ function LogoTimeline({
           aria-hidden="true"
           className="block flex-shrink-0"
           style={{
-            width: `${boxWidth}px`,
-            height: `${boxHeight}px`,
+            width: sharedSize !== undefined ? "100%" : `${boxWidth}px`,
+            height: sharedSize !== undefined ? "100%" : `${boxHeight}px`,
             backgroundColor: "currentColor",
             WebkitMaskImage: `url("${src}")`,
             maskImage: `url("${src}")`,
@@ -192,7 +206,7 @@ function LogoTimeline({
   return (
     <div
       className={`flex flex-shrink-0 items-center justify-center ${className ?? ""}`}
-      style={{ ...style, width: `${slotWidth}px`, height: `${slotHeight}px` }}
+      style={{ ...style, width: sharedSize !== undefined ? `min(100%, ${slotWidth}px)` : `${slotWidth}px`, height: sharedSize !== undefined ? "auto" : `${slotHeight}px`, ...(sharedSize !== undefined ? { aspectRatio: slotWidth / slotHeight } : {}) }}
       onClick={onClick}
     >
       {visual}
@@ -268,10 +282,22 @@ function buildTimelinePoints(
   });
 }
 
+function subscribeMobile(callback: () => void) {
+  const query = window.matchMedia("(max-width: 767px)");
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
+}
+const isMobile = () => window.matchMedia("(max-width: 767px)").matches;
+const serverMobile = () => false;
+
 export function SeccionTimeline({
   localizaciones,
   timeline,
   legacyLogoSize,
+  plantilla,
+  roleColors = {},
+  roleTextures = {},
+  resolveSrc = resolveDriveMediaSrc,
   viewport,
   editable = false,
   designMode = false,
@@ -282,6 +308,9 @@ export function SeccionTimeline({
   onSelectItem,
   headerDivider,
 }: Props) {
+  const mobile = useSyncExternalStore(subscribeMobile, isMobile, serverMobile);
+  const device = viewport ? (viewport === "movil" ? "movil" : "pc") : (mobile ? "movil" : "pc");
+  const template = normalizeTimelinePlantilla(plantilla);
   const puntos = buildTimelinePoints(timeline, localizaciones);
   const showStraightLine = puntos.length > 1 && puntos.length !== 3;
   const forceMobile = viewport === "movil";
@@ -292,7 +321,7 @@ export function SeccionTimeline({
   };
   const styleFor = (key: TimelineComponentKey, base: CSSProperties = {}): CSSProperties => ({
     ...base,
-    ...(componentStyles?.[key] ?? {}),
+    ...(template.activa && key !== "timeline.fecha" ? {} : componentStyles?.[key] ?? {}),
     ...(designMode && selectedComponentKey === key
       ? { outline: "2px solid #b45309", outlineOffset: "2px", borderRadius: "8px" }
       : {}),
@@ -319,6 +348,87 @@ export function SeccionTimeline({
           {headerDivider !== undefined ? headerDivider : <OrnamentoDivisor />}
         </div>
 
+        {template.activa ? (
+          <div
+            className={`${templateStyles.entries} ${device === "movil" ? templateStyles.mobile : ""}`}
+            style={{ "--timeline-width": `${template[device].ancho}px` } as CSSProperties}
+            data-timeline-template={device}
+          >
+            {puntos.map((punto) => {
+              const layout = template[device];
+              const color = (role: string, fallback: string) => resolvePortadaColor("paleta", role, undefined, roleColors) ?? fallback;
+              const frameStyle = withTextureStyle("timeline.card", {
+                backgroundColor: color(layout.fondoRol, "var(--white)"),
+              }, roleTextures[layout.fondoRol], resolveSrc);
+              return (
+                <article key={punto.id} className={templateStyles.entry}>
+                  <div
+                    data-map-frame
+                    className={templateStyles.frame}
+                    style={styleFor("timeline.card", {
+                      ...frameStyle,
+                      ...(!layout.marcoVisible ? { backgroundColor: "transparent", backgroundImage: "none" } : {}),
+                      border: `${layout.grosorBorde}px solid ${layout.marcoVisible ? color(layout.bordeRol, "var(--bronze)") : "transparent"}`,
+                      borderRadius: layout.redondeo,
+                      margin: `min(${layout.margenExterior}px, max(0px, calc((100cqw - 264px) / 2)))`,
+                    })}
+                    onClick={() => select("timeline.card")}
+                  >
+                    <ImageMapFlip
+                      link={punto.mapaLink ?? undefined}
+                      embed={punto.mapaEmbed}
+                      label={punto.titulo}
+                      enabled={!designMode && !editable}
+                      contentSized
+                      showMapHelp={false}
+                      closeOnFocusOutside
+                      className={templateStyles.flip}
+                      frontClassName={templateStyles.front}
+                      frontStyle={{
+                        minHeight: layout.alturaMinima,
+                        padding: `min(${layout.rellenoInterior}px, max(0px, calc((100cqw - 160px) / 2)))`,
+                        gap: layout.separacion,
+                        justifyContent: { start: "flex-start", center: "center", end: "flex-end" }[layout.alineacionVertical],
+                      }}
+                    >
+                      {layout.orden.map((key) => {
+                        const zone = layout.zonas[key];
+                        const textStyle: CSSProperties = {
+                          color: color(zone.colorRol, key === "descripcion" ? "var(--olive-muted)" : "var(--brown-dark)"),
+                          fontFamily: `var(--font-${zone.fuenteRol})`,
+                          fontSize: zone.tamano,
+                          textAlign: zone.alineacion,
+                        };
+                        if (key === "logo") return (
+                          <div key={key} className={templateStyles.logo} style={{ justifyContent: { left: "flex-start", center: "center", right: "flex-end" }[zone.alineacion] }}>
+                            <LogoTimeline punto={punto} device={device} sharedSize={zone.tamano} resolveSrc={resolveSrc}
+                              style={styleFor("timeline.icono", { color: textStyle.color })}
+                              onClick={(event) => { event.stopPropagation(); select("timeline.icono"); }}
+                            />
+                          </div>
+                        );
+                        return (
+                          <p key={key} className={templateStyles.zone}
+                            style={styleFor(`timeline.${key}`, textStyle)}
+                            contentEditable={!designMode && editable}
+                            suppressContentEditableWarning
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (designMode) select(`timeline.${key}`);
+                              else onSelectItem?.(punto.id);
+                            }}
+                            onBlur={(event) => onEditTexto?.(punto.id, key, event.currentTarget.textContent ?? "")}
+                          >{key === "descripcion" ? punto.subtitulo : punto[key]}</p>
+                        );
+                      })}
+                    </ImageMapFlip>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+        <>
         {/* ── Timeline móvil (vertical) ── */}
         <div className={forceMobile ? "space-y-6" : "space-y-6 md:hidden"}>
           {puntos.map((punto) => {
@@ -331,6 +441,8 @@ export function SeccionTimeline({
                 label={punto.titulo}
                 enabled={!designMode && !editable}
                 contentSized
+                showMapHelp={false}
+                closeOnFocusOutside
               >
               <div
                 className="tex-white space-y-3 border px-4 pb-4 pt-3"
@@ -440,6 +552,8 @@ export function SeccionTimeline({
                   label={punto.titulo}
                   enabled={!designMode && !editable}
                   contentSized
+                  showMapHelp={false}
+                  closeOnFocusOutside
                   className="grid row-span-3 grid-rows-subgrid gap-4 min-w-0"
                   frontClassName="grid row-span-3 grid-rows-subgrid justify-items-center gap-4 min-w-0"
                 >
@@ -520,6 +634,8 @@ export function SeccionTimeline({
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

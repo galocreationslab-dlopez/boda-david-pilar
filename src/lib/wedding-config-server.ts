@@ -13,6 +13,7 @@ import { buildFontCssVars, buildFontFaceCss } from "@/lib/theme-fonts";
 import { normalizeAlineacionLogoTimeline, normalizeTamanoLogoTimeline } from "@/lib/timeline-logo-size";
 import { unstable_noStore as noStore } from "next/cache";
 import { normalizeSectionChains } from "@/lib/section-chains";
+import { normalizeTimelinePlantilla } from "@/lib/timeline-layout";
 import { applyVisualSnapshot, assertVisualSnapshot, captureVisualSnapshot, VisualSnapshotError } from "@/lib/visual-versions";
 
 type SectionRow = {
@@ -121,6 +122,7 @@ function normalizeSecciones(config: WeddingConfig): WeddingConfig {
       secciones: normalizeSectionChains(secciones.map((section) => ({
         ...section,
         tipo: normalizeSectionTipo(section.tipo),
+        timelinePlantilla: section.timelinePlantilla ? normalizeTimelinePlantilla(section.timelinePlantilla) : undefined,
         selloUrl: normalizeImageUrl(section.selloUrl),
         distanciaSiguiente: normalizeSectionSpacing(section.distanciaSiguiente),
         portadaLibre: section.portadaLibre
