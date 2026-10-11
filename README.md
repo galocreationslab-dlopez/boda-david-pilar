@@ -227,6 +227,13 @@ El enlace «Volver a la web» del RSVP conserva `inviteCode` y añade
 Este parámetro se conserva en los enlaces internos y no afecta a la
 previsualización de Diseño ni a las visitas normales sin el parámetro.
 
+En **Datos de la boda → RSVP — presentación y cupos**, el checkbox
+**Auto-rellenar los nombres de los invitados en el RSVP** permite activar o
+desactivar los nombres iniciales de la invitación. Está desactivado por defecto,
+también en configuraciones antiguas: se conservan las filas previstas y sus tipos,
+pero con los nombres vacíos. Las respuestas ya guardadas mantienen sus datos.
+El ajuste se aplica al guardar la configuración y volver a abrir el RSVP.
+
 Las rutas RSVP solo devuelven «invitación no encontrada» si la consulta termina
 correctamente y no existe el código. Los fallos de base de datos se registran
 en el servidor; la API responde con 503 y el formulario muestra un aviso con

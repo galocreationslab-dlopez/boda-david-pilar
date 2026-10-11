@@ -144,6 +144,7 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
   const [mostrarChat, setMostrarChat] = useState(config.rsvp?.mostrarChat !== false);
   const [mostrarCupos, setMostrarCupos] = useState(config.rsvp?.mostrarCupos !== false);
   const [cuposLimitantes, setCuposLimitantes] = useState(config.rsvp?.cuposLimitantes !== false);
+  const [autoRellenarInvitados, setAutoRellenarInvitados] = useState(config.rsvp?.autoRellenarInvitados === true);
   const [rsvpTextos, setRsvpTextos] = useState<RsvpTextosFormulario>(config.rsvp?.textos ?? {});
   const [chatTextos, setChatTextos] = useState<RsvpTextosChat>(config.rsvp?.chatTextos ?? {});
   const [compartirTitulo, setCompartirTitulo] = useState(config.compartir?.titulo ?? "");
@@ -318,6 +319,7 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
           mostrarChat,
           mostrarCupos,
           cuposLimitantes,
+          autoRellenarInvitados,
           textos: rsvpTextos,
           chatTextos,
         },
@@ -719,9 +721,17 @@ export default function DatosBodaView({ inviteCode, config }: Props) {
         <div>
           <h2 className="text-base font-semibold text-stone-700">RSVP — presentación y cupos</h2>
           <p className="mt-1 text-sm text-stone-500">
-            Configura la visibilidad del chat y el comportamiento de los cupos para las respuestas de invitados.
+            Configura el auto-rellenado, la visibilidad del chat y el comportamiento de los cupos para las respuestas de invitados.
           </p>
         </div>
+
+        <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
+          <input type="checkbox" checked={autoRellenarInvitados} onChange={(e) => setAutoRellenarInvitados(e.target.checked)} />
+          Auto-rellenar los nombres de los invitados en el RSVP
+        </label>
+        <p className="text-xs text-stone-500">
+          Desactivado, se mantienen las filas previstas con los nombres vacíos. Las respuestas ya guardadas se conservan.
+        </p>
 
         <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
           <input type="checkbox" checked={mostrarChat} onChange={(e) => setMostrarChat(e.target.checked)} />

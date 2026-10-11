@@ -4,7 +4,7 @@ import { test } from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
 
-function loadForm(tipoInvitacion) {
+function loadForm(tipoInvitacion, overrides = {}) {
   const states = [];
   let cursor = 0;
   const texts = {
@@ -62,10 +62,94 @@ function loadForm(tipoInvitacion) {
           necesidades: { alojamiento: "Hotel", alergias: "Nuts" },
           transporte: ["granada-beas", "beas-torre", "torre-granada"],
         }],
+        ...overrides,
       });
     },
   };
 }
+
+for (const autoRellenarInvitados of [undefined, false, true]) {
+  test(`initial invitation rows respect auto-fill=${autoRellenarInvitados}`, () => {
+    const app = loadForm("familia", {
+      rsvpConfig: { autoRellenarInvitados },
+      personas: ["adulto", "adulto", "adolescente", "nino", "bebe"].map((tipo_persona, index) => ({
+        id: "",
+        nombre: index < 2 ? `Nombre${index} Apellido` : "",
+        tipo_persona,
+        estado_asistencia: "pendiente",
+      })),
+    });
+    app.render();
+    assert.equal(app.states[1].length, 5);
+    assert.deepEqual(Array.from(app.states[1], (p) => p.tipo_persona),
+      ["adulto", "adulto", "adolescente", "nino", "bebe"]);
+    for (const [index, person] of app.states[1].entries()) {
+      assert.equal(person.nombre, autoRellenarInvitados && index < 2 ? `Nombre${index}` : "");
+      assert.equal(person.apellidos, autoRellenarInvitados && index < 2 ? "Apellido" : "");
+      assert.equal(person.asistira, "pendiente");
+    }
+  });
+
+  for (const tipo_invitacion of ["pareja", "soltero"]) {
+    for (const nombres of [{ nombre1: "Ana", nombre2: "Luis" }, {}]) {
+      test(`${tipo_invitacion} fallback respects auto-fill=${autoRellenarInvitados} with ${JSON.stringify(nombres)}`, () => {
+        const app = loadForm(tipo_invitacion, {
+          rsvpConfig: { autoRellenarInvitados },
+          invitacion: { nombre_visible: "Invitados", tipo_invitacion, ...nombres },
+          personas: [],
+        });
+        app.render();
+        const expectedNames = nombres.nombre1
+          ? tipo_invitacion === "pareja" ? ["Ana", "Luis"] : ["Ana"]
+          : ["Invitados"];
+        assert.deepEqual(Array.from(app.states[1], (p) => p.nombre),
+          autoRellenarInvitados ? expectedNames : expectedNames.map(() => ""));
+      });
+    }
+  }
+
+  test(`saved responses remain intact with auto-fill=${autoRellenarInvitados}`, () => {
+    const app = loadForm("pareja", { rsvpConfig: { autoRellenarInvitados } });
+    app.render();
+    const person = app.states[1][0];
+    assert.equal(person.id, "existing");
+    assert.equal(person.nombre, "Existing");
+    assert.equal(person.apellidos, "Guest");
+    assert.equal(person.alojamiento, "Hotel");
+    assert.equal(person.alergias, "Nuts");
+    assert.equal(person.transporte_g_to_b, true);
+    assert.equal(person.transporte_b_to_t, true);
+    assert.equal(person.transporte_t_to_g, true);
+  });
+}
+
+test("RSVP normalization defaults auto-fill off and preserves explicit settings", () => {
+  const path = "../src/lib/wedding-config-server.ts";
+  const source = readFileSync(new URL(path, import.meta.url), "utf8");
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
+  const declaration = file.statements.find((node) =>
+    ts.isFunctionDeclaration(node) && node.name?.text === "normalizeRsvpConfig");
+  assert.ok(declaration);
+  const compiled = ts.transpileModule(`${declaration.getText(file)}; exports.normalize = normalizeRsvpConfig;`, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  const exports = {};
+  vm.runInNewContext(compiled, {
+    exports,
+    isRecord: (value) => value !== null && typeof value === "object" && !Array.isArray(value),
+    normalizeRsvpFormTextos: (value) => value ?? {},
+    normalizeRsvpChatTextos: (value) => value ?? {},
+  });
+  for (const rsvp of [undefined, {}, { autoRellenarInvitados: false }, { autoRellenarInvitados: true }]) {
+    const normalized = exports.normalize({ rsvp }).rsvp;
+    assert.equal(normalized.autoRellenarInvitados, rsvp?.autoRellenarInvitados === true);
+    assert.equal(normalized.mostrarChat, true);
+    assert.equal(normalized.mostrarCupos, true);
+    assert.equal(normalized.cuposLimitantes, true);
+    assert.equal(exports.normalize({ rsvp: normalized }).rsvp.autoRellenarInvitados,
+      normalized.autoRellenarInvitados);
+  }
+});
 
 function findButton(node, label) {
   if (!node || typeof node !== "object") return undefined;

@@ -335,6 +335,7 @@ function normalizeRsvpConfig(config: WeddingConfig): WeddingConfig {
       mostrarChat: rsvp.mostrarChat !== false,
       mostrarCupos: rsvp.mostrarCupos !== false,
       cuposLimitantes: rsvp.cuposLimitantes !== false,
+      autoRellenarInvitados: rsvp.autoRellenarInvitados === true,
       textos: normalizeRsvpFormTextos(rsvp.textos),
       chatTextos: normalizeRsvpChatTextos(rsvp.chatTextos),
     },

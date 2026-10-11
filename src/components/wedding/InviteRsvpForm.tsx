@@ -64,6 +64,7 @@ type PersonaForm = {
 
 export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }: InvitacionProps) {
   const t = mergeRsvpTextos(DEFAULT_RSVP_TEXTOS_FORMULARIO, rsvpConfig?.textos);
+  const autoRellenarInvitados = rsvpConfig?.autoRellenarInvitados === true;
   const defaultAsistencia: "si" | "no" | "puede" =
     invitacion.estado === "confirmada"
       ? "si"
@@ -85,7 +86,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
       if (invitacion.nombre1) {
         list.push({
           id: undefined,
-          nombre: invitacion.nombre1,
+          nombre: autoRellenarInvitados ? invitacion.nombre1 : "",
           apellidos: "",
           edad: "",
           tipo_persona: "adulto",
@@ -105,7 +106,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
       if (invitacion.tipo_invitacion === "pareja" && invitacion.nombre2) {
         list.push({
           id: undefined,
-          nombre: invitacion.nombre2 || "",
+          nombre: autoRellenarInvitados ? invitacion.nombre2 || "" : "",
           apellidos: "",
           edad: "",
           tipo_persona: "adulto",
@@ -126,7 +127,7 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
       if (!list.length) {
         list.push({
           id: undefined,
-          nombre: invitacion.nombre_visible || "Invitado",
+          nombre: autoRellenarInvitados ? invitacion.nombre_visible || "Invitado" : "",
           apellidos: "",
           edad: "",
           tipo_persona: "adulto",
@@ -149,10 +150,11 @@ export function InviteRsvpForm({ inviteCode, invitacion, personas, rsvpConfig }:
     return personas.map((p) => {
       const necesidades = p.necesidades ?? {};
       const [nombreBase, ...resto] = (p.nombre || "").trim().split(/\s+/);
+      const conservarNombre = Boolean(p.id) || autoRellenarInvitados;
       return {
       id: p.id,
-      nombre: nombreBase || p.nombre,
-      apellidos: p.apellidos ?? resto.join(" "),
+      nombre: conservarNombre ? nombreBase || p.nombre : "",
+      apellidos: conservarNombre ? p.apellidos ?? resto.join(" ") : "",
       edad: p.edad?.toString() || "",
       tipo_persona: getTipoPersona(p.tipo_persona),
       asistira:

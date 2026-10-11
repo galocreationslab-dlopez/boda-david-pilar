@@ -705,6 +705,7 @@ export type RsvpConfig = {
   mostrarChat?: boolean;
   mostrarCupos?: boolean;
   cuposLimitantes?: boolean;
+  autoRellenarInvitados?: boolean;
   textos?: RsvpTextosFormulario;
   chatTextos?: RsvpTextosChat;
 };
@@ -1166,5 +1167,6 @@ export const weddingConfig: WeddingConfig = {
     mostrarChat: true,
     mostrarCupos: true,
     cuposLimitantes: true,
+    autoRellenarInvitados: false,
   },
 };
