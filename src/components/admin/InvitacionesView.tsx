@@ -3,6 +3,7 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import { computeInvitacionEstado } from "@/lib/rsvp-status";
+import { composeInvitationMessage, type InvitationMessageConfig } from "@/lib/invitation-message";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Nec = {
@@ -65,13 +66,13 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-function CopyLinkButton({ code, className = "" }: { code: string; className?: string }) {
+function CopyLinkButton({ code, message, className = "" }: { code: string; message: InvitationMessageConfig; className?: string }) {
   const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
   const onClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = buildInviteUrl(code);
-    const ok = await copyToClipboard(url);
-    if (!ok) window.prompt("Copia el enlace:", url);
+    const text = composeInvitationMessage(buildInviteUrl(code), message);
+    const ok = await copyToClipboard(text);
+    if (!ok) window.prompt("No se pudo copiar automáticamente. Copia la invitación:", text);
     setStatus(ok ? "ok" : "error");
     setTimeout(() => setStatus("idle"), 2000);
   };
@@ -81,7 +82,7 @@ function CopyLinkButton({ code, className = "" }: { code: string; className?: st
       onClick={onClick}
       className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${status === "ok" ? "bg-emerald-700 text-white" : "bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800"} ${className}`}
     >
-      {status === "ok" ? "✓ ¡Copiado!" : "🔗 Copiar enlace"}
+      {status === "ok" ? "✓ ¡Copiado!" : "🔗 Copiar invitación"}
     </button>
   );
 }
@@ -208,7 +209,7 @@ function withAsistentes(inv: Invitacion, asistentes: Asistente[]): Invitacion {
   return { ...inv, asistentes, estado: computeInvitacionEstado(asistentes.map((a) => a.estado_asistencia)) };
 }
 
-function InvitacionRow({ inv, adminCode, selected, onSelect, onDeleted, onChange, unreadMessages }: { inv: Invitacion; adminCode: string; selected: boolean; onSelect: (id: string) => void; onDeleted: (id: string) => void; onChange: (id: string, updater: (inv: Invitacion) => Invitacion) => void; unreadMessages: number }) {
+function InvitacionRow({ inv, adminCode, selected, onSelect, onDeleted, onChange, unreadMessages, message }: { inv: Invitacion; adminCode: string; selected: boolean; onSelect: (id: string) => void; onDeleted: (id: string) => void; onChange: (id: string, updater: (inv: Invitacion) => Invitacion) => void; unreadMessages: number; message: InvitationMessageConfig }) {
   const setInv = (updater: (inv: Invitacion) => Invitacion) => onChange(inv.id, updater);
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -265,7 +266,7 @@ function InvitacionRow({ inv, adminCode, selected, onSelect, onDeleted, onChange
             <span title="Chats sin leer" className={unreadMessages > 0 ? "text-amber-700 font-semibold" : "text-stone-300"}>💡 {unreadMessages}</span>
           </div>
           <div className="flex items-center gap-3">
-            <CopyLinkButton code={inv.invite_code} />
+            <CopyLinkButton code={inv.invite_code} message={message} />
             <button onClick={toggleEditing} className="hidden text-xs text-amber-600 hover:text-amber-800 sm:inline">Editar</button>
             <button onClick={delInv} className="hidden text-xs text-red-400 hover:text-red-600 sm:inline">Eliminar</button>
           </div>
@@ -407,13 +408,39 @@ function exportExcel(invitaciones: Invitacion[]) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function InvitacionesView({ inviteCode, invitaciones: init, unreadByInvitationId }: { inviteCode: string; invitaciones: Invitacion[]; unreadByInvitationId: Record<string, number> }) {
+export default function InvitacionesView({ inviteCode, invitaciones: init, unreadByInvitationId, mensajeInvitacion }: { inviteCode: string; invitaciones: Invitacion[]; unreadByInvitationId: Record<string, number>; mensajeInvitacion: InvitationMessageConfig }) {
   const [invitaciones, setInvitaciones] = useState(init);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filtro, setFiltro] = useState<"todos"|"confirmada"|"pendiente"|"rechazada"|"sin_respuesta"|"chat_no_leido">("todos");
   const [busqueda, setBusqueda] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [savedMessage, setSavedMessage] = useState(mensajeInvitacion);
+  const [messageDraft, setMessageDraft] = useState(mensajeInvitacion);
+  const [savingMessage, setSavingMessage] = useState(false);
+  const [messageNotice, setMessageNotice] = useState<{ error: boolean; text: string } | null>(null);
+
+  const saveMessage = async () => {
+    setSavingMessage(true);
+    setMessageNotice(null);
+    try {
+      const res = await fetch(`/api/admin/${inviteCode}/config`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensajeInvitacion: messageDraft }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "No se pudo guardar el mensaje de invitación");
+      }
+      setSavedMessage({ ...messageDraft });
+      setMessageNotice({ error: false, text: "Mensaje guardado. Los botones de copiar ya utilizan esta configuración." });
+    } catch (error) {
+      setMessageNotice({ error: true, text: error instanceof Error ? error.message : "No se pudo guardar el mensaje de invitación" });
+    } finally {
+      setSavingMessage(false);
+    }
+  };
 
   const filtradas = invitaciones
     .filter((i) => {
@@ -472,6 +499,30 @@ export default function InvitacionesView({ inviteCode, invitaciones: init, unrea
         </div>
       </div>
 
+      <section className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4 sm:p-5" aria-labelledby="invitation-message-heading">
+        <h2 id="invitation-message-heading" className="font-semibold text-stone-800">Mensaje de invitación para WhatsApp</h2>
+        <p className="text-sm text-stone-500">Texto común para todas las invitaciones. No cambia el texto que se muestra dentro de la web.</p>
+        <div>
+          <label htmlFor="invitation-message-text" className="label-field">Texto libre</label>
+          <textarea id="invitation-message-text" rows={6} className="input-field" disabled={savingMessage} value={messageDraft.texto} onChange={(e) => { setMessageDraft((m) => ({ ...m, texto: e.target.value })); setMessageNotice(null); }} aria-describedby="invitation-message-help" />
+          <p id="invitation-message-help" className="mt-1 text-xs text-stone-500">Puedes usar emojis y saltos de línea. En WhatsApp: *negrita*, _cursiva_ y ~tachado~. Si lo dejas vacío, se copiará solo el enlace.</p>
+        </div>
+        <div>
+          <label htmlFor="invitation-message-position" className="label-field">Posición del enlace</label>
+          <select id="invitation-message-position" className="input-field" disabled={savingMessage} value={messageDraft.posicionEnlace} onChange={(e) => { setMessageDraft((m) => ({ ...m, posicionEnlace: e.target.value === "principio" ? "principio" : "final" })); setMessageNotice(null); }}>
+            <option value="principio">Al principio</option>
+            <option value="final">Al final</option>
+          </select>
+        </div>
+        <div>
+          <p className="label-field">Vista previa (el enlace se sustituye por el de cada invitación)</p>
+          <pre className="whitespace-pre-wrap break-words rounded-xl bg-stone-50 p-3 font-sans text-sm text-stone-700">{composeInvitationMessage("[Enlace personal de la invitación]", messageDraft)}</pre>
+        </div>
+        <button type="button" disabled={savingMessage} onClick={saveMessage} className="rounded-xl bg-stone-800 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-700 disabled:opacity-50">{savingMessage ? "Guardando..." : "Guardar mensaje"}</button>
+        <p className="text-xs text-stone-500">Guarda los cambios para aplicarlos a los botones de copiar. El enlace se separa del texto con una línea en blanco.</p>
+        {messageNotice && <p role={messageNotice.error ? "alert" : "status"} className={`text-sm ${messageNotice.error ? "text-red-600" : "text-emerald-700"}`}>{messageNotice.text}</p>}
+      </section>
+
       {/* Resumen */}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
         {[{l:"Total",v:totales.total,c:"bg-stone-100"},{l:"Confirmadas",v:totales.confirmadas,c:"bg-emerald-50"},{l:"Pendientes",v:totales.pendientes,c:"bg-amber-50"},{l:"Rechazadas",v:totales.rechazadas,c:"bg-red-50"},{l:"Sin respuesta",v:totales.sin_respuesta,c:"bg-stone-50 border border-stone-200"}].map(({l,v,c}) => (
@@ -503,7 +554,7 @@ export default function InvitacionesView({ inviteCode, invitaciones: init, unrea
       {/* Lista */}
       <div className="space-y-2">
         {filtradas.map((inv) => (
-          <InvitacionRow key={inv.id} inv={inv} adminCode={inviteCode} selected={selected.has(inv.invite_code)} onSelect={toggleSelect} onDeleted={handleDeleted} onChange={handleChanged} unreadMessages={unreadByInvitationId[inv.id] ?? 0} />
+          <InvitacionRow key={inv.id} inv={inv} adminCode={inviteCode} selected={selected.has(inv.invite_code)} onSelect={toggleSelect} onDeleted={handleDeleted} onChange={handleChanged} unreadMessages={unreadByInvitationId[inv.id] ?? 0} message={savedMessage} />
         ))}
         {filtradas.length===0 && <p className="py-12 text-center text-sm text-stone-400">No hay invitaciones con estos criterios.</p>}
       </div>

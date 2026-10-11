@@ -5,6 +5,8 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import InvitacionesView from "@/components/admin/InvitacionesView";
+import { getWeddingConfig } from "@/lib/wedding-config-server";
+import { DEFAULT_INVITATION_MESSAGE } from "@/lib/invitation-message";
 
 async function getData() {
   const supabase = createServerClient();
@@ -60,6 +62,6 @@ export default async function InvitacionesPage({
   params: Promise<{ inviteCode: string }>;
 }) {
   const { inviteCode } = await params;
-  const data = await getData();
-  return <InvitacionesView inviteCode={inviteCode} invitaciones={data.invitaciones} unreadByInvitationId={data.unreadByInvitationId} />;
+  const [data, config] = await Promise.all([getData(), getWeddingConfig()]);
+  return <InvitacionesView inviteCode={inviteCode} invitaciones={data.invitaciones} unreadByInvitationId={data.unreadByInvitationId} mensajeInvitacion={config.mensajeInvitacion ?? DEFAULT_INVITATION_MESSAGE} />;
 }

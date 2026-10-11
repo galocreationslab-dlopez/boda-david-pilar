@@ -63,6 +63,20 @@ supabase/
 
 ## Principios arquitectónicos
 
+### Mensaje para copiar invitaciones
+
+En **Invitaciones**, el bloque **Mensaje de invitación para WhatsApp** permite
+guardar un texto común y colocar el enlace al principio o al final. Admite
+texto libre, emojis, saltos de línea y marcadores de WhatsApp: `*negrita*`,
+`_cursiva_` y `~tachado~`. Se copian los marcadores; WhatsApp aplica el formato.
+
+Tras pulsar **Guardar mensaje**, **Copiar invitación** copia el texto guardado
+y el enlace personal de esa fila, separados por una línea en blanco.
+Los cambios sin guardar solo afectan a la vista previa. Si el texto está vacío
+o solo contiene espacios, se copia únicamente el enlace, como antes.
+Esta configuración se guarda en `bodas.config_json.mensajeInvitacion`, sin
+migraciones nuevas, y no modifica el texto personalizado dentro de la web.
+
 ### Carga de imagenes: fase 1, sin modificar originales
 
 La portada libre y el pie personalizado montan solo el lienzo del dispositivo

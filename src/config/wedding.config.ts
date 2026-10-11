@@ -6,6 +6,8 @@
  * En fase SaaS, este objeto vendrá de Supabase filtrado por wedding_id.
  */
 
+import type { InvitationMessageConfig } from "@/lib/invitation-message";
+
 export type EventoHistoria = {
   id: string;
   fecha: string;        // "Verano 2022"
@@ -824,6 +826,7 @@ export type WeddingConfig = {
   drive: DriveConfig;
   rsvp?: RsvpConfig;
   compartir?: CompartirConfig;
+  mensajeInvitacion?: InvitationMessageConfig;
 };
 
 /** Vista previa al compartir el enlace (Open Graph / WhatsApp). Vacío = fallback. */

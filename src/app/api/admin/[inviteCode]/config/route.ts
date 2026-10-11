@@ -127,6 +127,13 @@ export async function POST(
   }
 
   const body: unknown = await req.json();
+  if (isRecord(body) && body.mensajeInvitacion !== undefined) {
+    const message = body.mensajeInvitacion;
+    if (!isRecord(message) || typeof message.texto !== "string" ||
+      (message.posicionEnlace !== "principio" && message.posicionEnlace !== "final")) {
+      return NextResponse.json({ error: "El mensaje de invitacion debe contener texto libre y una posicion de enlace: principio o final." }, { status: 400 });
+    }
+  }
   const mapsError = normalizeMapsConfig(body);
   if (mapsError) return NextResponse.json({ error: mapsError }, { status: 400 });
   if (isRecord(body) && isRecord(body.diseno)) {
