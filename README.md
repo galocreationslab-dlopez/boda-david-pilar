@@ -97,6 +97,15 @@ El lacre sigue teniendo prioridad alta. Las precargas de textura y sello seco
 del sobre llevan una condicion de dispositivo. No se alteran archivos, URLs
 guardadas, resoluciones, perfiles ICC, formatos ni compresion.
 
+Los enlaces con y sin `inviteCode` usan las mismas copias publicadas y la misma
+secuencia de carga. Sin codigo no se consulta la invitacion ni se muestra el
+boton de RSVP. El lacre y el sello seco con URL de imagen raster (PNG, JPG,
+WebP, GIF, AVIF o BMP) se precargan como imagen y se decodifican desde esa misma
+URL, sin descargarlos con `fetch` ni crear una copia en memoria como Blob.
+Los SVG y las URLs de tipo desconocido siguen inspeccionandose para conservar
+sus animaciones e interacciones. La carga inicial no depende de haber visitado
+antes otro enlace de la invitacion.
+
 Para validar, usar la pestaña Network con cache desactivada en movil y PC:
 comprobar que no se solicita la pintura del otro dispositivo. Dejar el sobre
 cerrado y verificar el orden de descargas en Network. El atributo

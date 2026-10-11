@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { parseNativeSvgAnimations, svgMarkupHandlesClick, type NativeSvgAnimationOption } from "@/components/motion/AutoDrawSVG";
 import { decodeIntroImage, INTRO_RESOURCE_TIMEOUT_MS } from "@/components/motion/useIntroResources";
+import { isRasterImageSrc } from "@/lib/drive-image";
 
 type ArtworkKind = "loading" | "failed" | "staticSvg" | "interactiveSvg" | "animatedSvg" | "image";
 type ArtworkDetection = { kind: ArtworkKind; nativeAnimationOptions: NativeSvgAnimationOption[]; source?: string };
@@ -24,6 +25,10 @@ function classifySvgMarkup(markup: string): ArtworkDetection {
 async function detectArtwork(src: string, signal: AbortSignal, retainUrl: (url: string) => void): Promise<ArtworkDetection> {
   const trimmed = src.trim();
   if (trimmed.startsWith("<svg") || trimmed.startsWith("<?xml")) return { ...classifySvgMarkup(trimmed), source: trimmed };
+  if (isRasterImageSrc(trimmed)) {
+    await decodeIntroImage(src, signal);
+    return { ...IMAGE, source: src };
+  }
 
   let res: Response;
   try {

@@ -17,3 +17,7 @@ export function resolveDriveMediaSrc(src?: string | null): string {
   return `/api/resources/preview?src=${encodeURIComponent(value)}`;
 }
 
+/** Only explicit raster paths can bypass SVG inspection; Drive proxies still need detection. */
+export function isRasterImageSrc(src: string): boolean {
+  return /\.(?:png|jpe?g|webp|gif|avif|bmp)$/i.test(src.trim().split(/[?#]/, 1)[0]);
+}

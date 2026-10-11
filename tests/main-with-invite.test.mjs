@@ -83,7 +83,11 @@ test("button appears while invitation request is still pending and navigates to 
 
 test("missing or blank invitation codes hide the button", () => {
   for (const search of ["", "?inviteCode=", "?inviteCode=%20%20"]) {
-    assert.equal(mount({ search }).render().mostrarBotonConfirmar, false);
+    const app = mount({ search });
+    assert.equal(app.render().mostrarBotonConfirmar, false);
+    assert.equal(app.requests.length, 0);
+    app.render().onConfirmarClick();
+    assert.deepEqual(app.routes, []);
   }
   assert.equal(mount({ search: "?invitecode=TEST" }).render().mostrarBotonConfirmar, true);
 });

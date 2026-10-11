@@ -24,7 +24,7 @@ import { buildFontCssVars, getComponentFontStyle } from "@/lib/theme-fonts";
 import { DEFAULT_TEXTO_INVITACION, normalizeIntroConfig, type SeparadorDiseno, type TipoSeccionDiseno, type SeccionDiseno, type TemaColorRole, type TemaPaleta } from "@/config/wedding.config";
 import IntroReveal from "@/components/motion/IntroReveal";
 import PostIntroSectionsGate from "@/components/motion/PostIntroSectionsGate";
-import { resolveDriveMediaSrc } from "@/lib/drive-image";
+import { isRasterImageSrc, resolveDriveMediaSrc } from "@/lib/drive-image";
 import type { CSSProperties } from "react";
 import WeddingViewport from "@/components/layout/WeddingViewport";
 import { getEnvelopeResources } from "@/lib/intro-envelope-resources";
@@ -724,9 +724,9 @@ export default function WeddingPage({
 
   const contentWithIntro = introSection?.intro ? (
     <>
-      {lacreSrc && !lacreSrc.trim().startsWith("<") ? <link rel="preload" href={lacreSrc} as="fetch" crossOrigin="anonymous" fetchPriority="high" /> : null}
+      {lacreSrc && !lacreSrc.trim().startsWith("<") ? <link rel="preload" href={lacreSrc} as={isRasterImageSrc(lacreSrc) ? "image" : "fetch"} crossOrigin={isRasterImageSrc(lacreSrc) ? undefined : "anonymous"} fetchPriority="high" /> : null}
       {envelopeStampSrcs.map(({ src, media }) => (
-        <link key={`${media}:${src}`} rel="preload" href={src} media={media} as="fetch" crossOrigin="anonymous" fetchPriority="high" />
+        <link key={`${media}:${src}`} rel="preload" href={src} media={media} as={isRasterImageSrc(src) ? "image" : "fetch"} crossOrigin={isRasterImageSrc(src) ? undefined : "anonymous"} fetchPriority="high" />
       ))}
       {envelopeImageSrcs.map(({ src, media }) => (
         <link key={`${media}:${src}`} rel="preload" href={src} media={media} as="image" fetchPriority="high" />
