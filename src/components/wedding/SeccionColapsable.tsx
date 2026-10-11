@@ -7,6 +7,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import type { SeccionDiseno } from "@/config/wedding.config";
 
 const SectionChainContext = createContext<{
   ids: string[];
@@ -39,6 +40,8 @@ type Props = {
   id: string;
   anchorAliases?: string[];
   titulo?: string;
+  tituloAlineacion?: SeccionDiseno["tituloAlineacion"];
+  tituloPaddingIzquierdoPx?: number;
   abiertaPorDefecto: boolean;
   ocultarCabecera?: boolean;
   bgColor?: string;
@@ -60,6 +63,8 @@ export function SeccionColapsable({
   id,
   anchorAliases = [],
   titulo,
+  tituloAlineacion = "izquierda",
+  tituloPaddingIzquierdoPx = 0,
   abiertaPorDefecto,
   ocultarCabecera = false,
   bgColor = "var(--cream)",
@@ -144,20 +149,27 @@ export function SeccionColapsable({
       {!ocultarCabecera && !esContinuacion && (
         <button
           onClick={() => setAbierta(!abierta)}
-          className={`group flex w-full items-center justify-between gap-4 px-4 py-4 sm:px-12 sm:py-5 ${texClass}`}
+          className={`group flex w-full items-center justify-between gap-4 px-4 py-4 [--section-header-padding:1rem] sm:px-12 sm:py-5 sm:[--section-header-padding:3rem] ${texClass}`}
           style={{
             borderBottom: abierta ? "1px solid var(--cream-dark)" : "none",
             backgroundColor: bgColor,
             ...(sectionStyle ?? {}),
+            ...(tituloAlineacion === "personalizada"
+              ? { paddingLeft: `min(${tituloPaddingIzquierdoPx}px, max(0px, calc(100% - var(--section-header-padding) - 56px - 1em)))` }
+              : {}),
           }}
           aria-expanded={abierta}
           aria-controls={chain ? chain.ids.map((sectionId) => `contenido-${sectionId}`).join(" ") : `contenido-${id}`}
         >
           <span
-            className="font-display text-left font-light"
+            className="min-w-0 flex-1 font-display text-left font-light"
             style={{
               color: "var(--brown-dark)",
               ...(titleStyle ?? {}),
+              textAlign: tituloAlineacion === "centrada" ? "center" : tituloAlineacion === "derecha" ? "right" : "left",
+              // Equilibrar los 40px del icono y los 16px del gap para centrar en toda la cabecera.
+              ...(tituloAlineacion === "centrada" ? { paddingLeft: 56 } : {}),
+              overflowWrap: "anywhere",
               fontFamily: "var(--font-display)",
               fontSize: "clamp(1.25rem, calc(3 * var(--wedding-vw, 1vw)), 1.875rem)",
               ...(designMode && titleSelected

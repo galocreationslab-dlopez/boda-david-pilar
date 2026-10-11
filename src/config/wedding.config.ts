@@ -554,6 +554,8 @@ export type SeccionDiseno = {
   nombre: string;
   titulo: string;
   portadaLibre?: PortadaLibreConfig;
+  tituloAlineacion?: "izquierda" | "centrada" | "derecha" | "personalizada";
+  tituloPaddingIzquierdoPx?: number;
   timelinePlantilla?: TimelinePlantillaConfig;
   // Config del pie de pagina personalizado (solo aplica cuando tipo === "pie"); reutiliza el modelo de PortadaLibreConfig.
   pie?: PortadaLibreConfig;

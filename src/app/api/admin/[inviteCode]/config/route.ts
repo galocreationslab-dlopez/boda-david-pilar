@@ -131,6 +131,18 @@ export async function POST(
   if (mapsError) return NextResponse.json({ error: mapsError }, { status: 400 });
   if (isRecord(body) && isRecord(body.diseno)) {
     const design = body.diseno;
+    if (Array.isArray(design.secciones)) {
+      for (const section of design.secciones) {
+        if (!isRecord(section)) continue;
+        if (section.tituloAlineacion !== undefined && (typeof section.tituloAlineacion !== "string" || !["izquierda", "centrada", "derecha", "personalizada"].includes(section.tituloAlineacion))) {
+          return NextResponse.json({ error: "La posicion del titulo debe ser izquierda, centrada, derecha o personalizada." }, { status: 400 });
+        }
+        const padding = section.tituloPaddingIzquierdoPx;
+        if (padding !== undefined && (typeof padding !== "number" || !Number.isFinite(padding) || padding < 0)) {
+          return NextResponse.json({ error: "El padding izquierdo del titulo debe ser un numero finito en px, mayor o igual a cero." }, { status: 400 });
+        }
+      }
+    }
     if (design.usarPieFallback !== undefined && typeof design.usarPieFallback !== "boolean") {
       return NextResponse.json({ error: "La opcion de usar el pie de pagina por defecto debe ser un booleano." }, { status: 400 });
     }

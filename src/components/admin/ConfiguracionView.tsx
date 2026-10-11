@@ -8,6 +8,7 @@ import { buildSectionGroups, canLeadSectionChain, getPieSectionForProfile, getSe
 import PortadaLibre from "@/components/wedding/PortadaLibre";
 import PortadaLibreEditor from "@/components/admin/PortadaLibreEditor";
 import TimelinePlantillaEditor from "@/components/admin/TimelinePlantillaEditor";
+import SectionTitleControls from "@/components/admin/SectionTitleControls";
 import VisualVersionsPanel from "@/components/admin/VisualVersionsPanel";
 import { applyVisualSnapshot, captureVisualSnapshot, type VisualSnapshot } from "@/lib/visual-versions";
 import WeddingViewport from "@/components/layout/WeddingViewport";
@@ -1560,6 +1561,8 @@ export default function ConfiguracionView({
               abiertaPorDefecto={section.portadaLibre?.abiertaPorDefecto !== false}
               ocultarCabecera={section.portadaLibre?.colapsable === false}
               titleStyle={{ color: sectionRoleColors?.tituloSeccion }}
+              tituloAlineacion={section.tituloAlineacion}
+              tituloPaddingIzquierdoPx={section.tituloPaddingIzquierdoPx}
             >
               <PortadaLibre
                 config={section.portadaLibre}
@@ -1592,6 +1595,8 @@ export default function ConfiguracionView({
               sectionStyle={componentStyles["historia.fondoSeccion"]}
               sectionSelected={designMode && activeSelectedDesignComponentKey === "historia.fondoSeccion"}
               titleStyle={componentStyles["historia.tituloSeccion"]}
+              tituloAlineacion={section.tituloAlineacion}
+              tituloPaddingIzquierdoPx={section.tituloPaddingIzquierdoPx}
               titleSelected={designMode && activeSelectedDesignComponentKey === "historia.tituloSeccion"}
               onSelectSectionBackground={() => setSelectedDesignComponentKey("historia.fondoSeccion")}
               onSelectTitleDesign={() => setSelectedDesignComponentKey("historia.tituloSeccion")}
@@ -1621,6 +1626,8 @@ export default function ConfiguracionView({
               sectionStyle={componentStyles["timeline.fondoSeccion"]}
               sectionSelected={designMode && activeSelectedDesignComponentKey === "timeline.fondoSeccion"}
               titleStyle={componentStyles["timeline.tituloSeccion"]}
+              tituloAlineacion={section.tituloAlineacion}
+              tituloPaddingIzquierdoPx={section.tituloPaddingIzquierdoPx}
               titleSelected={designMode && activeSelectedDesignComponentKey === "timeline.tituloSeccion"}
               onSelectSectionBackground={() => setSelectedDesignComponentKey("timeline.fondoSeccion")}
               onSelectTitleDesign={() => setSelectedDesignComponentKey("timeline.tituloSeccion")}
@@ -1646,6 +1653,8 @@ export default function ConfiguracionView({
           {section.tipo === "carrusel" && (
             <SeccionColapsable id={`canvas-${section.id}`} titulo={section.titulo || "Fotos"} abiertaPorDefecto={openInCanvas} bgColor="var(--cream)" designMode={designMode}
               sectionStyle={componentStyles["carrusel.fondoSeccion"]} titleStyle={componentStyles["carrusel.tituloSeccion"]}
+              tituloAlineacion={section.tituloAlineacion}
+              tituloPaddingIzquierdoPx={section.tituloPaddingIzquierdoPx}
               sectionSelected={designMode && activeSelectedDesignComponentKey === "carrusel.fondoSeccion"}
               titleSelected={designMode && activeSelectedDesignComponentKey === "carrusel.tituloSeccion"}
               onSelectSectionBackground={() => setSelectedDesignComponentKey("carrusel.fondoSeccion")}
@@ -1663,6 +1672,8 @@ export default function ConfiguracionView({
               sectionStyle={componentStyles["galeria.fondoSeccion"]}
               sectionSelected={designMode && activeSelectedDesignComponentKey === "galeria.fondoSeccion"}
               titleStyle={componentStyles["galeria.tituloSeccion"]}
+              tituloAlineacion={section.tituloAlineacion}
+              tituloPaddingIzquierdoPx={section.tituloPaddingIzquierdoPx}
               titleSelected={designMode && activeSelectedDesignComponentKey === "galeria.tituloSeccion"}
               onSelectSectionBackground={() => setSelectedDesignComponentKey("galeria.fondoSeccion")}
               onSelectTitleDesign={() => setSelectedDesignComponentKey("galeria.tituloSeccion")}
@@ -2530,6 +2541,10 @@ export default function ConfiguracionView({
                       <p>Rol activo: {selectedComponentRole ? getRoleLabelForUI(selectedComponentRole) : "-"}</p>
                     </div>
 
+                    {editingSectionDraft && (
+                      <SectionTitleControls section={editingSectionDraft} onChange={patchEditingSectionDraft} />
+                    )}
+
                     <div className="rounded border border-stone-200 bg-white p-2">
                       <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-stone-600">Separador interno de la cabecera</p>
                       <div className="grid grid-cols-2 gap-1">
@@ -2903,6 +2918,8 @@ export default function ConfiguracionView({
                             ocultarCabecera={sec.portadaLibre?.colapsable === false}
                             bgColor="var(--cream)"
                             titleStyle={{ color: sectionRoleColors?.tituloSeccion }}
+                            tituloAlineacion={sec.tituloAlineacion}
+                            tituloPaddingIzquierdoPx={sec.tituloPaddingIzquierdoPx}
                             afterContent={sectionSpacing}
                           >
                           {sectionIsBeingEdited ? (
@@ -2939,6 +2956,8 @@ export default function ConfiguracionView({
                             sectionStyle={componentStyles["historia.fondoSeccion"]}
                             sectionSelected={designMode && activeSelectedDesignComponentKey === "historia.fondoSeccion"}
                             titleStyle={componentStyles["historia.tituloSeccion"]}
+                            tituloAlineacion={sec.tituloAlineacion}
+                            tituloPaddingIzquierdoPx={sec.tituloPaddingIzquierdoPx}
                             afterContent={sectionSpacing}
                             titleSelected={designMode && activeSelectedDesignComponentKey === "historia.tituloSeccion"}
                             onSelectSectionBackground={() => setSelectedDesignComponentKey("historia.fondoSeccion")}
@@ -2963,6 +2982,8 @@ export default function ConfiguracionView({
                         {sec.tipo === "carrusel" && (
                           <SeccionColapsable id={`preview-${sec.id}`} titulo={sec.titulo || "Fotos"} abiertaPorDefecto={sectionIsBeingEdited} bgColor="var(--cream)" designMode={designMode}
                             sectionStyle={componentStyles["carrusel.fondoSeccion"]} titleStyle={componentStyles["carrusel.tituloSeccion"]}
+                            tituloAlineacion={sec.tituloAlineacion}
+                            tituloPaddingIzquierdoPx={sec.tituloPaddingIzquierdoPx}
                             afterContent={sectionSpacing}
                             sectionSelected={designMode && activeSelectedDesignComponentKey === "carrusel.fondoSeccion"}
                             titleSelected={designMode && activeSelectedDesignComponentKey === "carrusel.tituloSeccion"}
@@ -2981,6 +3002,8 @@ export default function ConfiguracionView({
                             sectionStyle={componentStyles["galeria.fondoSeccion"]}
                             sectionSelected={designMode && activeSelectedDesignComponentKey === "galeria.fondoSeccion"}
                             titleStyle={componentStyles["galeria.tituloSeccion"]}
+                            tituloAlineacion={sec.tituloAlineacion}
+                            tituloPaddingIzquierdoPx={sec.tituloPaddingIzquierdoPx}
                             afterContent={sectionSpacing}
                             titleSelected={designMode && activeSelectedDesignComponentKey === "galeria.tituloSeccion"}
                             onSelectSectionBackground={() => setSelectedDesignComponentKey("galeria.fondoSeccion")}
@@ -3010,6 +3033,8 @@ export default function ConfiguracionView({
                             sectionStyle={componentStyles["timeline.fondoSeccion"]}
                             sectionSelected={designMode && activeSelectedDesignComponentKey === "timeline.fondoSeccion"}
                             titleStyle={componentStyles["timeline.tituloSeccion"]}
+                            tituloAlineacion={sec.tituloAlineacion}
+                            tituloPaddingIzquierdoPx={sec.tituloPaddingIzquierdoPx}
                             afterContent={sectionSpacing}
                             titleSelected={designMode && activeSelectedDesignComponentKey === "timeline.tituloSeccion"}
                             onSelectSectionBackground={() => setSelectedDesignComponentKey("timeline.fondoSeccion")}

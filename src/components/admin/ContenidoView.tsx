@@ -8,6 +8,7 @@ import EnvelopeTimelineControls from "@/components/admin/EnvelopeTimelineControl
 import EnvelopeGeometryControls from "@/components/admin/EnvelopeGeometryControls";
 import MapsFields from "@/components/admin/MapsFields";
 import TimelinePlantillaEditor from "@/components/admin/TimelinePlantillaEditor";
+import SectionTitleControls from "@/components/admin/SectionTitleControls";
 import { SeccionTimeline } from "@/components/wedding/SeccionTimeline";
 import { normalizeTimelinePlantilla } from "@/lib/timeline-layout";
 import { getPaletteRoleKeys, getRoleLabel, resolvePaletteRoleColors, resolvePaletteRoleTextures } from "@/lib/theme-roles";
@@ -1241,6 +1242,7 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                   <label className="label-field">Titulo visible</label>
                   <input className="input-field" value={selectedSection.titulo} onChange={(e) => patchSection(selectedSection.id, { titulo: e.target.value })} />
                 </div>
+                <SectionTitleControls section={selectedSection} onChange={(patch) => patchSection(selectedSection.id, patch)} />
                 <div>
                   <label className="label-field">Tipo</label>
                   <select

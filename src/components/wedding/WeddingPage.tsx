@@ -573,6 +573,8 @@ export default function WeddingPage({
                   ocultarCabecera={section.source?.portadaLibre?.colapsable === false}
                   bgColor="var(--cream)"
                   titleStyle={{ color: sectionRoleColors?.tituloSeccion }}
+                  tituloAlineacion={section.source?.tituloAlineacion}
+                  tituloPaddingIzquierdoPx={section.source?.tituloPaddingIzquierdoPx}
                   afterContent={sectionSpacing}
                 >
                   <PortadaLibre
@@ -593,6 +595,8 @@ export default function WeddingPage({
                   bgColor="var(--cream)"
                   sectionStyle={componentStyles["historia.fondoSeccion"]}
                   titleStyle={componentStyles["historia.tituloSeccion"]}
+                  tituloAlineacion={section.source?.tituloAlineacion}
+                  tituloPaddingIzquierdoPx={section.source?.tituloPaddingIzquierdoPx}
                   afterContent={sectionSpacing}
                 >
                   <SeccionHistoria
@@ -614,6 +618,8 @@ export default function WeddingPage({
                   bgColor="var(--cream)"
                   sectionStyle={componentStyles["carrusel.fondoSeccion"]}
                   titleStyle={componentStyles["carrusel.tituloSeccion"]}
+                  tituloAlineacion={section.source?.tituloAlineacion}
+                  tituloPaddingIzquierdoPx={section.source?.tituloPaddingIzquierdoPx}
                   afterContent={sectionSpacing}
                 >
                   <SeccionCarrusel items={section.source?.items ?? []} navigationStyle={componentStyles["carrusel.navegacion"]} imageTreatments={tratamientosImagenes} />
@@ -629,6 +635,8 @@ export default function WeddingPage({
                   bgColor="var(--cream)"
                   sectionStyle={componentStyles["galeria.fondoSeccion"]}
                   titleStyle={componentStyles["galeria.tituloSeccion"]}
+                  tituloAlineacion={section.source?.tituloAlineacion}
+                  tituloPaddingIzquierdoPx={section.source?.tituloPaddingIzquierdoPx}
                   afterContent={sectionSpacing}
                 >
                   <SeccionGaleria
@@ -649,6 +657,8 @@ export default function WeddingPage({
                   bgColor="var(--cream-dark)"
                   sectionStyle={componentStyles["timeline.fondoSeccion"]}
                   titleStyle={componentStyles["timeline.tituloSeccion"]}
+                  tituloAlineacion={section.source?.tituloAlineacion}
+                  tituloPaddingIzquierdoPx={section.source?.tituloPaddingIzquierdoPx}
                   afterContent={sectionSpacing}
                 >
                   <SeccionTimeline

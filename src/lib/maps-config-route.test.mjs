@@ -51,6 +51,35 @@ const post = (patch) => POST(new Request("http://localhost/api/admin/fixture-adm
   method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(patch),
 }), params);
 
+test("section title positions and zero or fractional padding persist through config POST/GET", async () => {
+  database();
+  const sections = [
+    { id: "legacy", tipo: "historia", titulo: "Story", items: [] },
+    ...["izquierda", "centrada", "derecha", "personalizada"].map((alignment, index) => ({
+      id: alignment, tipo: "timeline", tituloAlineacion: alignment,
+      tituloPaddingIzquierdoPx: index === 0 ? 0 : 125.5, items: [],
+    })),
+  ];
+  assert.equal((await post({ diseno: { secciones: sections } })).status, 200);
+  const config = (await (await GET(new Request("http://localhost"), params)).json()).config;
+  assert.deepEqual(config.diseno.secciones, sections);
+  assert.equal(config.unrelated.preserved, true);
+});
+
+test("invalid section title positions or padding return explicit errors without saving", async () => {
+  database();
+  for (const section of [
+    { tituloAlineacion: "center" }, { tituloAlineacion: ["izquierda"] },
+    { tituloAlineacion: null }, { tituloPaddingIzquierdoPx: -1 },
+    { tituloPaddingIzquierdoPx: "20" }, { tituloPaddingIzquierdoPx: null },
+  ]) {
+    const response = await post({ diseno: { secciones: [{ tipo: "historia", ...section }] } });
+    assert.equal(response.status, 400);
+    assert.ok((await response.json()).error);
+    assert.deepEqual(globalThis.__mapsSaved, { unrelated: { preserved: true } });
+  }
+});
+
 test("real config POST/GET handlers preserve both image actions and timeline Maps on reload", async () => {
   const rows = database();
   const event = { id: "church", titulo: "Church", enlaceMaps: " http://maps.google.com/?q=Granada ", enlaceMapsEmbed: "https://www.google.com/maps?q=Granada", logoTamano: { movil: 24, pc: 180 } };

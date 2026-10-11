@@ -46,6 +46,24 @@ const resetRoute = await import(moduleUrl(compile(substitute(await source("../ap
 const params = { params: Promise.resolve({ inviteCode: "fixture-admin" }) };
 test.beforeEach((context) => { context.mock.method(console, "error", () => {}); });
 
+test("section title positioning is geometry and survives applying or reloading visual versions", () => {
+  const config = fixture();
+  config.diseno.secciones[0].tituloAlineacion = "personalizada";
+  config.diseno.secciones[0].tituloPaddingIzquierdoPx = 125.5;
+  const snapshot = capture(config);
+  assert.equal(snapshot.sections[0].style.tituloAlineacion, undefined);
+  assert.equal(snapshot.sections[0].style.tituloPaddingIzquierdoPx, undefined);
+  config.diseno.secciones[0].tituloAlineacion = "derecha";
+  config.diseno.secciones[0].tituloPaddingIzquierdoPx = 0;
+  for (const restored of [
+    apply(config, snapshot).config,
+    resolveWeddingConfig({ ...config, visualSchema: "wedding-visual-v1", visualSnapshot: snapshot }),
+  ]) {
+    assert.equal(restored.diseno.secciones[0].tituloAlineacion, "derecha");
+    assert.equal(restored.diseno.secciones[0].tituloPaddingIzquierdoPx, 0);
+  }
+});
+
 test("timeline versions restore colors, font roles and text sizes while retaining layout, logo sizes and content", () => {
   const original = fixture();
   const section = original.diseno.secciones[0];

@@ -349,6 +349,18 @@ Las regresiones de geometría y serialización se ejecutan con
 
 ### Imágenes y logos con Google Maps
 
+En **Contenido → sección → Posicion horizontal del titulo**, o en el editor
+de **Diseño**, puedes elegir **Izquierda**, **Centrada**, **Derecha** o
+**Personalizada**. Esta última permite indicar el **padding izquierdo en px**,
+medido desde el borde de la cabecera (sustituye su margen interior izquierdo).
+Se limita al espacio disponible en pantallas estrechas para conservar el botón
+de apertura. Guarda los cambios para aplicarlos a la web y a las previsualizaciones
+PC/móvil. Solo afecta al título de la cabecera colapsable, no a los títulos del
+contenido; las cabeceras ocultas o encadenadas siguen sin mostrarse.
+Las secciones sin configurar mantienen la alineación izquierda. Se guarda en
+`diseno.secciones[].tituloAlineacion` y `tituloPaddingIzquierdoPx`; como las demás
+posiciones, no se sustituye al aplicar una versión de estilos visuales.
+
 Los controles del carrusel (anterior, siguiente y puntos) usan el rol asignado
 a **Controles del carrusel** en Diseño, tanto en la web pública como en las
 previsualizaciones de Diseño. En **El gran día**, los títulos y las

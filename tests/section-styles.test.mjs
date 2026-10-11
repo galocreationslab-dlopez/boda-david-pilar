@@ -50,6 +50,131 @@ function loadComponentStyle(path) {
     exports.resolveStyle = getComponentStyleByKey;`).resolveStyle;
 }
 
+const { SeccionColapsable } = loadModule("../src/components/wedding/SeccionColapsable.tsx", {
+  react,
+  "react/jsx-runtime": jsxRuntime,
+});
+const { default: SectionTitleControls } = loadModule("../src/components/admin/SectionTitleControls.tsx", {
+  "react/jsx-runtime": jsxRuntime,
+});
+
+for (const [alignment, textAlign] of [
+  [undefined, "left"], ["izquierda", "left"], ["centrada", "center"],
+  ["derecha", "right"], ["personalizada", "left"],
+]) {
+  test(`section header renders ${alignment ?? "legacy"} alignment without changing disclosure behavior`, () => {
+    for (const open of [false, true]) {
+      const html = renderToStaticMarkup(createElement(SeccionColapsable, {
+        id: "story", titulo: "Our story", abiertaPorDefecto: open,
+        tituloAlineacion: alignment, tituloPaddingIzquierdoPx: 125.5,
+        titleStyle: { color: "#ab1234" },
+      }, "Content"));
+      assert.match(html, new RegExp(`text-align:${textAlign}`));
+      assert.match(html, /color:#ab1234/);
+      assert.match(html, new RegExp(`aria-expanded="${open}" aria-controls="contenido-story"`));
+      assert.match(html, /aria-hidden="true"><svg/);
+      if (alignment === "personalizada") {
+        assert.match(html, /padding-left:min\(125\.5px, max\(0px, calc\(100% - var\(--section-header-padding\) - 56px - 1em\)\)\)/);
+      } else if (alignment === "centrada") {
+        assert.match(html, /padding-left:56px/);
+      } else {
+        assert.doesNotMatch(html, /padding-left:/);
+      }
+    }
+  });
+}
+
+test("hidden section headers stay hidden even when their titles have a position", () => {
+  const html = renderToStaticMarkup(createElement(SeccionColapsable, {
+    id: "cover", titulo: "Hidden", abiertaPorDefecto: true, ocultarCabecera: true,
+    tituloAlineacion: "personalizada", tituloPaddingIzquierdoPx: 80,
+  }, "Cover"));
+  assert.doesNotMatch(html, /<button|Hidden|padding-left:/);
+  assert.match(html, /Cover/);
+});
+
+test("shared title controls expose the four positions and custom padding only for section headers", () => {
+  for (const type of ["historia", "timeline", "galeria", "carrusel", "portadaLibre"]) {
+    const section = { tipo: type, tituloAlineacion: "personalizada", tituloPaddingIzquierdoPx: 0 };
+    const html = renderToStaticMarkup(createElement(SectionTitleControls, { section, onChange() {} }));
+    for (const value of ["izquierda", "centrada", "derecha", "personalizada"]) {
+      assert.match(html, new RegExp(`<option value="${value}"`));
+    }
+    assert.match(html, /type="number" min="0" step="any"[^>]*value="0"/);
+    const defaultHtml = renderToStaticMarkup(createElement(SectionTitleControls, {
+      section: { tipo: type }, onChange() {},
+    }));
+    assert.match(defaultHtml, /value="izquierda" selected=""/);
+    assert.doesNotMatch(defaultHtml, /type="number"/);
+  }
+  for (const type of ["intro", "invitacion", "pie"]) {
+    assert.equal(renderToStaticMarkup(createElement(SectionTitleControls, {
+      section: { tipo: type }, onChange() {},
+    })), "");
+  }
+});
+
+test("title controls emit typed patches and report invalid custom padding", () => {
+  const patches = [];
+  const controls = SectionTitleControls({
+    section: { tipo: "historia", tituloAlineacion: "personalizada", tituloPaddingIzquierdoPx: 80 },
+    onChange: (patch) => patches.push(patch),
+  });
+  function findElement(node, type) {
+    if (!node || typeof node !== "object") return undefined;
+    if (node.type === type) return node;
+    for (const child of react.Children.toArray(node.props?.children)) {
+      const found = findElement(child, type);
+      if (found) return found;
+    }
+  }
+  const select = findElement(controls, "select");
+  select.props.onChange({ target: { value: "derecha" } });
+  assert.deepEqual({ ...patches[0] }, { tituloAlineacion: "derecha" });
+  const input = findElement(controls, "input");
+  for (const [text, value] of [["0", 0], ["125.5", 125.5], ["", NaN]]) {
+    input.props.onChange({ target: { value: text, valueAsNumber: value } });
+    assert.equal(patches.at(-1).tituloPaddingIzquierdoPx, text === "" ? 0 : value);
+  }
+  let reported = 0;
+  const count = patches.length;
+  for (const value of [-1, NaN]) {
+    input.props.onChange({
+      target: { value: String(value), valueAsNumber: value },
+      currentTarget: { reportValidity: () => reported++ },
+    });
+  }
+  assert.equal(patches.length, count);
+  assert.equal(reported, 2);
+});
+
+test("public page and both design previews pass section title positioning to every visible header", () => {
+  for (const path of [
+    "../src/components/wedding/WeddingPage.tsx",
+    "../src/components/admin/ConfiguracionView.tsx",
+  ]) {
+    const source = readFileSync(new URL(path, import.meta.url), "utf8");
+    const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    let headers = 0;
+    function visit(node) {
+      if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node))
+        && node.tagName.getText(file) === "SeccionColapsable") {
+        const attributes = node.attributes.properties;
+        if (attributes.some((attribute) => attribute.name?.getText(file) === "titulo")) {
+          headers++;
+          for (const name of ["tituloAlineacion", "tituloPaddingIzquierdoPx"]) {
+            assert.ok(attributes.some((attribute) => attribute.name?.getText(file) === name),
+              `Missing ${name} in ${path}: ${node.getText(file)}`);
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(file);
+    assert.equal(headers, path.includes("WeddingPage") ? 5 : 10);
+  }
+});
+
 const { SeccionCarrusel } = loadModule("../src/components/wedding/SeccionCarrusel.tsx", {
   react,
   "react/jsx-runtime": jsxRuntime,
