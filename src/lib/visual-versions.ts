@@ -8,7 +8,7 @@ import { normalizeTimelinePlantilla } from "@/lib/timeline-layout";
 
 export const VISUAL_SCHEMA = "wedding-visual" as const;
 export const VISUAL_SCHEMA_VERSION = 1 as const;
-const designKeys = ["fondoPaginaColor", "fondoPaginaImagen", "fondoPaginaTexturaTamanoPx", "tratamientosImagenes"] as const;
+const designKeys = ["fondoPaginaColor", "fondoPaginaImagen", "fondoPaginaTexturaTamanoPx", "tratamientosImagenes", "movilHorizontalComoPc"] as const;
 const sectionKeys = ["paletaId", "usarPaletaGlobal", "componentRoles", "componentBorders", "componentFonts", "fondos", "selloUrl"] as const;
 const layoutKeys = ["opacidad", "colorModo", "colorRol", "colorHex", "fuenteRol", "tamano", "negrita", "cursiva"] as const;
 const canvasKeys = ["fondoModo", "fondoRol", "fondoHex"] as const;
@@ -279,6 +279,7 @@ export function assertVisualSnapshot(value: unknown): asserts value is VisualSna
     !Array.isArray(value.sections)) return fail();
   const design = value.design as Record<string, unknown>;
   for (const key of ["fondoPaginaColor", "fondoPaginaImagen"]) if (design[key] !== undefined && typeof design[key] !== "string") return fail();
+  if (design.movilHorizontalComoPc !== undefined && typeof design.movilHorizontalComoPc !== "boolean") return fail();
   if (design.fondoPaginaTexturaTamanoPx !== undefined && (typeof design.fondoPaginaTexturaTamanoPx !== "number" || !Number.isFinite(design.fondoPaginaTexturaTamanoPx) || design.fondoPaginaTexturaTamanoPx < 0)) return fail();
   if (design.separador !== undefined && !validSeparator(design.separador)) return fail();
   if (design.navegacion !== undefined && !typedScalars(design.navegacion, ["logoUrl", "logoColor", "textoColor", "fondoColor"], ["textoTamanoPx"])) return fail();

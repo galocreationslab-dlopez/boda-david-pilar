@@ -2,6 +2,11 @@ import type { CSSProperties } from "react";
 import type { WeddingConfig } from "@/config/wedding.config";
 
 export const DESKTOP_BREAKPOINT = 768;
+export function getDeviceViewportQuery(landscapeAsDesktop: boolean) {
+  return landscapeAsDesktop
+    ? "(max-width: 767px) and (orientation: portrait)"
+    : "(max-width: 767px)";
+}
 type Design = WeddingConfig["diseno"];
 
 export function normalizePageMargins(value: NonNullable<Design>["margenesPc"]) {

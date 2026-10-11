@@ -64,6 +64,18 @@ test("section title positioning is geometry and survives applying or reloading v
   }
 });
 
+test("landscape device behavior is included in visual versions", () => {
+  const original = fixture();
+  original.diseno.movilHorizontalComoPc = false;
+  const snapshot = capture(original);
+  validate(snapshot);
+  assert.equal(snapshot.design.movilHorizontalComoPc, false);
+  assert.equal(apply({ ...original, diseno: { ...original.diseno, movilHorizontalComoPc: true } }, snapshot).config.diseno.movilHorizontalComoPc, false);
+  const invalid = structuredClone(snapshot);
+  invalid.design.movilHorizontalComoPc = "yes";
+  assert.throws(() => validate(invalid));
+});
+
 test("timeline versions restore colors, font roles and text sizes while retaining layout, logo sizes and content", () => {
   const original = fixture();
   const section = original.diseno.secciones[0];

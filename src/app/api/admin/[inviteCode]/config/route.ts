@@ -146,6 +146,9 @@ export async function POST(
     if (design.usarPieFallback !== undefined && typeof design.usarPieFallback !== "boolean") {
       return NextResponse.json({ error: "La opcion de usar el pie de pagina por defecto debe ser un booleano." }, { status: 400 });
     }
+    if (design.movilHorizontalComoPc !== undefined && typeof design.movilHorizontalComoPc !== "boolean") {
+      return NextResponse.json({ error: "La opcion de usar la vista de PC en horizontal debe ser un booleano." }, { status: 400 });
+    }
     const margins = design.margenesPc;
     if (margins !== undefined && (
       !isRecord(margins) ||

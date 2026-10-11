@@ -642,6 +642,7 @@ export default function ConfiguracionView({
 
   const [separador, setSeparador] = useState<SeparadorDiseno>(buildInitialSeparador(ic));
   const [margenesPc, setMargenesPc] = useState(() => normalizePageMargins(ic.diseno?.margenesPc));
+  const [movilHorizontalComoPc, setMovilHorizontalComoPc] = useState(ic.diseno?.movilHorizontalComoPc ?? true);
   const [fondoPaginaColor, setFondoPaginaColor] = useState(ic.diseno?.fondoPaginaColor ?? "");
   const [fondoPaginaImagen, setFondoPaginaImagen] = useState(ic.diseno?.fondoPaginaImagen ?? "");
   const [fondoPaginaTexturaTamanoPx, setFondoPaginaTexturaTamanoPx] = useState(ic.diseno?.fondoPaginaTexturaTamanoPx ?? 0);
@@ -1351,6 +1352,7 @@ export default function ConfiguracionView({
         },
         diseno: {
           margenesPc,
+          movilHorizontalComoPc,
           fondoPaginaColor,
           fondoPaginaImagen,
           fondoPaginaTexturaTamanoPx,
@@ -1386,7 +1388,7 @@ export default function ConfiguracionView({
     } finally {
       setSaving(false);
     }
-  }, [fuentes, ic.textos, margenesPc, fondoPaginaColor, fondoPaginaImagen, fondoPaginaTexturaTamanoPx, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador, tratamientosImagenes, versionNavigation]);
+  }, [fuentes, ic.textos, margenesPc, movilHorizontalComoPc, fondoPaginaColor, fondoPaginaImagen, fondoPaginaTexturaTamanoPx, inviteCode, logoUrl, paletaActivaResolvedColors, paletaActivaId, paletas, sectionDrafts, secciones, separador, tratamientosImagenes, versionNavigation]);
 
   const handleReset = async () => {
     if (!confirm("Restaurar solo el estilo por defecto? Se guardaran copias recuperables del estilo publicado y del borrador del editor. No se cambiaran contenido ni geometria.")) return;
@@ -1705,7 +1707,7 @@ export default function ConfiguracionView({
   const versionDraft: WeddingConfig = {
     ...ic,
     tema: { colores: paletaActivaResolvedColors, fuentes, paletas, paletaActivaId },
-    diseno: { ...ic.diseno, navegacion: versionNavigation, margenesPc, fondoPaginaColor, fondoPaginaImagen, fondoPaginaTexturaTamanoPx, separador, tratamientosImagenes, secciones: seccionesEfectivas },
+    diseno: { ...ic.diseno, navegacion: versionNavigation, margenesPc, movilHorizontalComoPc, fondoPaginaColor, fondoPaginaImagen, fondoPaginaTexturaTamanoPx, separador, tratamientosImagenes, secciones: seccionesEfectivas },
   };
   const loadAppliedVisual = (snapshot: VisualSnapshot) => {
     const applied = applyVisualSnapshot(versionDraft, snapshot).config;
@@ -1716,6 +1718,7 @@ export default function ConfiguracionView({
     setFondoPaginaColor(applied.diseno?.fondoPaginaColor ?? "");
     setFondoPaginaImagen(applied.diseno?.fondoPaginaImagen ?? "");
     setFondoPaginaTexturaTamanoPx(applied.diseno?.fondoPaginaTexturaTamanoPx ?? 0);
+    setMovilHorizontalComoPc(applied.diseno?.movilHorizontalComoPc ?? true);
     setTratamientosImagenes(applied.diseno?.tratamientosImagenes ?? {});
     setSeparador(buildInitialSeparador(applied));
     setVersionNavigation(applied.diseno?.navegacion);
@@ -1768,6 +1771,18 @@ export default function ConfiguracionView({
             <section className="rounded-xl border border-stone-200 bg-white p-3 space-y-3">
               <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-700">Marco y fondo general</h2>
               <p className="text-xs text-stone-500">Ancho útil = pantalla menos ambos márgenes. Solo PC; móvil conserva todo su ancho.</p>
+              <label className="flex items-start gap-2 text-xs text-stone-600">
+                <input
+                  type="checkbox"
+                  checked={movilHorizontalComoPc}
+                  onChange={(event) => setMovilHorizontalComoPc(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  Usar la vista de PC en móviles en horizontal
+                  <span className="mt-1 block text-[11px] text-stone-500">Activado por defecto. Desactívalo para mantener la vista móvil también en horizontal.</span>
+                </span>
+              </label>
               <div className="grid grid-cols-2 gap-2">
                 {(["izquierdo", "derecho"] as const).map((lado) => (
                   <label key={lado} className="block text-xs text-stone-600">

@@ -8,13 +8,18 @@ async function load(file) {
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
   return import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
 }
-const { normalizePageMargins, getUsefulViewport, getPageBackgroundStyle } = await load("./wedding-viewport.ts");
+const { normalizePageMargins, getUsefulViewport, getPageBackgroundStyle, getDeviceViewportQuery } = await load("./wedding-viewport.ts");
 const { getPortadaAspectLayout } = await load("./portada-aspect-ratio.ts");
 
 test("legacy config and zero margins preserve the full viewport", () => {
   assert.deepEqual(normalizePageMargins(), { izquierdo: 0, derecho: 0 });
   assert.deepEqual(getUsefulViewport(1440, normalizePageMargins(), true), { width: 1440, left: 0, right: 0 });
   assert.equal(getPageBackgroundStyle(undefined, (src) => src || "").backgroundImage, "var(--tex-cream, none)");
+});
+
+test("landscape device detection defaults to desktop and remains configurable", () => {
+  assert.equal(getDeviceViewportQuery(true), "(max-width: 767px) and (orientation: portrait)");
+  assert.equal(getDeviceViewportQuery(false), "(max-width: 767px)");
 });
 
 test("asymmetric PC margins are subtracted on every resize; mobile ignores them", () => {

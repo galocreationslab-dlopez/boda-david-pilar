@@ -15,8 +15,9 @@ import { resolveTimelineLogoAlign, resolveTimelineLogoSize, type TimelineLogoDev
 import { normalizeTimelinePlantilla } from "@/lib/timeline-layout";
 import { resolvePortadaColor } from "@/components/wedding/PortadaLibre";
 import { withTextureStyle, type PaletteTexture } from "@/lib/theme-roles";
+import { useDeviceViewport } from "@/components/motion/useDeviceViewport";
 import templateStyles from "./TimelinePlantilla.module.css";
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 
 export type TimelineComponentKey =
   | "timeline.fecha"
@@ -282,14 +283,6 @@ function buildTimelinePoints(
   });
 }
 
-function subscribeMobile(callback: () => void) {
-  const query = window.matchMedia("(max-width: 767px)");
-  query.addEventListener("change", callback);
-  return () => query.removeEventListener("change", callback);
-}
-const isMobile = () => window.matchMedia("(max-width: 767px)").matches;
-const serverMobile = () => false;
-
 export function SeccionTimeline({
   localizaciones,
   timeline,
@@ -308,8 +301,10 @@ export function SeccionTimeline({
   onSelectItem,
   headerDivider,
 }: Props) {
-  const mobile = useSyncExternalStore(subscribeMobile, isMobile, serverMobile);
-  const device = viewport ? (viewport === "movil" ? "movil" : "pc") : (mobile ? "movil" : "pc");
+  const responsiveDevice = useDeviceViewport();
+  const device = viewport
+    ? viewport === "movil" ? "movil" : "pc"
+    : responsiveDevice === "movil" ? "movil" : "pc";
   const template = normalizeTimelinePlantilla(plantilla);
   const puntos = buildTimelinePoints(timeline, localizaciones);
   const templateViewportRef = useRef<HTMLDivElement>(null);

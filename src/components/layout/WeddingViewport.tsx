@@ -4,6 +4,7 @@ import { createContext, useContext, useLayoutEffect, useRef, useState, type CSSP
 import type { WeddingConfig } from "@/config/wedding.config";
 import { DESKTOP_BREAKPOINT, getPageBackgroundStyle, getUsefulViewport, normalizePageMargins } from "@/lib/wedding-viewport";
 import { resolveDriveMediaSrc } from "@/lib/drive-image";
+import { DeviceViewportProvider, useDeviceViewport } from "@/components/motion/useDeviceViewport";
 
 const ViewportContext = createContext<{ height?: number; inset: boolean }>({ inset: false });
 export const useWeddingViewport = () => useContext(ViewportContext);
@@ -14,17 +15,37 @@ export default function WeddingViewport({ design, device, resolveSrc = resolveDr
   resolveSrc?: (src?: string) => string;
   children: ReactNode;
 }) {
+  return (
+    <DeviceViewportProvider landscapeAsDesktop={design?.movilHorizontalComoPc ?? true} device={device}>
+      <WeddingViewportFrame design={design} device={device} resolveSrc={resolveSrc}>
+        {children}
+      </WeddingViewportFrame>
+    </DeviceViewportProvider>
+  );
+}
+
+function WeddingViewportFrame({ design, device, resolveSrc, children }: {
+  design: WeddingConfig["diseno"];
+  device?: "pc" | "movil";
+  resolveSrc: (src?: string) => string;
+  children: ReactNode;
+}) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState<number>();
   const [inset, setInset] = useState(false);
   const { izquierdo, derecho } = normalizePageMargins(design?.margenesPc);
+  const responsiveDevice = useDeviceViewport();
 
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
     const update = () => {
       const width = Number.parseFloat(getComputedStyle(frame).width);
-      const desktop = device ? device === "pc" : window.innerWidth >= DESKTOP_BREAKPOINT;
+      const desktop = device
+        ? device === "pc"
+        : responsiveDevice === null
+          ? window.innerWidth >= DESKTOP_BREAKPOINT
+          : responsiveDevice === "desktop";
       const useful = getUsefulViewport(width, { izquierdo, derecho }, desktop);
       frame.style.setProperty("--wedding-left", `${useful.left}px`);
       frame.style.setProperty("--wedding-right", `${useful.right}px`);
@@ -51,7 +72,7 @@ export default function WeddingViewport({ design, device, resolveSrc = resolveDr
       observer.disconnect();
       window.removeEventListener("resize", update);
     };
-  }, [device, izquierdo, derecho]);
+  }, [device, izquierdo, derecho, responsiveDevice]);
 
   const backgroundStyle = getPageBackgroundStyle(design, resolveSrc);
   const style = {
@@ -63,7 +84,12 @@ export default function WeddingViewport({ design, device, resolveSrc = resolveDr
 
   return (
     <ViewportContext.Provider value={{ height, inset }}>
-      <div ref={frameRef} className="wedding-viewport" data-device={device} style={style}>
+      <div
+        ref={frameRef}
+        className="wedding-viewport"
+        data-device={device ?? (responsiveDevice === null ? undefined : responsiveDevice === "desktop" ? "pc" : "movil")}
+        style={style}
+      >
         <div className="wedding-content">{children}</div>
       </div>
     </ViewportContext.Provider>

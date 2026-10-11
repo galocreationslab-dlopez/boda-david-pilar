@@ -136,10 +136,10 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0 min(clamp(1.25rem, calc(5 * var(--wedding-vw, 1vw)), 3rem), calc(var(--wedding-width, 100vw) / 2));
 }
 @media (max-width: 767px) {
-  .wedding-nav-container {
+  .wedding-viewport:not([data-device="pc"]) .wedding-nav-container {
     padding-inline: min(var(--wedding-nav-mobile-padding, 1.25rem), calc(var(--wedding-width, 100vw) / 2));
   }
-  .wedding-nav-menu-button { padding: var(--wedding-nav-menu-padding, 0.5rem); }
+  .wedding-viewport:not([data-device="pc"]) .wedding-nav-menu-button { padding: var(--wedding-nav-menu-padding, 0.5rem); }
 }
 .section-wedding { padding-block: var(--section-padding); }
 .section-title {
