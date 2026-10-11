@@ -596,6 +596,8 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
   const [bannerFondoColor, setBannerFondoColor] = useState(config.diseno?.navegacion?.fondoColor ?? "");
   const [bannerTextoTamano, setBannerTextoTamano] = useState(config.diseno?.navegacion?.textoTamanoPx ?? 0);
   const [bannerTextoColor, setBannerTextoColor] = useState(config.diseno?.navegacion?.textoColor ?? "");
+  const [bannerPaddingLateralMovil, setBannerPaddingLateralMovil] = useState(config.diseno?.navegacion?.paddingLateralMovilPx ?? 20);
+  const [bannerMenuPaddingMovil, setBannerMenuPaddingMovil] = useState(config.diseno?.navegacion?.menuPaddingMovilPx ?? 8);
   const [bannerElementos, setBannerElementos] = useState<ElementoBarra[]>(() => {
     const guardados = (config.diseno?.navegacion?.elementos ?? []).filter((el) =>
       ELEMENTOS_BARRA_POR_DEFECTO.some((d) => d.id === el.id),
@@ -1100,6 +1102,8 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
               fondoColor: bannerFondoColor,
               textoTamanoPx: bannerTextoTamano,
               textoColor: bannerTextoColor,
+              paddingLateralMovilPx: bannerPaddingLateralMovil,
+              menuPaddingMovilPx: bannerMenuPaddingMovil,
               elementos: bannerElementos,
             },
           },
@@ -2455,6 +2459,33 @@ export default function ContenidoView({ inviteCode, config }: { inviteCode: stri
                         </div>
                       ))}
                       <p className="text-xs text-stone-500">El orden de la lista se aplica dentro de cada zona (izquierda, centro, derecha).</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="label-field">Padding lateral de la barra en movil (px)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={1}
+                          className="input-field"
+                          value={bannerPaddingLateralMovil}
+                          onChange={(e) => setBannerPaddingLateralMovil(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                        />
+                        <p className="mt-1 text-xs text-stone-500">Reduce este valor para acercar el contenido de la barra al borde.</p>
+                      </div>
+                      <div>
+                        <label className="label-field">Padding interno del boton del menu en movil (px)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={1}
+                          className="input-field"
+                          value={bannerMenuPaddingMovil}
+                          onChange={(e) => setBannerMenuPaddingMovil(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, Fragment, type CSSProperties } from "react";
 import Link from "next/link";
 import { SelloNupcial } from "@/components/ui/SelloNupcial";
 import AspectRatioImage from "@/components/layout/AspectRatioImage";
@@ -34,7 +34,7 @@ export type SeccionMenuItem = {
 type NavegacionPublicaProps = {
   config: Pick<WeddingConfig, "iniciales" | "novia" | "novio">;
   comportamiento?: ComportamientoBarraNavegacion;
-  banner?: Pick<NavegacionDiseno, "texto" | "logoUrl" | "elementos" | "logoAnchoPx" | "logoAltoPx" | "logoColor" | "fondoColor" | "textoTamanoPx" | "textoColor" | "logoMantenerAspecto" | "logoAspectoFijar" | "logoAspectoAlineacion" | "logoAnchoManualPx" | "logoAltoManualPx">;
+  banner?: Pick<NavegacionDiseno, "texto" | "logoUrl" | "elementos" | "logoAnchoPx" | "logoAltoPx" | "logoColor" | "fondoColor" | "textoTamanoPx" | "textoColor" | "logoMantenerAspecto" | "logoAspectoFijar" | "logoAspectoAlineacion" | "logoAnchoManualPx" | "logoAltoManualPx" | "paddingLateralMovilPx" | "menuPaddingMovilPx">;
   secciones?: SeccionMenuItem[];
   // Query string actual (sin el "?"), ej. "inviteCode=GALO-2603" — se preserva en todos los enlaces internos.
   queryString?: string;
@@ -94,12 +94,17 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
 
   const textoBanner = banner?.texto?.trim() || `${config.novia.nombre} & ${config.novio.nombre}`;
   const elementos = normalizarElementos(banner?.elementos);
+  const navigationStyle = {
+    backgroundColor: banner?.fondoColor || "var(--role-fondo-principal)",
+    "--wedding-nav-mobile-padding": `${banner?.paddingLateralMovilPx ?? 20}px`,
+    "--wedding-nav-menu-padding": `${banner?.menuPaddingMovilPx ?? 8}px`,
+  } as CSSProperties;
 
   const renderElemento = (id: ElementoBarraId) =>
     id === "menu" ? (
         <button
           onClick={toggleMenu}
-          className="p-2 md:absolute md:left-[24px] md:p-0"
+          className="wedding-nav-menu-button p-2 md:absolute md:left-[24px] md:p-0"
           aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
           aria-expanded={menuAbierto}
         >
@@ -170,12 +175,12 @@ export function NavegacionPublica({ config, comportamiento = "siempre_visible", 
 
   return (
     <header
-      style={{ backgroundColor: banner?.fondoColor || "var(--role-fondo-principal)" }}
+      style={navigationStyle}
       className={`wedding-fixed fixed top-0 z-50 transition-[transform,opacity,background-color,box-shadow] duration-300 ${
         barraOculta ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
       }`}
     >
-      <nav className="container-wedding grid h-16 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 overflow-hidden sm:h-20">
+      <nav className="container-wedding wedding-nav-container grid h-16 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 overflow-hidden sm:h-20">
         {ZONAS.map(({ posicion, clases }) => (
           <div key={posicion} className={`flex items-center gap-3 ${clases}`}>
             {elementos

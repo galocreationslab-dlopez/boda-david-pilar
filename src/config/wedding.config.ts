@@ -642,6 +642,9 @@ export type NavegacionDiseno = {
   fondoColor?: string;
   textoTamanoPx?: number;
   textoColor?: string;
+  // Padding lateral minimo de la barra en movil y padding interno del boton del menu.
+  paddingLateralMovilPx?: number;
+  menuPaddingMovilPx?: number;
   elementos?: ElementoBarra[];
 };
 
