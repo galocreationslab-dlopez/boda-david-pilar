@@ -11,7 +11,7 @@ type Nec = {
   alergias?: string | null;
 };
 type Asistente = { id: string; nombre: string; edad: number|null; tipo_persona: string; estado_asistencia: string; transporte: string[]; necesidades: Nec; comentarios: string|null };
-type Invitacion = { id: string; invite_code: string; nombre_visible: string; tipo_invitacion: string; estado: string; nombre1?: string | null; nombre2?: string | null; texto_invitacion_personalizado?: string | null; adultos_estimados: number; adolescentes_estimados: number; ninos_estimados: number; bebes_estimados: number; created_at: string; asistentes: Asistente[] };
+type Invitacion = { id: string; invite_code: string; nombre_visible: string; tipo_invitacion: string; estado: string; enviada: boolean; nombre1?: string | null; nombre2?: string | null; texto_invitacion_personalizado?: string | null; adultos_estimados: number; adolescentes_estimados: number; ninos_estimados: number; bebes_estimados: number; created_at: string; asistentes: Asistente[] };
 
 const ESTADO_BADGE: Record<string,string> = {
   confirmada:"bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -216,6 +216,29 @@ function InvitacionRow({ inv, adminCode, selected, onSelect, onDeleted, onChange
   const [form, setForm] = useState(() => invToForm(inv));
   const [savingInv, setSavingInv] = useState(false);
   const [addingA, setAddingA] = useState(false);
+  const [savingSent, setSavingSent] = useState(false);
+  const [sentError, setSentError] = useState<string | null>(null);
+
+  const saveSent = async (enviada: boolean) => {
+    setSavingSent(true);
+    setSentError(null);
+    try {
+      const res = await fetch(`/api/admin/${adminCode}/invitaciones/${inv.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enviada }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "No se pudo guardar el estado de envío");
+      }
+      setInv((i) => ({ ...i, enviada }));
+    } catch (error) {
+      setSentError(error instanceof Error ? error.message : "No se pudo guardar el estado de envío");
+    } finally {
+      setSavingSent(false);
+    }
+  };
 
   const toggleEditing = () => {
     if (!editing) setForm(invToForm(inv));
@@ -259,7 +282,11 @@ function InvitacionRow({ inv, adminCode, selected, onSelect, onDeleted, onChange
           <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium flex-shrink-0 ${ESTADO_BADGE[inv.estado] ?? "bg-stone-100 text-stone-500 border-stone-200"}`}>{inv.estado.replace("_"," ")}</span>
           <span className="text-xs text-stone-400 hidden md:block flex-shrink-0">{inv.tipo_invitacion}</span>
         </div>
-        <div className="flex w-full items-center justify-between gap-3 pl-6 sm:w-auto sm:flex-shrink-0 sm:justify-end sm:pl-0">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 pl-6 sm:w-auto sm:flex-shrink-0 sm:justify-end sm:pl-0">
+          <label className={`flex flex-shrink-0 items-center gap-2 text-xs ${inv.enviada ? "text-emerald-700" : "text-stone-500"}`}>
+            <input type="checkbox" checked={inv.enviada} disabled={savingSent} onChange={(e) => saveSent(e.target.checked)} aria-label={`Invitación enviada: ${inv.nombre_visible}`} className="h-4 w-4 rounded accent-emerald-600 disabled:opacity-50" />
+            {savingSent ? "Guardando..." : "Enviada"}
+          </label>
           <div className="flex items-center gap-3 text-xs text-stone-500">
             <span title="Estimados">📋 {total}</span>
             <span title="Confirmados" className={confirmados>0?"text-emerald-600 font-semibold":""}>✓ {confirmados}</span>
@@ -272,6 +299,7 @@ function InvitacionRow({ inv, adminCode, selected, onSelect, onDeleted, onChange
           </div>
         </div>
       </div>
+      {sentError && <p role="alert" className="px-4 pb-3 text-sm text-red-600">{sentError}</p>}
 
       {/* Edicion de la invitacion */}
       {editing && (
@@ -369,6 +397,7 @@ function ImportModal({ onClose, onImported }: { onClose: () => void; onImported:
 function buildRows(invitaciones: Invitacion[]) {
   const rows: Record<string, string | number>[] = [];
   for (const inv of invitaciones) {
+    const firstRow = rows.length;
     if (inv.asistentes.length === 0) {
       rows.push({ "Invitacion": inv.nombre_visible, "Codigo": inv.invite_code, "Tipo": inv.tipo_invitacion, "Estado invitacion": inv.estado, "Adultos est.": inv.adultos_estimados, "Ninos est.": inv.ninos_estimados, "Asistente": "", "Tipo persona": "", "Asistira": "", "Alojamiento": "", "Granada-Beas": "", "Beas-Torre": "", "Torre-GR": "", "Alergias": "", "Comentarios": "" });
     } else {
@@ -377,6 +406,9 @@ function buildRows(invitaciones: Invitacion[]) {
         const n = a.necesidades??{};
         rows.push({ "Invitacion": inv.nombre_visible, "Codigo": inv.invite_code, "Tipo": inv.tipo_invitacion, "Estado invitacion": inv.estado, "Adultos est.": inv.adultos_estimados, "Ninos est.": inv.ninos_estimados, "Asistente": a.nombre, "Tipo persona": a.tipo_persona, "Asistira": a.estado_asistencia, "Alojamiento": n.alojamiento??"", "Granada-Beas": t.includes("granada-beas")?"Si":"No", "Beas-Torre": t.includes("beas-torre")?"Si":"No", "Torre-GR": t.includes("torre-granada")?"Si":"No", "Alergias": n.alergias??"", "Comentarios": a.comentarios??"" });
       }
+    }
+    for (let index = firstRow; index < rows.length; index++) {
+      rows[index].Enviada = inv.enviada ? "Si" : "No";
     }
   }
   return rows;
@@ -413,6 +445,7 @@ export default function InvitacionesView({ inviteCode, invitaciones: init, unrea
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filtro, setFiltro] = useState<"todos"|"confirmada"|"pendiente"|"rechazada"|"sin_respuesta"|"chat_no_leido">("todos");
   const [busqueda, setBusqueda] = useState("");
+  const [filtroEnvio, setFiltroEnvio] = useState<"todos" | "enviadas" | "sin_enviar">("todos");
   const [showImport, setShowImport] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [savedMessage, setSavedMessage] = useState(mensajeInvitacion);
@@ -443,6 +476,7 @@ export default function InvitacionesView({ inviteCode, invitaciones: init, unrea
   };
 
   const filtradas = invitaciones
+    .filter((i) => filtroEnvio === "todos" || (filtroEnvio === "enviadas" ? i.enviada : !i.enviada))
     .filter((i) => {
       if (filtro==="sin_respuesta") return i.asistentes.length===0;
       if (filtro==="chat_no_leido") return (unreadByInvitationId[i.id] ?? 0) > 0;
@@ -532,7 +566,18 @@ export default function InvitacionesView({ inviteCode, invitaciones: init, unrea
 
       {/* Filtros + busqueda */}
       <div className="sticky top-0 z-20 -mx-4 flex flex-col gap-3 bg-stone-50/95 px-4 py-2 backdrop-blur sm:static sm:mx-0 sm:flex-row-reverse sm:items-center sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
-        <div className="relative w-full sm:ml-auto sm:w-64">
+        <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row">
+          <label className="flex items-center gap-2 text-xs text-stone-600">
+            Envío
+            <select aria-label="Filtrar por estado de envío" value={filtroEnvio} onChange={(e) => {
+              const value = e.target.value;
+              if (value === "todos" || value === "enviadas" || value === "sin_enviar") setFiltroEnvio(value);
+            }} className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm">
+              <option value="todos">Todas</option>
+              <option value="enviadas">Enviadas</option>
+              <option value="sin_enviar">Sin enviar</option>
+            </select>
+          </label>
           <input type="search" inputMode="search" placeholder="Buscar por nombre o codigo..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-base sm:py-2 sm:text-sm" />
         </div>
         <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:mr-auto sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">

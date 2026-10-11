@@ -19,9 +19,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const body = await req.json();
   const allowed = ["nombre_visible", "tipo_invitacion", "estado", "nombre1", "nombre2", "texto_invitacion_personalizado",
     "adultos_estimados", "adolescentes_estimados", "ninos_estimados", "bebes_estimados"];
-  const patch: Record<string, string | number | null> = {};
+  const patch: Record<string, string | number | boolean | null> = {};
   if (typeof body === "object" && body !== null) {
     const record = body as Record<string, unknown>;
+    if ("enviada" in record) {
+      if (typeof record.enviada !== "boolean") {
+        return NextResponse.json({ error: "El estado de envío debe ser un booleano" }, { status: 400 });
+      }
+      patch.enviada = record.enviada;
+    }
     for (const k of allowed) {
       const value = record[k];
       if (typeof value === "string" || typeof value === "number" || value === null) {
@@ -31,11 +37,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
   }
 
   const supabase = createServerClient();
-  const { data: invitacion } = await supabase
+  const { data: invitacion, error: readError } = await supabase
     .from("invitaciones")
     .select("adultos_estimados, adolescentes_estimados, ninos_estimados, bebes_estimados")
     .eq("id", invitacionId)
     .maybeSingle();
+  if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
   if (!invitacion) return NextResponse.json({ error: "Invitación no encontrada" }, { status: 404 });
 
   for (const key of ["adultos_estimados", "adolescentes_estimados", "ninos_estimados", "bebes_estimados"]) {
@@ -43,7 +50,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
       return NextResponse.json({ error: "Los cupos deben ser enteros no negativos" }, { status: 400 });
     }
   }
-  if ((await getWeddingConfig()).rsvp?.cuposLimitantes !== false) {
+  const changesLimits = ["adultos_estimados", "adolescentes_estimados", "ninos_estimados", "bebes_estimados"].some((key) => key in patch);
+  if (changesLimits && (await getWeddingConfig()).rsvp?.cuposLimitantes !== false) {
     const { data: asistentes } = await supabase.from("asistentes").select("tipo_persona").eq("invitation_id", invitacionId);
     const limits = getRsvpLimits({ ...invitacion, ...patch });
     const limiteExcedido = exceedsRsvpLimits(countRsvpPeople(asistentes ?? []), limits);

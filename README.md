@@ -77,6 +77,22 @@ o solo contiene espacios, se copia únicamente el enlace, como antes.
 Esta configuración se guarda en `bodas.config_json.mensajeInvitacion`, sin
 migraciones nuevas, y no modifica el texto personalizado dentro de la web.
 
+### Seguimiento de invitaciones enviadas
+
+En **Invitaciones**, cada fila tiene una casilla **Enviada**, disponible tanto
+en PC como en móvil. Marcarla o desmarcarla guarda el estado en Supabase,
+independientemente de la confirmación de asistencia. Copiar la invitación
+no la marca automáticamente como enviada.
+
+El filtro **Envío** permite ver **Todas**, **Enviadas** o **Sin enviar** y se
+combina con los filtros de respuesta y la búsqueda. Las exportaciones incluyen
+el estado de envío. Si falla el guardado, se muestra el error y se conserva el
+estado anterior.
+
+Antes de desplegar, ejecutar `supabase/migrations/20261011_invitation_sent.sql`
+en Supabase. Las invitaciones existentes y las nuevas empiezan sin enviar;
+las ya enviadas se deben marcar manualmente.
+
 ### Carga de imagenes: fase 1, sin modificar originales
 
 La portada libre y el pie personalizado montan solo el lienzo del dispositivo

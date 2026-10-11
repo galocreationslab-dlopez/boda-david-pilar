@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.invitaciones (
   ninos_estimados       integer not null default 0 check (ninos_estimados >= 0),
   bebes_estimados       integer not null default 0 check (bebes_estimados >= 0),
   estado                text not null default 'pendiente' check (estado in ('pendiente','confirmada','rechazada','pendiente_respondida')),
+  enviada               boolean not null default false,
   created_at            timestamptz default now(),
   updated_at            timestamptz default now()
 );

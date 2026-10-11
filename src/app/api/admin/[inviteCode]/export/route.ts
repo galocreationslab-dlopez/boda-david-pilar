@@ -31,6 +31,7 @@ type ExportInvitacion = {
   nombre_visible: string;
   tipo_invitacion: string;
   estado: string;
+  enviada: boolean;
   adultos_estimados: number;
   adolescentes_estimados: number;
   ninos_estimados: number;
@@ -50,13 +51,14 @@ export async function GET(
 
   const supabase = createServerClient();
 
-  const { data: invitaciones } = await supabase
+  const { data: invitaciones, error } = await supabase
     .from("invitaciones")
     .select(`
       invite_code,
       nombre_visible,
       tipo_invitacion,
       estado,
+      enviada,
       adultos_estimados,
       adolescentes_estimados,
       ninos_estimados,
@@ -75,12 +77,15 @@ export async function GET(
     .neq("tipo_invitacion", "admin")
     .order("nombre_visible");
 
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
   // ── Hoja 1: Invitaciones ──────────────────────────────────────
   const rowsInvitaciones = (invitaciones ?? []).map((inv: ExportInvitacion) => ({
     "Código":            inv.invite_code,
     "Nombre visible":    inv.nombre_visible,
     "Tipo":              inv.tipo_invitacion,
     "Estado":            inv.estado,
+    "Enviada":           inv.enviada ? "Sí" : "No",
     "Adultos estimados": inv.adultos_estimados,
     "Adolescentes est.": inv.adolescentes_estimados,
     "Niños estimados":   inv.ninos_estimados,
@@ -101,6 +106,7 @@ export async function GET(
         "Invitación":              inv.nombre_visible,
         "Código invitación":       inv.invite_code,
         "Estado invitación":       inv.estado,
+        "Invitación enviada":      inv.enviada ? "Sí" : "No",
         "Nombre asistente":        a.nombre,
         "Tipo persona":            a.tipo_persona,
         "Edad":                    a.edad ?? "",

@@ -10,7 +10,7 @@ import { DEFAULT_INVITATION_MESSAGE } from "@/lib/invitation-message";
 
 async function getData() {
   const supabase = createServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("invitaciones")
     .select(`
       id,
@@ -19,6 +19,7 @@ async function getData() {
       texto_invitacion_personalizado,
       tipo_invitacion,
       estado,
+      enviada,
       adultos_estimados,
       adolescentes_estimados,
       ninos_estimados,
@@ -37,6 +38,8 @@ async function getData() {
     `)
     .neq("tipo_invitacion", "admin")
     .order("nombre_visible");
+
+  if (error) throw new Error(`No se pudieron cargar las invitaciones: ${error.message}`);
 
   const { data: unreadRows } = await supabase
     .from("invitaciones_mensajes")
