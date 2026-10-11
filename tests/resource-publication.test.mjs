@@ -55,6 +55,27 @@ test("published resolution preserves original configuration, hyperlinks and unse
   assert.equal(pure.isPublicBlobUrl("http://test.public.blob.vercel-storage.com/a"), false);
 });
 
+test("publication ignores stale inactive intro modes while preserving their saved configuration", () => {
+  const stored = {
+    diseno: { secciones: [{ intro: {
+      lacreUrl: driveUrl("wax"),
+      pc: {
+        tipo: "envelope",
+        envelope: { selloSecoUrl: driveUrl("dry") },
+        revealBook: { panelIzquierdoUrl: driveUrl("html-old"), panelDerechoUrl: driveUrl("html-old-2") },
+      },
+      movil: {
+        tipo: "fadeIn",
+        fadeIn: { mediaUrl: driveUrl("active-mobile") },
+        envelope: { selloSecoUrl: driveUrl("inactive-mobile") },
+      },
+    } }] },
+  };
+  assert.deepEqual(Array.from(pure.selectedResources(stored), (r) => r.fileId).sort(),
+    ["active-mobile", "dry", "wax"]);
+  assert.equal(stored.diseno.secciones[0].intro.pc.revealBook.panelIzquierdoUrl, driveUrl("html-old"));
+});
+
 test("version includes checksum, size and modified time; unverifiable or non-image sources fail explicitly", () => {
   const metadata = { name: "painting.png", mimeType: "image/png", size: "10", md5Checksum: "a".repeat(32), modifiedTime: "2026-10-10" };
   assert.match(pure.resourceVersion(metadata), /^a{32}:10:2026-10-10$/);

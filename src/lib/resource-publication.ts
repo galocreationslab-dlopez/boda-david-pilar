@@ -2,6 +2,7 @@ const IMAGE_FIELDS = new Set([
   "imagen", "imagenUrl", "heroImagen", "logo", "logoUrl", "texturaUrl", "selloUrl",
   "lacreUrl", "selloSecoUrl", "fondoExteriorImagenUrl", "panelIzquierdoUrl", "panelDerechoUrl", "mediaUrl",
 ]);
+const INTRO_MODES = new Set(["revealBook", "cortinas", "fadeIn", "focusRegion", "slideUp", "custom", "envelope"]);
 
 export type SelectedResource = { fileId: string; source: string };
 export type PublicationItem = SelectedResource & {
@@ -47,14 +48,16 @@ export function resourceDriveId(source: string): string | null {
   }
 }
 
-function visitMedia(value: unknown, replace: (source: string) => string): void {
+function visitMedia(value: unknown, replace: (source: string) => string, activeIntroOnly = false): void {
   if (Array.isArray(value)) {
-    for (const child of value) visitMedia(child, replace);
+    for (const child of value) visitMedia(child, replace, activeIntroOnly);
     return;
   }
   if (!value || typeof value !== "object") return;
   const record = value as Record<string, unknown>;
   for (const [key, child] of Object.entries(record)) {
+    if (activeIntroOnly && typeof record.tipo === "string" && INTRO_MODES.has(record.tipo) &&
+      INTRO_MODES.has(key) && key !== record.tipo) continue;
     const isImage = IMAGE_FIELDS.has(key) || (key === "url" && record.tipo === "imagen");
     if (typeof child === "string" && isImage) record[key] = replace(child);
     else if (key === "fondos" && child && typeof child === "object" && !Array.isArray(child)) {
@@ -62,7 +65,7 @@ function visitMedia(value: unknown, replace: (source: string) => string): void {
       for (const role of ["seccion", "subseccion"]) {
         if (typeof backgrounds[role] === "string") backgrounds[role] = replace(backgrounds[role]);
       }
-    } else visitMedia(child, replace);
+    } else visitMedia(child, replace, activeIntroOnly);
   }
 }
 
@@ -72,7 +75,7 @@ export function selectedResources(config: unknown): SelectedResource[] {
     const fileId = resourceDriveId(source);
     if (fileId && !resources.has(fileId)) resources.set(fileId, { fileId, source });
     return source;
-  });
+  }, true);
   return [...resources.values()];
 }
 

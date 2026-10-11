@@ -112,7 +112,9 @@ En **Contenido**, **Guardar recursos en servidor** guarda primero el contenido
 actual y publica las imagenes referenciadas en la configuracion guardada:
 intro, PC y movil, carrusel, historia, timeline, sellos, fondos, metadatos y
 texturas de las paletas. Incluye recursos configurados en secciones ocultas o
-paletas inactivas; no copia toda la biblioteca de Drive ni las fotos privadas
+paletas inactivas; para cada dispositivo solo incluye el modo de intro
+seleccionado, no los parametros conservados de animaciones anteriores.
+No copia toda la biblioteca de Drive ni las fotos privadas
 de invitados. Los archivos locales y externos que no son de Drive se conservan
 como estaban. HTML de LineAlive y fuentes no forman parte de esta operacion.
 
