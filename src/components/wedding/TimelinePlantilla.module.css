@@ -1,12 +1,18 @@
+.viewport { min-width: 0; width: 100%; }
 .entries {
   display: grid;
   gap: 16px;
   min-width: 0;
-  overflow-x: auto;
   padding: 4px;
   grid-auto-flow: column;
   grid-auto-columns: min(var(--timeline-width), 100%);
   align-items: stretch;
+}
+.desktop {
+  width: max-content;
+  max-width: none;
+  grid-auto-columns: var(--timeline-width);
+  margin-inline: auto;
 }
 .mobile {
   grid-auto-flow: row;

@@ -16,7 +16,7 @@ import { normalizeTimelinePlantilla } from "@/lib/timeline-layout";
 import { resolvePortadaColor } from "@/components/wedding/PortadaLibre";
 import { withTextureStyle, type PaletteTexture } from "@/lib/theme-roles";
 import templateStyles from "./TimelinePlantilla.module.css";
-import { useEffect, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 
 export type TimelineComponentKey =
   | "timeline.fecha"
@@ -312,6 +312,28 @@ export function SeccionTimeline({
   const device = viewport ? (viewport === "movil" ? "movil" : "pc") : (mobile ? "movil" : "pc");
   const template = normalizeTimelinePlantilla(plantilla);
   const puntos = buildTimelinePoints(timeline, localizaciones);
+  const templateViewportRef = useRef<HTMLDivElement>(null);
+  const templateEntriesRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const container = templateViewportRef.current;
+    const entries = templateEntriesRef.current;
+    if (!template.activa || device !== "pc" || !container || !entries) return;
+    const update = () => {
+      // scrollWidth y clientWidth no incluyen el zoom CSS aplicado a la fila.
+      const width = entries.scrollWidth;
+      if (width > 0 && container.clientWidth > 0) {
+        entries.style.zoom = String(Math.min(1, container.clientWidth / width));
+      }
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    observer.observe(entries);
+    update();
+    return () => {
+      observer.disconnect();
+      entries.style.zoom = "";
+    };
+  }, [template.activa, device, template.pc.ancho, puntos.length]);
   const showStraightLine = puntos.length > 1 && puntos.length !== 3;
   const forceMobile = viewport === "movil";
   const logoRowHeight = desktopLogoRowHeight(puntos, legacyLogoSize);
@@ -349,8 +371,10 @@ export function SeccionTimeline({
         </div>
 
         {template.activa ? (
+          <div ref={templateViewportRef} className={templateStyles.viewport}>
           <div
-            className={`${templateStyles.entries} ${device === "movil" ? templateStyles.mobile : ""}`}
+            ref={templateEntriesRef}
+            className={`${templateStyles.entries} ${device === "movil" ? templateStyles.mobile : templateStyles.desktop}`}
             style={{ "--timeline-width": `${template[device].ancho}px` } as CSSProperties}
             data-timeline-template={device}
           >
@@ -426,6 +450,7 @@ export function SeccionTimeline({
                 </article>
               );
             })}
+          </div>
           </div>
         ) : (
         <>

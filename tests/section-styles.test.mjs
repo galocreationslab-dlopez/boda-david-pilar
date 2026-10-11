@@ -8,7 +8,7 @@ import { test } from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
 
-function compile(source, imports = {}) {
+function compile(source, imports = {}, globals = {}) {
   const compiled = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -18,6 +18,7 @@ function compile(source, imports = {}) {
   }).outputText;
   const exports = {};
   vm.runInNewContext(compiled, {
+    ...globals,
     exports,
     require(id) {
       assert.ok(id in imports, `Unexpected import: ${id}`);
@@ -27,8 +28,8 @@ function compile(source, imports = {}) {
   return exports;
 }
 
-function loadModule(path, imports) {
-  return compile(readFileSync(new URL(path, import.meta.url), "utf8"), imports);
+function loadModule(path, imports, globals) {
+  return compile(readFileSync(new URL(path, import.meta.url), "utf8"), imports, globals);
 }
 
 function loadComponentStyle(path) {
@@ -82,7 +83,7 @@ for (const path of [
   });
 }
 
-const { SeccionTimeline } = loadModule("../src/components/wedding/SeccionTimeline.tsx", {
+const timelineImports = {
   react,
   "react/jsx-runtime": jsxRuntime,
   "@/components/ui/OrnamentoDivisor": { OrnamentoDivisor: () => null },
@@ -95,7 +96,73 @@ const { SeccionTimeline } = loadModule("../src/components/wedding/SeccionTimelin
   "@/lib/timeline-layout": loadModule("../src/lib/timeline-layout.ts"),
   "@/components/wedding/PortadaLibre": { resolvePortadaColor: (_mode, role, _hex, colors) => colors[role] },
   "@/lib/theme-roles": { withTextureStyle: (_key, style) => style },
-  "./TimelinePlantilla.module.css": { default: {} },
+  "./TimelinePlantilla.module.css": {
+    default: Object.fromEntries(["viewport", "entries", "desktop", "mobile", "entry", "frame", "flip", "front", "zone", "logo"].map((key) => [key, key])),
+  },
+};
+const { SeccionTimeline } = loadModule("../src/components/wedding/SeccionTimeline.tsx", timelineImports);
+
+for (const device of ["desktop", "movil"]) {
+  test(`shared timeline fits its container proportionally only on ${device}`, () => {
+    const effects = [];
+    const container = { clientWidth: 1000 };
+    const entries = { scrollWidth: 1832, style: {} };
+    const refs = [{ current: container }, { current: entries }];
+    const observers = [];
+    const { SeccionTimeline: Timeline } = loadModule("../src/components/wedding/SeccionTimeline.tsx", {
+      ...timelineImports,
+      react: {
+        ...react,
+        useRef: () => refs.shift(),
+        useEffect: (effect) => effects.push(effect),
+      },
+    }, {
+      ResizeObserver: class {
+        targets = [];
+        disconnected = false;
+        constructor(update) { this.update = update; observers.push(this); }
+        observe(target) { this.targets.push(target); }
+        disconnect() { this.disconnected = true; }
+      },
+    });
+    const html = renderToStaticMarkup(createElement(Timeline, {
+      localizaciones: [],
+      timeline: [],
+      viewport: device,
+      plantilla: { activa: true, pc: { ancho: 600 } },
+    }));
+    assert.match(html, new RegExp(`class="entries ${device === "movil" ? "mobile" : "desktop"}"`));
+    const cleanup = effects[0]();
+    if (device === "movil") {
+      assert.equal(observers.length, 0);
+      assert.equal(entries.style.zoom, undefined);
+      return;
+    }
+    const [observer] = observers;
+    assert.deepEqual(observer.targets, [container, entries]);
+    assert.equal(Number(entries.style.zoom), 1000 / 1832);
+    for (const availableWidth of [640, 768, 1100, 2000]) {
+      container.clientWidth = availableWidth;
+      observer.update();
+      const scale = Number(entries.style.zoom);
+      assert.ok(entries.scrollWidth * scale <= availableWidth + 0.001);
+      assert.ok(scale <= 1);
+    }
+    container.clientWidth = 900;
+    entries.scrollWidth = 2428;
+    observer.update();
+    assert.equal(Number(entries.style.zoom), 900 / 2428);
+    cleanup();
+    assert.equal(observer.disconnected, true);
+    assert.equal(entries.style.zoom, "");
+  });
+}
+
+test("desktop template keeps its natural dimensions for uniform scaling without a scroll container", () => {
+  const css = readFileSync(new URL("../src/components/wedding/TimelinePlantilla.module.css", import.meta.url), "utf8");
+  assert.match(css, /\.desktop\s*\{[^}]*width:\s*max-content;[^}]*grid-auto-columns:\s*var\(--timeline-width\);/);
+  assert.doesNotMatch(css, /overflow-x:\s*(auto|scroll)/);
+  assert.match(css, /\.mobile\s*\{[^}]*grid-auto-flow:\s*row;[^}]*grid-template-columns:\s*min\(var\(--timeline-width\),\s*100%\);/);
 });
 
 test("desktop timeline centers each title and description without changing mobile layout", () => {

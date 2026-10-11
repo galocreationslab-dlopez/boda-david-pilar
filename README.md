@@ -172,7 +172,11 @@ Las zonas logo, hora, título y descripción se reordenan y alinean sin posicion
 absolutas: los textos largos crecen sin solaparse. Todos los tamaños se expresan
 en px. El ancho se limita al espacio disponible; la altura mínima crece hasta
 igualar todas las entradas al contenido más alto. PC concatena horizontalmente
-con desplazamiento cuando es necesario; móvil concatena verticalmente.
+y reduce proporcionalmente la fila completa cuando no cabe en el ancho de la
+zona con textura, descontando los márgenes de la sección, sin scroll horizontal.
+La escala se recalcula al cambiar el ancho disponible o el número de entradas;
+incluye logos, textos, marcos y mapas. No se amplían las entradas por encima de
+su tamaño configurado. Móvil concatena verticalmente y conserva sus tamaños.
 Margen exterior, relleno interior y separación entre zonas son controles distintos.
 En pantallas estrechas se limitan margen y relleno para reservar espacio al mapa.
 Ocultar el marco elimina fondo y borde, pero conserva dimensiones y espacio.
